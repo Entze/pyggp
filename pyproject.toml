@@ -13,6 +13,18 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "~3.11"
 
+[tool.poetry.group.ci]
+optional = true
+
+[tool.poetry.group.ci.dependencies]
+tox = "~4.4.5"
+
+[tool.poetry.group.citests]
+optional = true
+
+[tool.poetry.group.citests.dependencies]
+tox-gh = "~1.0.0"
+
 [tool.poetry.group.dev]
 optional = true
 

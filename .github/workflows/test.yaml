@@ -10,7 +10,7 @@ on:
 
 jobs:
   tox:
-    name: "🐍 Tox (Python ${{ matrix.python-version }}, ${{ matrix.os }})"
+    name: "🐍 Tox Tests (Python ${{ matrix.python-version }}, ${{ matrix.os }})"
     timeout-minutes: 10
     strategy:
       matrix:
@@ -36,9 +36,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'
-      - run: poetry install
-      - run: python3 -m pip install --upgrade pip
-      - run: python3 -m pip install tox-gh
+      - run: poetry install --with ci citests
+      - uses: actions/cache@v3
+        with:
+          path: .tox
+          key: ${{ runner.os }}-${{ matrix.python }}-tox-${{ hashFiles('**/tox.ini') }}
       - run: poetry run tox run -m tests -vv --notest
       - run: poetry run tox run -m tests --skip-pkg-install
   coverage:

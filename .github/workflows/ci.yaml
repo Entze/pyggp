@@ -28,7 +28,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - uses: pre-commit/action@v3.0.0
   tox:
-    name: "🐍 Tox (Python ${{ matrix.python-version }}, ${{ matrix.os }})"
+    name: "🐍 Tox QA (Python ${{ matrix.python-version }}, ${{ matrix.os }})"
     timeout-minutes: 10
     strategy:
       matrix:
@@ -45,6 +45,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'
       - run: pipx install poetry
-      - run: poetry install
+      - run: poetry install --with ci
+      - uses: actions/cache@v3
+        with:
+          path: .tox
+          key: ${{ runner.os }}-${{ matrix.python }}-tox-${{ hashFiles('**/tox.ini') }}
       - run: poetry run tox run-parallel -m qa -vv --notest
       - run: poetry run tox run-parallel -m qa --skip-pkg-install
