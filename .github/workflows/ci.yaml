@@ -16,7 +16,7 @@ on:
 
 jobs:
   pre-commit:
-    name: "✅ Pre-Commit (Python ${{ matrix.python-version }}, {{ matrix.os }})"
+    name: "✅ Pre-Commit (Python ${{ matrix.python-version }}, ${{ matrix.os }})"
     timeout-minutes: 10
     strategy:
       matrix:
@@ -55,6 +55,6 @@ jobs:
       - uses: actions/cache@v3
         with:
           path: .tox
-          key: ${{ runner.os }}-${{ matrix.python }}-tox-${{ hashFiles('**/tox.ini') }}
+          key: ${{ runner.os }}-python${{ matrix.python-version }}-tox-${{ hashFiles('**/tox.ini') }}
       - run: poetry run tox run-parallel -m qa -vv --notest
       - run: poetry run tox run-parallel -m qa --skip-pkg-install
