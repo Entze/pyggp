@@ -43,6 +43,7 @@ jobs:
       - run: poetry run tox run -m tests --skip-pkg-install
   coverage:
     name: "📊 Coverage (Python ${{ matrix.python-version }}, ${{ matrix.os }})"
+    needs: tox
     timeout-minutes: 10
     strategy:
       matrix:
