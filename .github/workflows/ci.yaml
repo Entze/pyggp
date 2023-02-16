@@ -6,6 +6,11 @@ on:
       - "src/"
       - "tests/"
       - "**.md"
+      - "pyproject.toml"
+      - "poetry.lock"
+      - ".pre-commit-config.yaml"
+      - ".pymarkdown-config.json"
+      - "tox.ini"
       - ".github/workflows/ci.yaml"
   pull_request:
 
