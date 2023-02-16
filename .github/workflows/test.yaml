@@ -32,16 +32,16 @@ jobs:
         shell: bash -l {0}
     steps:
       - uses: actions/checkout@v3
+      - run: pipx install poetry
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'
-      - run: pipx install poetry
       - run: poetry install
       - run: python3 -m pip install --upgrade pip
       - run: python3 -m pip install tox-gh
-      - run: tox run --skip-env "(lint|type|format|docs)" -vv --notest
-      - run: tox run --skip-env "(lint|type|format|docs)" --skip-pkg-install
+      - run: tox run -m tests -vv --notest
+      - run: tox run -m tests --skip-pkg-install
   coverage:
     name: "📊 Coverage (Python ${{ matrix.python-version }}, ${{ matrix.os }})"
     timeout-minutes: 10
@@ -55,11 +55,11 @@ jobs:
         shell: bash -l {0}
     steps:
       - uses: actions/checkout@v3
+      - run: pipx install poetry
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'
-      - run: pipx install poetry
       - run: poetry install --with dev
       - run: poetry run coverage run -m unittest discover tests
       - run: poetry run coverage report -m
