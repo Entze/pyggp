@@ -11,7 +11,7 @@ on:
 
 jobs:
   pre-commit:
-    name: "✅ Pre-Commit (Python ${{ python-version }}, {{ matrix.os }})"
+    name: "✅ Pre-Commit (Python ${{ matrix.python-version }}, {{ matrix.os }})"
     timeout-minutes: 10
     strategy:
       matrix:
