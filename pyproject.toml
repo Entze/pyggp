@@ -14,7 +14,35 @@ readme = "README.md"
 python = "~3.11"
 
 [tool.poetry.group.dev]
+optional = true
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "~3.0.4"
 commitizen = "~2.42.0"
+mypy = "~1.0.0"
+pylint = "~2.16.2"
+coverage = "~7.1.0"
+
+[tool.black]
+line-length = 120
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+bump_message = "chore(release): v$current_version -> v$new_version"
+tag_format = "v$version"
+update_changelog_on_bump = true
+version = "0.0.0"
+version_files = ["pyproject.toml:version"]
+
+[tool.mypy]
+implicit_reexport = true
+disallow_untyped_defs = true
+disallow_any_unimported = true
+no_implicit_optional = true
+check_untyped_defs = true
+warn_return_any = true
+warn_unused_ignores = true
+show_error_codes = true
+
+[tool.pylint]
+max-line-length = 120
