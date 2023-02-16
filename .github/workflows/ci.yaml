@@ -1,0 +1,72 @@
+name: "CI"
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - "src/"
+      - "**.md"
+      - ".github/workflows/ci.yml"
+  pull_request:
+
+jobs:
+  pre-commit:
+    name: "✅ Pre-Commit (Python ${{ python-version }}, {{ matrix.os }})"
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        os: [ ubuntu-latest ]
+        python-version: [ '3.11' ]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: pre-commit/action@v3.0.0
+  pylint:
+    name: "🐍 Pylint (Python ${{ matrix.python-version }}, ${{ matrix.os }})"
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        python-version: [ '3.11' ]
+        os: [ ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v3
+      - run: pipx install poetry
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'poetry'
+      - run: poetry install --with dev
+      - run: poetry run pylint --rcfile=pyproject.toml --fail-under 9 ./src ./tests
+  mypy:
+    name: "🔍 Mypy (Python ${{ matrix.python-version }}, ${{ matrix.os }})"
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        python-version: [ '3.11' ]
+        os: [ ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v3
+      - run: pipx install poetry
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'poetry'
+      - run: poetry install --with dev
+      - run: poetry run mypy --config-file=pyproject.toml ./src
+      - run: poetry run mypy --config-file=pyproject.toml ./tests
