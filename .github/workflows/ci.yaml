@@ -26,6 +26,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+      - run: pipx install poetry
       - uses: pre-commit/action@v3.0.0
   tox:
     name: "🐍 Tox QA (Python ${{ matrix.python-version }}, ${{ matrix.os }})"
@@ -40,11 +41,11 @@ jobs:
         shell: bash -l {0}
     steps:
       - uses: actions/checkout@v3
+      - run: pipx install poetry
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'
-      - run: pipx install poetry
       - run: poetry install --with ci
       - uses: actions/cache@v3
         with:

@@ -36,7 +36,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'
-      - run: poetry install --with ci citests
+      - run: poetry install --with ci,citests
       - uses: actions/cache@v3
         with:
           path: .tox
