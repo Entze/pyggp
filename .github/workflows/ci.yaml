@@ -2,9 +2,6 @@ name: "CI"
 
 on:
   push:
-    branches:
-      - main
-      - dev
     paths:
       - "src/"
       - "tests/"
@@ -49,5 +46,5 @@ jobs:
           cache: 'poetry'
       - run: pipx install poetry
       - run: poetry install
-      - run: tox run-parallel -m qa -vv --notest
-      - run: tox run-parallel -m qa --skip-pkg-install
+      - run: poetry run tox run-parallel -m qa -vv --notest
+      - run: poetry run tox run-parallel -m qa --skip-pkg-install

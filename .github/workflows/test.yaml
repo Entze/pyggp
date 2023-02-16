@@ -1,8 +1,7 @@
 name: "Test"
+
 on:
   push:
-    branches:
-      - main
     paths:
       - "src/"
       - "tests/"
@@ -40,8 +39,8 @@ jobs:
       - run: poetry install
       - run: python3 -m pip install --upgrade pip
       - run: python3 -m pip install tox-gh
-      - run: tox run -m tests -vv --notest
-      - run: tox run -m tests --skip-pkg-install
+      - run: poetry run tox run -m tests -vv --notest
+      - run: poetry run tox run -m tests --skip-pkg-install
   coverage:
     name: "📊 Coverage (Python ${{ matrix.python-version }}, ${{ matrix.os }})"
     timeout-minutes: 10
