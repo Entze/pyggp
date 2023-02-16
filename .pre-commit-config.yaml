@@ -43,6 +43,10 @@ repos:
       - id: pymarkdown
         args: [ --config=.pymarkdown-config.json, scan, . ]
         exclude: ^.github/
+  - repo: https://github.com/tox-dev/tox-ini-fmt
+    rev: 0.6.1
+    hooks:
+      - id: tox-ini-fmt
   - repo: local
     hooks:
       - id: poetry-check
