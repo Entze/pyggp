@@ -1,11 +1,11 @@
-name: "Test"
+name: "Tests"
 
 on:
   push:
     paths:
       - "src/"
       - "tests/"
-      - ".github/workflows/test.yaml"
+      - ".github/workflows/tests.yaml"
   pull_request:
 
 jobs:
