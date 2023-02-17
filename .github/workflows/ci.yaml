@@ -56,5 +56,5 @@ jobs:
         with:
           path: .tox
           key: ${{ runner.os }}-python${{ matrix.python-version }}-tox-${{ hashFiles('**/tox.ini') }}
-      - run: poetry run tox run-parallel -m qa -vv --notest
+      - run: poetry run tox run-parallel -m qa -v --notest
       - run: poetry run tox run-parallel -m qa --skip-pkg-install

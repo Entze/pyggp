@@ -5,6 +5,7 @@ on:
     paths:
       - "src/"
       - "tests/"
+      - "tox.ini"
       - ".github/workflows/tests.yaml"
   pull_request:
 
@@ -41,7 +42,7 @@ jobs:
         with:
           path: .tox
           key: ${{ runner.os }}-python${{ matrix.python-version }}-tox-${{ hashFiles('**/tox.ini') }}
-      - run: poetry run tox run -m tests -vv --notest
+      - run: poetry run tox run -m tests -v --notest
       - run: poetry run tox run -m tests --skip-pkg-install
   coverage:
     name: "📊 Coverage (Python ${{ matrix.python-version }}, ${{ matrix.os }})"
@@ -62,10 +63,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'
-      - run: poetry install --with dev
-      - run: poetry run coverage run -m unittest discover tests
-      - run: poetry run coverage report -m
-      - run: poetry run coverage xml
+      - run: poetry install --with ci
+      - uses: actions/cache@v3
+        with:
+          path: .tox
+          key: ${{ runner.os }}-python${{ matrix.python-version }}-tox-${{ hashFiles('**/tox.ini') }}
+      - run: poetry run tox run -e coverage -v --notest
+      - run: poetry run tox run -e coverage --skip-pkg-install
       - uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
