@@ -343,7 +343,7 @@ class Relation:
             The infix string.
 
         Raises:
-            TypeError: If the argument is not a relation or a primitive subrelation.
+            TypeError: The argument is not a relation or a primitive subrelation.
 
         Examples:
             >>> Relation.to_infix_str(1)
