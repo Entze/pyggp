@@ -519,22 +519,32 @@ class Sentence:
     def to_infix_str(self, implies_symbol: str = ":-") -> str:
         """Convert the sentence to an infix string.
 
+        Converts the sentence to a string representation in infix notation.
+
         Args:
-            implies_symbol: The symbol to use to show implication. Defaults to `:-`. If the rule is a fact the
-            implication symbol is omitted.
+            implies_symbol: The symbol to use to show implication. Default: `:-`.
 
         Returns:
             The infix string representation of the sentence.
 
         Examples:
-            >>> Sentence.fact(head=Relation(name="fact")).to_infix_str()
+            >>> fact = Sentence.fact(head=Relation(name="fact"))
+            >>> fact.to_infix_str()
             'fact.'
-            >>> Sentence.rule(head=Relation(name="rule"), body=(Literal(atom=Relation(name="pos_atom")),)).to_infix_str()
+            >>> head = Relation(name="rule")
+            >>> pos_atom = Relation(name="pos_atom")
+            >>> rule = Sentence.rule(head=head, body=(Literal(atom=pos_atom),))
+            >>> rule.to_infix_str()
             'rule :- pos_atom.'
-            >>> Sentence.rule(head=Relation(name="rule"), body=(Literal(atom=Relation(name="pos_atom")), -Literal(atom=Relation(name="neg_atom")))).to_infix_str()
+            >>> neg_atom = Relation(name="neg_atom")
+            >>> body = (Literal(atom=pos_atom), -Literal(atom=neg_atom))
+            >>> rule = Sentence.rule(head=head, body=body)
+            >>> rule.to_infix_str()
             'rule :- pos_atom, not neg_atom.'
-            >>> Sentence.rule(head=Relation(name="rule"), body=(Literal(atom=Relation(name="pos_atom")), -Literal(atom=Relation(name="neg_atom")), Literal(atom=Relation(name="pos_atom2")))).to_infix_str()
-            'rule :- pos_atom, not neg_atom, pos_atom2.'
+            >>> body = (Literal(atom=pos_atom), -Literal(atom=neg_atom), Literal(atom=pos_atom))
+            >>> rule = Sentence.rule(head=head, body=body)
+            >>> rule.to_infix_str()
+            'rule :- pos_atom, not neg_atom, pos_atom.'
         """
         if self.body:
             return f"{self.head.infix_str} {implies_symbol} {', '.join(literal.infix_str for literal in self.body)}."
@@ -653,8 +663,8 @@ class Ruleset:
     def legal_rules(self) -> Sequence[Sentence]:
         """Rules used to define the legal moves.
 
-        Gather all sentences whose head matches the signature `legal/2`, and each required sentence who's head appears in
-        the body of the returned sentences.
+        Gather all sentences whose head matches the signature `legal/2`, and each required sentence who's head appears
+        in the body of the returned sentences.
 
         Returns:
             A sequence of sentences, which heads are related to `legal/2`. Sorted by the order of appearance.
@@ -679,8 +689,8 @@ class Ruleset:
     def terminal_rules(self) -> Sequence[Sentence]:
         """Rules used to define if a state is terminal.
 
-        Gather all sentences whose head matches the signature `terminal/0`, and each required sentence who's head appears in
-        the body of the returned sentences.
+        Gather all sentences whose head matches the signature `terminal/0`, and each required sentence who's head
+        appears in the body of the returned sentences.
 
         Returns:
             A sequence of sentences, which heads are related to `terminal/0`. Sorted by the order of appearance.
