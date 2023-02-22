@@ -3,8 +3,8 @@ name: "CI"
 on:
   push:
     paths:
-      - "src/"
-      - "tests/"
+      - "src/**.py"
+      - "tests/**.py"
       - "**.md"
       - "pyproject.toml"
       - "poetry.lock"

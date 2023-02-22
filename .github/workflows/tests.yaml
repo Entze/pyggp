@@ -3,8 +3,8 @@ name: "Tests"
 on:
   push:
     paths:
-      - "src/"
-      - "tests/"
+      - "src/**.py"
+      - "tests/**.py"
       - "tox.ini"
       - ".github/workflows/tests.yaml"
   pull_request:
