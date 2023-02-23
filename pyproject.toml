@@ -40,6 +40,7 @@ darglint = "~1.8.1"
 pydocstyle = "~6.3.0"
 xdoctest = "~1.1.1"
 pygments = "~2.14.0"
+docformatter = "~1.5.1"
 
 [tool.poetry.group.docs]
 optional = true
@@ -49,6 +50,14 @@ pdoc = "~12.3.1"
 
 [tool.black]
 line-length = 120
+
+[tool.docformatter]
+recursive = true
+wrap-summaries = 120
+wrap-descriptions = 120
+blank = true
+
+
 
 [tool.commitizen]
 name = "cz_conventional_commits"
