@@ -1,6 +1,91 @@
 """Definitions of basic games."""
 from pyggp.gdl import Ruleset, Relation, Sentence, Literal, Subrelation, Variable
 
+_R = Variable("R")
+_R1 = Variable("R1")
+_R2 = Variable("R2")
+_S = Variable("S")
+_S1 = Variable("S1")
+_S2 = Variable("S2")
+
+nim_ruleset: Ruleset = Ruleset(
+    (
+        # Role
+        Sentence.fact(Relation.role(Relation("first"))),
+        Sentence.fact(Relation.role(Relation("second"))),
+        # Init
+        Sentence.fact(Relation.init(Relation.control(Relation("first")))),
+        Sentence.fact(Relation.init(Relation("pile", (Relation("size", (7,)),)))),
+        # Helpers
+        *(Sentence.fact(Relation.gt(n, m)) for n in range(-1, 8) for m in range(-1, 8) if n > m),
+        *(
+            Sentence.fact(Relation.plus(n, m, o))
+            for n in range(-1, 8)
+            for m in range(-1, 8)
+            for o in range(-1, 8)
+            if n + m == o
+        ),
+        # Next
+        Sentence.rule(
+            Relation.next(Relation.control(_R1)),
+            (
+                Literal(Relation.role(_R1)),
+                Literal(Relation.role(_R2)),
+                Literal(Relation.distinct(_R1, _R2)),
+                Literal(Relation.control(_R2)),
+                Literal(Relation.true(Relation("pile", (Relation("size", (_S2,)),)))),
+                Literal(Relation.plus(_S1, _S, _S2)),
+                Literal(Relation.does(_R2, Relation("take", (_S,)))),
+                Literal(Relation.gt(_S1, 0)),
+            ),
+        ),
+        Sentence.rule(
+            Relation.next(Relation("pile", (Relation("size", (_S1,)),))),
+            (
+                Literal(Relation.role(_R)),
+                Literal(Relation.true(Relation("pile", (Relation("size", (_S2,)),)))),
+                Literal(Relation.does(_R, Relation("take", (_S,)))),
+                Literal(Relation.plus(_S1, _S, _S2)),
+            ),
+        ),
+        # Sees
+        # Legal
+        Sentence.rule(
+            Relation.legal(_R, Relation("take", (_S,))),
+            (
+                Literal(Relation.role(_R)),
+                Literal(Relation.true(Relation("pile", (Relation("size", (_S2,)),)))),
+                Literal(Relation.plus(_S1, _S, _S2)),
+                Literal(Relation.gt(_S, 0)),
+                Literal(Relation.gt(4, _S)),
+                Literal(Relation.gt(_S1, -1)),
+            ),
+        ),
+        # Goal
+        Sentence.rule(
+            Relation.goal(_R, 0),
+            (
+                Literal(Relation.role(_R)),
+                Literal(Relation.true(Relation("pile", (Relation("size", (0,)),)))),
+                -Literal(Relation.control(_R)),
+            ),
+        ),
+        Sentence.rule(
+            Relation.goal(_R, 1),
+            (
+                Literal(Relation.role(_R)),
+                Literal(Relation.true(Relation("pile", (Relation("size", (0,)),)))),
+                Literal(Relation.control(_R)),
+            ),
+        ),
+        # Terminal
+        Sentence.rule(
+            Relation.terminal(),
+            (Literal(Relation.true(Relation("pile", (Relation("size", (0,)),)))),),
+        ),
+    )
+)
+
 _x = Relation("x")
 _o = Relation("o")
 
@@ -164,9 +249,6 @@ tic_tac_toe_ruleset: Ruleset = Ruleset(
     )
 )
 
-_R = Variable("R")
-_R1 = Variable("R1")
-_R2 = Variable("R2")
 _C = Variable("C")
 _C1 = Variable("C1")
 _C2 = Variable("C2")
