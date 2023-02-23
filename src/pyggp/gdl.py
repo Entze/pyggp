@@ -17,6 +17,7 @@ from typing import (
     Set,
     Union,
     FrozenSet,
+    Mapping,
 )
 
 
@@ -457,6 +458,29 @@ See Also:
     :class:`Relation`
     :class:`PrimitiveSubrelation`
 """
+Role: TypeAlias = Subrelation
+"""Role played in a game.
+
+A role is a subrelation. It is the argument of the `role/1` relation and the first argument of the `does/2` and
+`legal/2` relations.
+"""
+Move: TypeAlias = Subrelation
+"""Move made in a game.
+
+A move is a subrelation. It is the second argument of the `does/2` and `legal/2` relations.
+"""
+Play: TypeAlias = Relation
+"""Play made in a game.
+
+Plays are relations. They are `does/2` relations.
+"""
+State: TypeAlias = FrozenSet[Relation]
+"""State of a game."""
+
+PlayRecord: TypeAlias = Mapping[int, FrozenSet[Play]]
+"""Record of plays made in each round."""
+MutablePlayRecord = MutableMapping[int, Set[Play]]
+"""Mutable record of plays made in each round."""
 
 
 class Sign(IntEnum):
@@ -779,7 +803,3 @@ class Ruleset:
         return related_rules
 
     # endregion
-
-
-State: TypeAlias = FrozenSet[Relation]
-"""State of a game."""
