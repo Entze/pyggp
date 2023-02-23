@@ -158,6 +158,10 @@ class TestRelationToInfixStr(unittest.TestCase):
         expected = "outer(1)"
         self.assertEqual(actual, expected)
 
+    def test_invalid_type(self) -> None:
+        with self.assertRaises(TypeError):
+            Relation.to_infix_str(None)  # type: ignore
+
 
 class TestArgumentSignaturesMatch(unittest.TestCase):
     def test_same(self) -> None:
@@ -224,6 +228,16 @@ class TestLiteral__neg__(unittest.TestCase):
         relation = Literal(Relation("test", ()))
         actual = -relation
         expected = Literal(Relation("test", ()), sign=Sign.NEGATIVE)
+        self.assertEqual(actual, expected)
+
+
+class TestSentence__str__(unittest.TestCase):
+    # Should be the same as ToInfixStr
+
+    def test_fact(self) -> None:
+        sentence = Sentence.fact(Relation("test", ()))
+        actual = str(sentence)
+        expected = "test."
         self.assertEqual(actual, expected)
 
 
