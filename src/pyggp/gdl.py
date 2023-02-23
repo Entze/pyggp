@@ -44,6 +44,7 @@ Primitive subrelations cannot contain other relations. They are either integers,
 
 See Also:
     :class:`Relation`
+
 """
 
 
@@ -51,6 +52,7 @@ class Signature(NamedTuple):
     """Representation of a signature.
 
     This is a named tuple, therefore it can be used like a tuple.
+
     """
 
     name: str | None
@@ -72,6 +74,7 @@ class Relation:
 
     Relations are the basic building blocks of GDL. They are self-referential --- they can contain other relations as
     arguments.
+
     """
 
     # region Attributes and Properties
@@ -154,6 +157,7 @@ class Relation:
             'outer(1, inner(2))'
             >>> Relation(name="test", arguments=(Variable("_Wildcard"),)).infix_str
             'test(_Wildcard)'
+
         """
         if self.name is None:
             return f"({', '.join(Relation.to_infix_str(arg) for arg in self.arguments)})"
@@ -174,6 +178,7 @@ class Relation:
 
         Returns:
             True if the relation matches the given signature exactly, False otherwise.
+
         """
         return name == self.name and arity == self.arity
 
@@ -191,6 +196,7 @@ class Relation:
 
         Returns:
             A `role` relation.
+
         """
         return cls(name="role", arguments=(role,))
 
@@ -206,6 +212,7 @@ class Relation:
 
         Returns:
             An `init` relation.
+
         """
         return cls(name="init", arguments=(atom,))
 
@@ -221,6 +228,7 @@ class Relation:
 
         Returns:
             A `control` relation.
+
         """
         return cls(name="control", arguments=(role,))
 
@@ -236,6 +244,7 @@ class Relation:
 
         Returns:
             A `true` relation.
+
         """
         return cls(name="true", arguments=(atom,))
 
@@ -251,6 +260,7 @@ class Relation:
 
         Returns:
             A `next` relation.
+
         """
         return cls(name="next", arguments=(atom,))
 
@@ -267,6 +277,7 @@ class Relation:
 
         Returns:
             A `does` relation.
+
         """
         return cls(name="does", arguments=(role, move))
 
@@ -283,6 +294,7 @@ class Relation:
 
         Returns:
             A `distinct` relation.
+
         """
         return cls(name="distinct", arguments=(arg1, arg2))
 
@@ -299,6 +311,7 @@ class Relation:
 
         Returns:
             A `legal` relation.
+
         """
         return cls(name="legal", arguments=(role, move))
 
@@ -315,6 +328,7 @@ class Relation:
 
         Returns:
             A `goal` relation.
+
         """
         return cls(name="goal", arguments=(role, utility))
 
@@ -327,6 +341,7 @@ class Relation:
 
         Returns:
             A `terminal` relation.
+
         """
         return cls(name="terminal", arguments=())
 
@@ -344,6 +359,7 @@ class Relation:
 
         Returns:
             A `gt` relation.
+
         """
         return cls(name="gt", arguments=(arg1, arg2))
 
@@ -366,6 +382,7 @@ class Relation:
 
         Returns:
             A `plus` relation.
+
         """
         return cls(name="plus", arguments=(summand1, summand2, sum_))
 
@@ -400,6 +417,7 @@ class Relation:
         See Also:
             :class:`Subrelation`
             :fun:`Relation.to_infix_str`
+
         """
         match arg:
             case str():
@@ -438,6 +456,7 @@ def argument_signatures_match(argument_signature1: ArgumentsSignature, argument_
         False
         >>> argument_signatures_match((1, 2), (2, None))
         False
+
     """
     if argument_signature1 == argument_signature2:
         return True
@@ -457,22 +476,26 @@ Either a relation or a primitive subrelation.
 See Also:
     :class:`Relation`
     :class:`PrimitiveSubrelation`
+
 """
 Role: TypeAlias = Subrelation
 """Role played in a game.
 
 A role is a subrelation. It is the argument of the `role/1` relation and the first argument of the `does/2` and
 `legal/2` relations.
+
 """
 Move: TypeAlias = Subrelation
 """Move made in a game.
 
 A move is a subrelation. It is the second argument of the `does/2` and `legal/2` relations.
+
 """
 Play: TypeAlias = Relation
 """Play made in a game.
 
 Plays are relations. They are `does/2` relations.
+
 """
 State: TypeAlias = FrozenSet[Relation]
 """State of a game."""
@@ -515,6 +538,7 @@ class Literal:
             'atom'
             >>> (-Literal(atom=Relation(name="atom"))).infix_str
             'not atom'
+
         """
         if self.sign == Sign.NOSIGN:
             return self.atom.infix_str
@@ -540,6 +564,7 @@ class Literal:
             Literal(atom=Relation(name='atom', arguments=()), sign=<Sign.NEGATIVE: 2>)
             >>> -(-atom)
             Literal(atom=Relation(name='atom', arguments=()), sign=<Sign.NOSIGN: 1>)
+
         """
         cls: Type[Self] = self.__class__
         return cls(atom=self.atom, sign=Sign.NEGATIVE if self.sign == Sign.NOSIGN else Sign.NOSIGN)
@@ -552,6 +577,7 @@ class Sentence:
     """Representation of a sentence.
 
     Sentences are also called rules. They are used to represent facts (without body) and (proper) rules (with body).
+
     """
 
     # region Attributes and Properties
@@ -572,6 +598,7 @@ class Sentence:
 
         Returns:
             The string representation of the sentence.
+
         """
         return self.to_infix_str()
 
@@ -608,6 +635,7 @@ class Sentence:
             >>> rule = Sentence.rule(head=head, body=body)
             >>> rule.to_infix_str()
             'rule :- pos_atom, not neg_atom, pos_atom.'
+
         """
         if self.body:
             return f"{self.head.infix_str} {implies_symbol} {', '.join(literal.infix_str for literal in self.body)}."
@@ -628,6 +656,7 @@ class Sentence:
 
         Returns:
             A fact.
+
         """
         return cls(head=head, body=())
 
@@ -643,6 +672,7 @@ class Sentence:
 
         Returns:
             A rule.
+
         """
         return cls(head=head, body=body)
 
@@ -659,6 +689,7 @@ class Ruleset:
     """Representation of a ruleset.
 
     Rulesets are an ordered collection of sentences. Rulesets are used to represent games in GDL.
+
     """
 
     # region Attributes and Properties
@@ -667,6 +698,7 @@ class Ruleset:
     """Rules of the ruleset.
 
     Despite the name, this is not actually a set, as the order of the rules is important.
+
     """
     _rules_by_head_signature: _RuleSignatureMutableMapping = field(init=False, default_factory=dict)
 
@@ -679,6 +711,7 @@ class Ruleset:
 
         Returns:
             A sequence of sentences, which heads are related to `role/1`. Sorted by the order of appearance.
+
         """
         role_rules = self._get_related_rules_by_signature(name="role", arity=1)
         return sorted(role_rules, key=self.rules.index)
@@ -692,6 +725,7 @@ class Ruleset:
 
         Returns:
             A sequence of sentences, which heads are related to `init/1`. Sorted by the order of appearance.
+
         """
         init_rules = self._get_related_rules_by_signature(name="init", arity=1)
         return sorted(init_rules, key=self.rules.index)
@@ -705,6 +739,7 @@ class Ruleset:
 
         Returns:
             A sequence of sentences, which heads are related to `next/1`. Sorted by the order of appearance.
+
         """
         next_rules = self._get_related_rules_by_signature(name="next", arity=1)
         return sorted(next_rules, key=self.rules.index)
@@ -718,6 +753,7 @@ class Ruleset:
 
         Returns:
             A sequence of sentences, which heads are related to `sees/2`. Sorted by the order of appearance.
+
         """
         sees_rules = self._get_related_rules_by_signature(name="sees", arity=2)
         return sorted(sees_rules, key=self.rules.index)
@@ -731,6 +767,7 @@ class Ruleset:
 
         Returns:
             A sequence of sentences, which heads are related to `legal/2`. Sorted by the order of appearance.
+
         """
         legal_rules = self._get_related_rules_by_signature(name="legal", arity=2)
         return sorted(legal_rules, key=self.rules.index)
@@ -744,6 +781,7 @@ class Ruleset:
 
         Returns:
             A sequence of sentences, which heads are related to `goal/2`. Sorted by the order of appearance.
+
         """
         goal_rules = self._get_related_rules_by_signature(name="goal", arity=2)
         return sorted(goal_rules, key=self.rules.index)
@@ -757,6 +795,7 @@ class Ruleset:
 
         Returns:
             A sequence of sentences, which heads are related to `terminal/0`. Sorted by the order of appearance.
+
         """
         terminal_rules = self._get_related_rules_by_signature(name="terminal", arity=0)
         return sorted(terminal_rules, key=self.rules.index)

@@ -8,14 +8,30 @@ from typing import Type
 
 @dataclass(frozen=True)
 class GameClockConfiguration:
-    """Configuration for a game clock. All units are in seconds."""
+    """Configuration for a game clock.
+
+    All units are in seconds.
+
+    """
 
     total_time: float = 0.0
-    """Total time in seconds. This is the time that will be decremented."""
+    """Total time in seconds.
+
+    This is the time that will be decremented.
+
+    """
     increment: float = 0.0
-    """Increment in seconds. This is the time that will be added to the total time after each move."""
+    """Increment in seconds.
+
+    This is the time that will be added to the total time after each move.
+
+    """
     delay: float = 60.0
-    """Delay in seconds. This is the time that will be removed from the delta of the move."""
+    """Delay in seconds.
+
+    This is the time that will be removed from the delta of the move.
+
+    """
 
 
 class GameClock(AbstractContextManager[int]):
@@ -33,6 +49,7 @@ class GameClock(AbstractContextManager[int]):
         100000000
         >>> game_clock.is_expired
         True
+
     """
 
     def __init__(self, game_clock_config: GameClockConfiguration) -> None:
@@ -43,6 +60,7 @@ class GameClock(AbstractContextManager[int]):
 
         See Also:
             :class:`GameClockConfig`
+
         """
         self._total_time_ns = int(game_clock_config.total_time * 1e9)
         self._increment = game_clock_config.increment
@@ -59,6 +77,7 @@ class GameClock(AbstractContextManager[int]):
 
         Returns:
             The current total time left in nanoseconds.
+
         """
         self.start()
         return self._total_time_ns
@@ -74,6 +93,7 @@ class GameClock(AbstractContextManager[int]):
 
         Returns:
             A string representation of the game clock.
+
         """
         if self.is_expired:
             return f"0 | {self.__increment_repr} d{self.__delay_repr}"
@@ -128,6 +148,7 @@ class GameClock(AbstractContextManager[int]):
         See Also:
             :meth:`stop`
             :meth:`__enter__`
+
         """
         self.__start = time.monotonic_ns()
 
@@ -137,6 +158,7 @@ class GameClock(AbstractContextManager[int]):
         See Also:
             :meth:`start`
             :meth:`__exit__`
+
         """
         stop = time.monotonic_ns()
         if self.__start is not None:
@@ -157,5 +179,6 @@ class GameClock(AbstractContextManager[int]):
 
         Returns:
             The timeout in seconds.
+
         """
         return max(0.0, self.total_time + self._delay + slack)
