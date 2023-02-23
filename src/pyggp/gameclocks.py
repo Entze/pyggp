@@ -7,14 +7,14 @@ from typing import Type
 
 
 @dataclass(frozen=True)
-class GameClockConfig:
+class GameClockConfiguration:
     """Configuration for a game clock. All units are in seconds."""
 
-    total_time: float
+    total_time: float = 0.0
     """Total time in seconds. This is the time that will be decremented."""
-    increment: float
+    increment: float = 0.0
     """Increment in seconds. This is the time that will be added to the total time after each move."""
-    delay: float
+    delay: float = 60.0
     """Delay in seconds. This is the time that will be removed from the delta of the move."""
 
 
@@ -25,7 +25,7 @@ class GameClock(AbstractContextManager[int]):
     statement to start the game clock. The game clock will automatically stop when the with statement exits.
 
     Example:
-        >>> game_clock_config = GameClockConfig(total_time=0.1, increment=0.0, delay=0.0)
+        >>> game_clock_config = GameClockConfiguration(total_time=0.1, increment=0.0, delay=0.0)
         >>> game_clock = GameClock(game_clock_config)
         >>> with game_clock as total_time_left_ns:
         ...     time.sleep(0.2)
@@ -35,7 +35,7 @@ class GameClock(AbstractContextManager[int]):
         True
     """
 
-    def __init__(self, game_clock_config: GameClockConfig) -> None:
+    def __init__(self, game_clock_config: GameClockConfiguration) -> None:
         """Create a new game clock.
 
         Args:
