@@ -329,6 +329,45 @@ class Relation:
         """
         return cls(name="terminal", arguments=())
 
+    # pylint: disable=invalid-name
+    @classmethod
+    def gt(cls, arg1: Self | PrimitiveSubrelation, arg2: Self | PrimitiveSubrelation) -> Self:
+        """Create a `gt` relation.
+
+        Returns a relation with the name `gt` and the given arguments. Gt relations are used to represent that the first
+        argument is greater than the second argument.
+
+        Args:
+            arg1: The first argument.
+            arg2: The second argument.
+
+        Returns:
+            A `gt` relation.
+        """
+        return cls(name="gt", arguments=(arg1, arg2))
+
+    @classmethod
+    def plus(
+        cls,
+        summand1: Self | PrimitiveSubrelation,
+        summand2: Self | PrimitiveSubrelation,
+        sum_: Self | PrimitiveSubrelation,
+    ) -> Self:
+        """Create a `plus` relation.
+
+        Returns a relation with the name `plus` and the given arguments. Plus relations are used to represent the
+        addition of two arguments.
+
+        Args:
+            summand1: The first summand.
+            summand2: The second summand.
+            sum_: The sum.
+
+        Returns:
+            A `plus` relation.
+        """
+        return cls(name="plus", arguments=(summand1, summand2, sum_))
+
     # endregion
 
     # region Static Methods
