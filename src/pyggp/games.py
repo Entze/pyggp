@@ -181,8 +181,8 @@ tic_tac_toe_ruleset: Ruleset = Ruleset(
         Sentence.rule(
             _open,
             (
-                Literal(_cell(__M, __N)),
-                -Literal(Relation.true(_cell(__M, __N, _P1))),
+                Literal(_cell(_M, _N)),
+                -Literal(Relation.true(_cell(_M, _N, __P))),
             ),
         ),
         # Next
@@ -207,7 +207,7 @@ tic_tac_toe_ruleset: Ruleset = Ruleset(
         # Legal
         Sentence.rule(
             Relation.legal(_P, _cell(_M, _N)),
-            (Literal(Relation.role(_P)), Literal(_cell(_M, _N)), Literal(Relation.true(_cell(_M, _N, _P)))),
+            (Literal(Relation.role(_P)), Literal(_cell(_M, _N)), -Literal(Relation.true(_cell(_M, _N, __P)))),
         ),
         # Goal
         Sentence.rule(
