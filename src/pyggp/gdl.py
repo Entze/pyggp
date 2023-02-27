@@ -320,6 +320,18 @@ class Relation:
         return cls(name="role", arguments=(role,))
 
     @classmethod
+    def random(cls) -> Self:
+        """Create a `random` relation.
+
+        Returns a relation with the name `random`. Usually used for the `random` role, for GDL-II games.
+
+        Returns:
+            A `random` relation.
+
+        """
+        return cls(name="random")
+
+    @classmethod
     def init(cls, atom: Self) -> Self:
         """Create an `init` relation.
 
@@ -352,7 +364,7 @@ class Relation:
         return cls(name="control", arguments=(role,))
 
     @classmethod
-    def true(cls, atom: Self) -> Self:
+    def true(cls, atom: Self | PrimitiveSubrelation) -> Self:
         """Create a `true` relation.
 
         Returns a relation with the name `true` and the given argument. True relations are used to represent the current
@@ -416,6 +428,23 @@ class Relation:
 
         """
         return cls(name="distinct", arguments=(arg1, arg2))
+
+    @classmethod
+    def sees(cls, role: Self | PrimitiveSubrelation, atom: Self | PrimitiveSubrelation) -> Self:
+        """Create a `sees` relation.
+
+        Returns a relation with the name `sees` and the given arguments. Sees relations are used to represent that a
+        relation is part of a role's view.
+
+        Args:
+            role: The role.
+            atom: The relation.
+
+        Returns:
+            A `sees` relation.
+
+        """
+        return cls(name="sees", arguments=(role, atom))
 
     @classmethod
     def legal(cls, role: Self | PrimitiveSubrelation, move: Self | PrimitiveSubrelation) -> Self:

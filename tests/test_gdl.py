@@ -683,6 +683,7 @@ class TestRulesetGoalRules(unittest.TestCase):
         P1 = Variable("P1")
         P2 = Variable("P2")
         P = Variable("P")
+        _P = Variable("_P")
         M = Variable("M")
         N = Variable("N")
         _M = Variable("_M")
@@ -741,8 +742,8 @@ class TestRulesetGoalRules(unittest.TestCase):
             Sentence.rule(
                 Relation("open"),
                 (
-                    Literal(Relation("cell", (_M, _N))),
-                    -Literal(Relation.true(Relation("cell", (_M, _N, P1)))),
+                    Literal(Relation("cell", (M, N))),
+                    -Literal(Relation.true(Relation("cell", (M, N, _P)))),
                 ),
             ),
             Sentence.rule(
