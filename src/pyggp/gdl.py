@@ -110,6 +110,7 @@ _SubargumentsSignature: TypeAlias = Tuple[str | None, Tuple[Union[int, str, None
 ArgumentsSignature: TypeAlias = Tuple[int | str | None | _SubargumentsSignature, ...]
 
 
+# pylint: disable=too-many-public-methods
 @dataclass(frozen=True)
 class Relation:
     """Representation of a relation.
