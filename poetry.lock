@@ -307,6 +307,21 @@ files = [
 cffi = "*"
 
 [[package]]
+name = "clingox"
+version = "1.2.0"
+description = "Support library for clingo."
+category = "main"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "clingox-1.2.0-py3-none-any.whl", hash = "sha256:b3e1f338a8b1cca70543009fcef9f9c324036728b2a53a8a35c0208ef3008b1a"},
+    {file = "clingox-1.2.0.tar.gz", hash = "sha256:656006bc44266c2dc9301d333f76dbbc9a1359a3547eee91a4bcac5782320df9"},
+]
+
+[package.dependencies]
+clingo = ">=5.5"
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 description = "Cross-platform colored terminal text."
@@ -1289,4 +1304,4 @@ tests-strict = ["codecov (==2.0.15)", "pytest (==4.6.0)", "pytest (==4.6.0)", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11"
-content-hash = "3ef41a3e6f2fda72f40517e6aa3ef3072ab5aff01839dcf9449364b3c5578ea5"
+content-hash = "45e44708c62c54f49065b448ec6a344c19852c31387f70a495f43f50dbaf7747"
