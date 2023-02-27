@@ -11,19 +11,19 @@ _loc = clingo.ast.Location(_pos, _pos)
 
 
 class TestVariable__str__(TestCase):
-    def test_var(self):
+    def test_var(self) -> None:
         variable = Variable("X")
         actual = str(variable)
         expected = "X"
         self.assertEqual(actual, expected)
 
-    def test_wildcard(self):
+    def test_wildcard(self) -> None:
         variable = Variable("_")
         actual = str(variable)
         expected = "_"
         self.assertEqual(actual, expected)
 
-    def test_named_wildcard(self):
+    def test_named_wildcard(self) -> None:
         variable = Variable("_X")
         actual = str(variable)
         expected = "_X"
@@ -51,25 +51,25 @@ class TestVariableToClingoAST(TestCase):
 
 
 class TestRelation__str__(TestCase):
-    def test_atom(self):
+    def test_atom(self) -> None:
         relation = Relation("test", ())
         actual = str(relation)
         expected = "test"
         self.assertEqual(actual, expected)
 
-    def test_empty_tuple(self):
+    def test_empty_tuple(self) -> None:
         relation = Relation()
         actual = str(relation)
         expected = "()"
         self.assertEqual(actual, expected)
 
-    def test_2tuple(self):
+    def test_2tuple(self) -> None:
         relation = Relation(arguments=(1, 2))
         actual = str(relation)
         expected = "(1, 2)"
         self.assertEqual(actual, expected)
 
-    def test_nested(self):
+    def test_nested(self) -> None:
         relation = Relation(name="outer", arguments=(1, Relation("test", ())))
         actual = str(relation)
         expected = "outer(1, test)"

@@ -655,7 +655,7 @@ class Literal:
         cls: Type[Self] = self.__class__
         return cls(atom=self.atom, sign=Sign.NEGATIVE if self.sign == Sign.NOSIGN else Sign.NOSIGN)
 
-    def __str__(self):
+    def __str__(self) -> str:
         """String representation of the literal.
 
         Returns the infix representation of the literal.
