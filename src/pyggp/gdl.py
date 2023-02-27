@@ -20,6 +20,11 @@ from typing import (
     Mapping,
 )
 
+import clingo.ast
+
+_pos = clingo.ast.Position("<string>", 0, 0)
+_loc = clingo.ast.Location(_pos, _pos)
+
 
 @dataclass(frozen=True)
 class Variable:
@@ -34,6 +39,11 @@ class Variable:
         """Infix string representation of the variable."""
         return self.name
 
+    @property
+    def is_wildcard(self) -> bool:
+        """Whether the variable is a wildcard variable."""
+        return self.name.startswith("_")
+
     # endregion
 
     # region Magic Methods
@@ -46,10 +56,20 @@ class Variable:
 
         See Also:
             :attr:`infix_str`
+
         """
         return self.infix_str
 
     # endregion
+
+    # region Methods
+
+    def to_clingo_ast(self) -> clingo.ast.AST:
+        if self.is_wildcard:
+            return clingo.ast.Variable(_loc, "_")
+        return clingo.ast.Variable(_loc, self.name)
+
+    # end region
 
 
 PrimitiveSubrelation: TypeAlias = int | str | Variable
@@ -212,6 +232,24 @@ class Relation:
 
         """
         return name == self.name and arity == self.arity
+
+    def to_clingo_ast(self) -> clingo.ast.AST:
+        arguments = []
+        for argument in self.arguments:
+            match argument:
+                case int():
+                    arguments.append(clingo.ast.SymbolicTerm(_loc, clingo.Number(argument)))
+                case str():
+                    arguments.append(clingo.ast.SymbolicTerm(_loc, clingo.String(argument)))
+                case Variable() | Relation():
+                    arguments.append(argument.to_clingo_ast())
+                case _:
+                    raise TypeError(f"Invalid argument type: {type(argument).__name__}")
+        if self.name is None:
+            name = ""
+        else:
+            name = self.name
+        return clingo.ast.Function(_loc, name, arguments, False)
 
     # endregion
 
@@ -613,6 +651,33 @@ class Literal:
 
     # endregion
 
+    # region Methods
+
+    def to_clingo_ast(self) -> clingo.ast.AST:
+        match self.sign:
+            case Sign.NOSIGN:
+                sign = clingo.ast.Sign.NoSign
+                comparison = clingo.ast.ComparisonOperator.NotEqual
+            case Sign.NEGATIVE:
+                sign = clingo.ast.Sign.Negation
+                comparison = clingo.ast.ComparisonOperator.Equal
+            case _:
+                raise TypeError(f"Invalid sign {self.sign}.")
+        if self.atom.match("distinct", 2):
+            term = self.atom.to_clingo_ast()
+            arguments = term.arguments
+            left = arguments[0]
+            right = arguments[1]
+            return clingo.ast.Literal(
+                _loc,
+                sign=clingo.ast.Sign.NoSign,
+                atom=clingo.ast.Comparison(left, (clingo.ast.Guard(comparison, right),)),
+            )
+
+        return clingo.ast.Literal(_loc, sign=sign, atom=clingo.ast.SymbolicAtom(self.atom.to_clingo_ast()))
+
+    # endregion
+
 
 @dataclass(frozen=True)
 class Sentence:
@@ -682,6 +747,15 @@ class Sentence:
         if self.body:
             return f"{self.head.infix_str} {implies_symbol} {', '.join(literal.infix_str for literal in self.body)}."
         return f"{self.head.infix_str}."
+
+    def to_clingo_ast(self) -> clingo.ast.AST:
+        return clingo.ast.Rule(
+            _loc,
+            head=clingo.ast.Literal(
+                _loc, sign=clingo.ast.Sign.NoSign, atom=clingo.ast.SymbolicAtom(self.head.to_clingo_ast())
+            ),
+            body=tuple(literal.to_clingo_ast() for literal in self.body),
+        )
 
     # endregion
 

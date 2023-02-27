@@ -2,7 +2,12 @@
 import unittest
 from unittest import TestCase
 
+import clingo.ast
+
 from pyggp.gdl import Relation, Sentence, Literal, Sign, Variable, argument_signatures_match
+
+_pos = clingo.ast.Position("<string>", 0, 0)
+_loc = clingo.ast.Location(_pos, _pos)
 
 
 class TestVariable__str__(TestCase):
@@ -22,6 +27,26 @@ class TestVariable__str__(TestCase):
         variable = Variable("_X")
         actual = str(variable)
         expected = "_X"
+        self.assertEqual(actual, expected)
+
+
+class TestVariableToClingoAST(TestCase):
+    def test_var(self) -> None:
+        variable = Variable("X")
+        actual = variable.to_clingo_ast()
+        expected = clingo.ast.Variable(_loc, "X")
+        self.assertEqual(actual, expected)
+
+    def test_wildcard(self) -> None:
+        variable = Variable("_")
+        actual = variable.to_clingo_ast()
+        expected = clingo.ast.Variable(_loc, "_")
+        self.assertEqual(actual, expected)
+
+    def test_named_wildcard(self) -> None:
+        variable = Variable("_X")
+        actual = variable.to_clingo_ast()
+        expected = clingo.ast.Variable(_loc, "_")
         self.assertEqual(actual, expected)
 
 
@@ -209,6 +234,41 @@ class TestRelationToInfixStr(unittest.TestCase):
             Relation.to_infix_str(None)  # type: ignore
 
 
+class TestRelationToClingoAST(unittest.TestCase):
+    def test_atom(self) -> None:
+        relation = Relation("test", ())
+        actual = relation.to_clingo_ast()
+        expected = clingo.ast.Function(_loc, name="test", arguments=(), external=False)
+        self.assertEqual(actual, expected)
+
+    def test_empty_tuple(self) -> None:
+        relation = Relation()
+        actual = relation.to_clingo_ast()
+        expected = clingo.ast.Function(_loc, name="", arguments=(), external=False)
+        self.assertEqual(actual, expected)
+
+    def test_nested(self) -> None:
+        relation = Relation(name="nested", arguments=(1, "two", Relation("three"), Variable("Four")))
+        actual = relation.to_clingo_ast()
+        expected = clingo.ast.Function(
+            _loc,
+            name="nested",
+            arguments=(
+                clingo.ast.SymbolicTerm(_loc, clingo.Number(1)),
+                clingo.ast.SymbolicTerm(_loc, clingo.String("two")),
+                clingo.ast.Function(_loc, name="three", arguments=(), external=False),
+                clingo.ast.Variable(_loc, name="Four"),
+            ),
+            external=False,
+        )
+        self.assertEqual(actual, expected)
+
+    def test_invalid_type(self) -> None:
+        with self.assertRaises(TypeError):
+            relation = Relation("test", (None,))  # type: ignore
+            relation.to_clingo_ast()
+
+
 class TestArgumentSignaturesMatch(unittest.TestCase):
     def test_same(self) -> None:
         arg_sig1 = (1, 2)
@@ -269,6 +329,72 @@ class TestLiteralInfixStr(unittest.TestCase):
         self.assertEqual(actual, expected)
 
 
+class TestLiteralToClingoAST(unittest.TestCase):
+    def test_posatom(self) -> None:
+        relation = Relation("test", ())
+        literal = Literal(relation)
+        actual = literal.to_clingo_ast()
+        expected = clingo.ast.Literal(
+            _loc,
+            sign=clingo.ast.Sign.NoSign,
+            atom=clingo.ast.SymbolicAtom(clingo.ast.Function(_loc, name="test", arguments=(), external=False)),
+        )
+        self.assertEqual(actual, expected)
+
+    def test_negatom(self) -> None:
+        relation = Relation("test", ())
+        literal = Literal(relation, sign=Sign.NEGATIVE)
+        actual = literal.to_clingo_ast()
+        expected = clingo.ast.Literal(
+            _loc,
+            sign=clingo.ast.Sign.Negation,
+            atom=clingo.ast.SymbolicAtom(clingo.ast.Function(_loc, name="test", arguments=(), external=False)),
+        )
+        self.assertEqual(actual, expected)
+
+    def test_distinct(self) -> None:
+        relation = Relation("distinct", (1, 2))
+        literal = Literal(relation)
+        actual = literal.to_clingo_ast()
+        expected = clingo.ast.Literal(
+            _loc,
+            sign=clingo.ast.Sign.NoSign,
+            atom=clingo.ast.Comparison(
+                clingo.ast.SymbolicTerm(_loc, clingo.Number(1)),
+                (
+                    clingo.ast.Guard(
+                        clingo.ast.ComparisonOperator.NotEqual, clingo.ast.SymbolicTerm(_loc, clingo.Number(2))
+                    ),
+                ),
+            ),
+        )
+        self.assertEqual(actual, expected)
+
+    def test_equal(self) -> None:
+        relation = Relation("distinct", (1, 2))
+        literal = -Literal(relation)
+        actual = literal.to_clingo_ast()
+        expected = clingo.ast.Literal(
+            _loc,
+            sign=clingo.ast.Sign.NoSign,
+            atom=clingo.ast.Comparison(
+                clingo.ast.SymbolicTerm(_loc, clingo.Number(1)),
+                (
+                    clingo.ast.Guard(
+                        clingo.ast.ComparisonOperator.Equal, clingo.ast.SymbolicTerm(_loc, clingo.Number(2))
+                    ),
+                ),
+            ),
+        )
+        self.assertEqual(actual, expected)
+
+    def test_invalid_type(self) -> None:
+        relation = Relation("test")
+        literal = Literal(relation, sign=None)  # type: ignore
+        with self.assertRaises(TypeError):
+            literal.to_clingo_ast()
+
+
 class TestLiteral__neg__(unittest.TestCase):
     def test_atom(self) -> None:
         relation = Literal(Relation("test", ()))
@@ -300,6 +426,66 @@ class TestSentence__str__(unittest.TestCase):
         sentence = Sentence.fact(Relation("test", ()))
         actual = str(sentence)
         expected = "test."
+        self.assertEqual(actual, expected)
+
+
+class TestSentenceToClingoAST(unittest.TestCase):
+    def test_fact(self) -> None:
+        sentence = Sentence.fact(Relation("test", ()))
+        actual = sentence.to_clingo_ast()
+        expected = clingo.ast.Rule(
+            _loc,
+            head=clingo.ast.Literal(
+                _loc,
+                sign=clingo.ast.Sign.NoSign,
+                atom=clingo.ast.SymbolicAtom(clingo.ast.Function(_loc, name="test", arguments=(), external=False)),
+            ),
+            body=(),
+        )
+        self.assertEqual(actual, expected)
+
+    def test_rule_one_pos(self) -> None:
+        sentence = Sentence.rule(Relation("test", ()), (Literal(Relation("pos_atom", ())),))
+        actual = sentence.to_clingo_ast()
+        expected = clingo.ast.Rule(
+            _loc,
+            head=clingo.ast.Literal(
+                _loc,
+                sign=clingo.ast.Sign.NoSign,
+                atom=clingo.ast.SymbolicAtom(clingo.ast.Function(_loc, name="test", arguments=(), external=False)),
+            ),
+            body=(
+                clingo.ast.Literal(
+                    _loc,
+                    sign=clingo.ast.Sign.NoSign,
+                    atom=clingo.ast.SymbolicAtom(
+                        clingo.ast.Function(_loc, name="pos_atom", arguments=(), external=False)
+                    ),
+                ),
+            ),
+        )
+        self.assertEqual(actual, expected)
+
+    def test_rule_one_neg(self) -> None:
+        sentence = Sentence.rule(Relation("test", ()), (Literal(Relation("neg_atom", ()), sign=Sign.NEGATIVE),))
+        actual = sentence.to_clingo_ast()
+        expected = clingo.ast.Rule(
+            _loc,
+            head=clingo.ast.Literal(
+                _loc,
+                sign=clingo.ast.Sign.NoSign,
+                atom=clingo.ast.SymbolicAtom(clingo.ast.Function(_loc, name="test", arguments=(), external=False)),
+            ),
+            body=(
+                clingo.ast.Literal(
+                    _loc,
+                    sign=clingo.ast.Sign.Negation,
+                    atom=clingo.ast.SymbolicAtom(
+                        clingo.ast.Function(_loc, name="neg_atom", arguments=(), external=False)
+                    ),
+                ),
+            ),
+        )
         self.assertEqual(actual, expected)
 
 
