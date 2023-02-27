@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 """Classes and functions for working with GDL.
 
 This includes the necessary classes and functions for representing GDL programs.
@@ -267,6 +268,38 @@ class Relation:
         else:
             name = self.name
         return clingo.ast.Function(_loc, name, arguments, False)
+
+    def to_clingo_symbol(self) -> clingo.Symbol:
+        """Convert the relation to semantically equivalent clingo symbol.
+
+        Note that variables cannot semantically not be converted to clingo symbols.
+
+        Returns:
+            The clingo symbol representation of the relation.
+
+        Raises:
+            TypeError: The relation contains an argument of an invalid type.
+            ValueError: The relation contains a variable.
+
+        """
+        arguments = []
+        for argument in self.arguments:
+            match argument:
+                case int():
+                    arguments.append(clingo.Number(argument))
+                case str():
+                    arguments.append(clingo.String(argument))
+                case Relation():
+                    arguments.append(argument.to_clingo_symbol())
+                case Variable():
+                    raise ValueError("Cannot convert relation with variables to clingo symbol.")
+                case _:
+                    raise TypeError(f"Invalid argument type: {type(argument).__name__}")
+        if self.name is None:
+            name = ""
+        else:
+            name = self.name
+        return clingo.Function(name, arguments)
 
     # endregion
 

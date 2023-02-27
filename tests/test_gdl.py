@@ -269,6 +269,36 @@ class TestRelationToClingoAST(unittest.TestCase):
             relation.to_clingo_ast()
 
 
+class TestRelationToClingoSymbol(TestCase):
+    def test_atom(self) -> None:
+        relation = Relation("test", ())
+        actual = relation.to_clingo_symbol()
+        expected = clingo.Function("test")
+        self.assertEqual(actual, expected)
+
+    def test_empty_tuple(self) -> None:
+        relation = Relation()
+        actual = relation.to_clingo_symbol()
+        expected = clingo.Function("")
+        self.assertEqual(actual, expected)
+
+    def test_nested(self) -> None:
+        relation = Relation(name="nested", arguments=(1, "two", Relation("three")))
+        actual = relation.to_clingo_symbol()
+        expected = clingo.Function("nested", [clingo.Number(1), clingo.String("two"), clingo.Function("three")])
+        self.assertEqual(actual, expected)
+
+    def test_with_variable(self) -> None:
+        relation = Relation(name="nested", arguments=(Variable("x"),))
+        with self.assertRaises(ValueError):
+            relation.to_clingo_symbol()
+
+    def test_invalid_type(self) -> None:
+        relation = Relation("test", (None,))  # type: ignore
+        with self.assertRaises(TypeError):
+            relation.to_clingo_symbol()
+
+
 class TestArgumentSignaturesMatch(unittest.TestCase):
     def test_same(self) -> None:
         arg_sig1 = (1, 2)
