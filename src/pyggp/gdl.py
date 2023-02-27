@@ -597,6 +597,45 @@ See Also:
     :class:`PrimitiveSubrelation`
 
 """
+
+
+def from_clingo_symbol(symbol: clingo.Symbol) -> Subrelation:
+    """Convert a clingo symbol to a semantically equivalent Subrelation.
+
+    Returns:
+        A Subrelation.
+
+    Examples:
+        >>> from_clingo_symbol(clingo.Number(1))
+        1
+        >>> from_clingo_symbol(clingo.String("s"))
+        's'
+        >>> from_clingo_symbol(clingo.Function("atom"))
+        Relation(name='atom', arguments=())
+        >>> symbol = clingo.Function("nested", (clingo.Number(1), clingo.String("two"), clingo.Function("three")))
+        >>> symbol
+        Function('nested', [Number(1), String('two'), Function('three', [], True)], True)
+        >>> from_clingo_symbol(symbol)
+        Relation(name='nested', arguments=(1, 'two', Relation(name='three', arguments=())))
+
+    Raises:
+        TypeError: The symbol cannot be converted to a Subrelation.
+
+    """
+    if symbol.type == clingo.SymbolType.Number:
+        return symbol.number
+    if symbol.type == clingo.SymbolType.String:
+        return symbol.string
+    if symbol.type == clingo.SymbolType.Function:
+        arguments = tuple(from_clingo_symbol(argument) for argument in symbol.arguments)
+        if symbol.name == "":
+            name = None
+        else:
+            name = symbol.name
+        return Relation(name=name, arguments=arguments)
+    raise TypeError(f"Cannot convert {symbol} of type {type(symbol).__name__} to a Subrelation.")  # pragma: no cover
+
+
 Role: TypeAlias = Subrelation
 """Role played in a game.
 

@@ -4,7 +4,7 @@ from unittest import TestCase
 
 import clingo.ast
 
-from pyggp.gdl import Relation, Sentence, Literal, Sign, Variable, argument_signatures_match
+from pyggp.gdl import Relation, Sentence, Literal, Sign, Variable, argument_signatures_match, from_clingo_symbol
 
 _pos = clingo.ast.Position("<string>", 0, 0)
 _loc = clingo.ast.Location(_pos, _pos)
@@ -340,6 +340,38 @@ class TestArgumentSignaturesMatch(unittest.TestCase):
         arg_sig2 = (1, 2)
         actual = argument_signatures_match(arg_sig1, arg_sig2)
         expected = False
+        self.assertEqual(actual, expected)
+
+
+class TestFromClingoSymbol(TestCase):
+    def test_atom(self) -> None:
+        symbol = clingo.Function("test")
+        actual = from_clingo_symbol(symbol)
+        expected = Relation("test", ())
+        self.assertEqual(actual, expected)
+
+    def test_number(self) -> None:
+        symbol = clingo.Number(1)
+        actual = from_clingo_symbol(symbol)
+        expected = 1
+        self.assertEqual(actual, expected)
+
+    def test_string(self) -> None:
+        symbol = clingo.String("test")
+        actual = from_clingo_symbol(symbol)
+        expected = "test"
+        self.assertEqual(actual, expected)
+
+    def test_nested(self) -> None:
+        symbol = clingo.Function("nested", [clingo.Number(1), clingo.String("two"), clingo.Function("three")])
+        actual = from_clingo_symbol(symbol)
+        expected = Relation("nested", (1, "two", Relation("three")))
+        self.assertEqual(actual, expected)
+
+    def test_empty_tuple(self) -> None:
+        symbol = clingo.Function("")
+        actual = from_clingo_symbol(symbol)
+        expected = Relation()
         self.assertEqual(actual, expected)
 
 
