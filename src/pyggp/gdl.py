@@ -36,6 +36,21 @@ class Variable:
 
     # endregion
 
+    # region Magic Methods
+
+    def __str__(self) -> str:
+        """Return the infix string representation of the variable.
+
+        Returns:
+            The infix string representation of the variable.
+
+        See Also:
+            :attr:`infix_str`
+        """
+        return self.infix_str
+
+    # endregion
+
 
 PrimitiveSubrelation: TypeAlias = int | str | Variable
 """Type alias for subrelations, that are not self-referential.
@@ -164,6 +179,22 @@ class Relation:
         if self.arity == 0:
             return self.name
         return f"{self.name}({', '.join(Relation.to_infix_str(arg) for arg in self.arguments)})"
+
+    # endregion
+
+    # region Magic Methods
+
+    def __str__(self) -> str:
+        """String representation of the relation in infix notation.
+
+        Returns:
+            The relation as string in infix notation.
+
+        See Also:
+            :attr:`infix_str`
+
+        """
+        return self.infix_str
 
     # endregion
 
@@ -568,6 +599,17 @@ class Literal:
         """
         cls: Type[Self] = self.__class__
         return cls(atom=self.atom, sign=Sign.NEGATIVE if self.sign == Sign.NOSIGN else Sign.NOSIGN)
+
+    def __str__(self):
+        """String representation of the literal.
+
+        Returns the infix representation of the literal.
+
+        Returns:
+            The string representation of the literal.
+
+        """
+        return self.infix_str
 
     # endregion
 

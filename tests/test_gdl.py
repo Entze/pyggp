@@ -5,6 +5,52 @@ from unittest import TestCase
 from pyggp.gdl import Relation, Sentence, Literal, Sign, Variable, argument_signatures_match
 
 
+class TestVariable__str__(TestCase):
+    def test_var(self):
+        variable = Variable("X")
+        actual = str(variable)
+        expected = "X"
+        self.assertEqual(actual, expected)
+
+    def test_wildcard(self):
+        variable = Variable("_")
+        actual = str(variable)
+        expected = "_"
+        self.assertEqual(actual, expected)
+
+    def test_named_wildcard(self):
+        variable = Variable("_X")
+        actual = str(variable)
+        expected = "_X"
+        self.assertEqual(actual, expected)
+
+
+class TestRelation__str__(TestCase):
+    def test_atom(self):
+        relation = Relation("test", ())
+        actual = str(relation)
+        expected = "test"
+        self.assertEqual(actual, expected)
+
+    def test_empty_tuple(self):
+        relation = Relation()
+        actual = str(relation)
+        expected = "()"
+        self.assertEqual(actual, expected)
+
+    def test_2tuple(self):
+        relation = Relation(arguments=(1, 2))
+        actual = str(relation)
+        expected = "(1, 2)"
+        self.assertEqual(actual, expected)
+
+    def test_nested(self):
+        relation = Relation(name="outer", arguments=(1, Relation("test", ())))
+        actual = str(relation)
+        expected = "outer(1, test)"
+        self.assertEqual(actual, expected)
+
+
 class TestRelationMatch(unittest.TestCase):
     def test_atom(self) -> None:
         relation = Relation("test", ())
@@ -228,6 +274,22 @@ class TestLiteral__neg__(unittest.TestCase):
         relation = Literal(Relation("test", ()))
         actual = -relation
         expected = Literal(Relation("test", ()), sign=Sign.NEGATIVE)
+        self.assertEqual(actual, expected)
+
+
+class TestLiteral__str__(unittest.TestCase):
+    def test_posatom(self) -> None:
+        relation = Relation("test", ())
+        literal = Literal(relation)
+        actual = str(literal)
+        expected = "test"
+        self.assertEqual(actual, expected)
+
+    def test_negatom(self) -> None:
+        relation = Relation("test", ())
+        literal = Literal(relation, sign=Sign.NEGATIVE)
+        actual = str(literal)
+        expected = "not test"
         self.assertEqual(actual, expected)
 
 
