@@ -65,6 +65,14 @@ class Variable:
     # region Methods
 
     def to_clingo_ast(self) -> clingo.ast.AST:
+        """Convert to semantically equivalent clingo AST.
+
+        Converts the variable to a clingo AST variable. The name of the variable is changed in case of wildcard.
+
+        Returns:
+            The clingo AST variable.
+
+        """
         if self.is_wildcard:
             return clingo.ast.Variable(_loc, "_")
         return clingo.ast.Variable(_loc, self.name)
@@ -234,6 +242,15 @@ class Relation:
         return name == self.name and arity == self.arity
 
     def to_clingo_ast(self) -> clingo.ast.AST:
+        """Convert the relation to semantically equivalent clingo AST.
+
+        Returns:
+            The clingo AST representation of the relation.
+
+        Raises:
+            TypeError: The relation contains an argument of an invalid type.
+
+        """
         arguments = []
         for argument in self.arguments:
             match argument:
@@ -654,6 +671,22 @@ class Literal:
     # region Methods
 
     def to_clingo_ast(self) -> clingo.ast.AST:
+        r"""Convert the literal to semantically equivalent clingo AST.
+
+        This is usually a `clingo.ast.Literal` with `clingo.ast.SymbolicAtom` as atom. There are exceptions:
+
+        - `distinct/2` without sign is converted to a `clingo.ast.Comparison` with
+          `clingo.ast.ComparisonOperator.NotEqual`.
+        - `distinct/2` with negative sign is converted to a `clingo.ast.Comparison` with
+          `clingo.ast.ComparisonOperator.Equal`.
+
+        Returns:
+            A clingo AST literal.
+
+        Raises:
+            TypeError: The sign is of invalid type.
+
+        """
         match self.sign:
             case Sign.NOSIGN:
                 sign = clingo.ast.Sign.NoSign
@@ -749,6 +782,12 @@ class Sentence:
         return f"{self.head.infix_str}."
 
     def to_clingo_ast(self) -> clingo.ast.AST:
+        """Convert the sentence to semantically equivalent clingo AST.
+
+        Returns:
+            A clingo AST rule.
+
+        """
         return clingo.ast.Rule(
             _loc,
             head=clingo.ast.Literal(
