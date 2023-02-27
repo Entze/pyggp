@@ -345,3 +345,225 @@ rock_paper_scissors_ruleset: Ruleset = Ruleset(
         ),
     )
 )
+
+_X = Variable("X")
+__C = Variable("_C")
+_Everyone = Variable("Everyone")
+
+minipoker_ruleset: Ruleset = Ruleset(
+    (
+        # Role
+        Sentence.fact(
+            Relation.role(Relation("bluffer")),
+        ),
+        Sentence.fact(
+            Relation.role(Relation("caller")),
+        ),
+        Sentence.fact(
+            Relation.role(Relation.random()),
+        ),
+        # Init
+        Sentence.fact(Relation.init(Relation.control(Relation.random()))),
+        # Helpers
+        Sentence.fact(Relation("colour", (Relation("red"),))),
+        Sentence.fact(Relation("colour", (Relation("black"),))),
+        # Next
+        Sentence.rule(
+            Relation.next(Relation("dealt")), (Literal(Relation.does(Relation.random(), Relation("deal", (__C,)))),)
+        ),
+        Sentence.rule(Relation.next(Relation("dealt")), (Literal(Relation.true(Relation("dealt"))),)),
+        Sentence.rule(
+            Relation.next(Relation("dealt", (_C,))),
+            (
+                Literal(Relation("colour", (_C,))),
+                Literal(Relation.does(Relation.random(), Relation("deal", (_C,)))),
+            ),
+        ),
+        Sentence.rule(
+            Relation.next(Relation("dealt", (_C,))),
+            (
+                Literal(Relation("colour", (_C,))),
+                Literal(Relation.true(Relation("dealt", (_C,)))),
+            ),
+        ),
+        Sentence.rule(
+            Relation.next(Relation.control(Relation("bluffer"))),
+            (Literal(Relation.does(Relation.random(), Relation("deal", (__C,)))),),
+        ),
+        Sentence.rule(
+            Relation.next(Relation("resigned", (Relation("bluffer"),))),
+            (Literal(Relation.does(Relation("bluffer"), Relation("resign"))),),
+        ),
+        Sentence.rule(
+            Relation.next(Relation("resigned", (Relation("bluffer"),))),
+            (Literal(Relation.true(Relation("resigned", (Relation("bluffer"),)))),),
+        ),
+        Sentence.rule(
+            Relation.next(Relation("held", (Relation("bluffer"),))),
+            (Literal(Relation.does(Relation("bluffer"), Relation("hold"))),),
+        ),
+        Sentence.rule(
+            Relation.next(Relation("held", (Relation("bluffer"),))),
+            (Literal(Relation.true(Relation("held", (Relation("bluffer"),)))),),
+        ),
+        Sentence.rule(
+            Relation.next(Relation.control(Relation("caller"))),
+            (Literal(Relation.does(Relation("bluffer"), Relation("hold"))),),
+        ),
+        Sentence.rule(
+            Relation.next(Relation("resigned", (Relation("caller"),))),
+            (Literal(Relation.does(Relation("caller"), Relation("resign"))),),
+        ),
+        Sentence.rule(
+            Relation.next(Relation("resigned", (Relation("caller"),))),
+            (Literal(Relation.true(Relation("resigned", (Relation("caller"),)))),),
+        ),
+        Sentence.rule(
+            Relation.next(Relation("called", (Relation("caller"),))),
+            (Literal(Relation.does(Relation("caller"), Relation("call"))),),
+        ),
+        Sentence.rule(
+            Relation.next(Relation("called", (Relation("caller"),))),
+            (Literal(Relation.true(Relation("called", (Relation("caller"),)))),),
+        ),
+        # Sees
+        Sentence.rule(
+            Relation.sees(Relation.random(), _X),
+            (Literal(Relation.true(_X)),),
+        ),
+        Sentence.rule(
+            Relation.sees(_Everyone, Relation.control(_R)),
+            (
+                Literal(Relation.role(_Everyone)),
+                Literal(Relation.role(_R)),
+                Literal(Relation.true(Relation.control(_R))),
+            ),
+        ),
+        Sentence.rule(
+            Relation.sees(_Everyone, Relation("dealt")),
+            (Literal(Relation.role(_Everyone)), Literal(Relation.true(Relation("dealt")))),
+        ),
+        Sentence.rule(
+            Relation.sees(_Everyone, Relation("resigned", (_R,))),
+            (
+                Literal(Relation.role(_Everyone)),
+                Literal(Relation.role(_R)),
+                Literal(Relation.true(Relation("resigned", (_R,)))),
+            ),
+        ),
+        Sentence.rule(
+            Relation.sees(_Everyone, Relation("held", (_R,))),
+            (
+                Literal(Relation.role(_Everyone)),
+                Literal(Relation.role(_R)),
+                Literal(Relation.true(Relation("held", (_R,)))),
+            ),
+        ),
+        Sentence.rule(
+            Relation.sees(_Everyone, Relation("called", (_R,))),
+            (
+                Literal(Relation.role(_Everyone)),
+                Literal(Relation.role(_R)),
+                Literal(Relation.true(Relation("called", (_R,)))),
+            ),
+        ),
+        Sentence.rule(
+            Relation.sees(_Everyone, Relation("dealt", (_C,))),
+            (
+                Literal(Relation.role(_Everyone)),
+                Literal(Relation("colour", (_C,))),
+                Literal(Relation.true(Relation("dealt", (_C,)))),
+                Literal(Relation.true(Relation("called", (Relation("caller"),)))),
+            ),
+        ),
+        Sentence.rule(
+            Relation.sees(Relation("bluffer"), Relation("dealt", (_C,))),
+            (
+                Literal(Relation("colour", (_C,))),
+                Literal(Relation.true(Relation("dealt", (_C,)))),
+            ),
+        ),
+        # Legal
+        Sentence.rule(
+            Relation.legal(Relation.random(), Relation("deal", (_C,))),
+            (Literal(Relation("colour", (_C,))),),
+        ),
+        Sentence.fact(
+            Relation.legal(Relation("bluffer"), Relation("resign")),
+        ),
+        Sentence.fact(
+            Relation.legal(Relation("bluffer"), Relation("hold")),
+        ),
+        Sentence.fact(
+            Relation.legal(Relation("caller"), Relation("resign")),
+        ),
+        Sentence.fact(
+            Relation.legal(Relation("caller"), Relation("call")),
+        ),
+        # Goal
+        Sentence.rule(
+            Relation.goal(Relation("bluffer"), -10),
+            (Literal(Relation.true(Relation("resigned", (Relation("bluffer"),)))),),
+        ),
+        Sentence.rule(
+            Relation.goal(Relation("caller"), 10),
+            (Literal(Relation.true(Relation("resigned", (Relation("bluffer"),)))),),
+        ),
+        Sentence.rule(
+            Relation.goal(Relation("bluffer"), 4),
+            (Literal(Relation.true(Relation("resigned", (Relation("caller"),)))),),
+        ),
+        Sentence.rule(
+            Relation.goal(Relation("caller"), -4),
+            (Literal(Relation.true(Relation("resigned", (Relation("caller"),)))),),
+        ),
+        Sentence.rule(
+            Relation.goal(Relation("bluffer"), 16),
+            (
+                Literal(Relation.true(Relation("dealt", (Relation("black"),)))),
+                Literal(Relation.true(Relation("held", (Relation("bluffer"),)))),
+                Literal(Relation.true(Relation("called", (Relation("caller"),)))),
+            ),
+        ),
+        Sentence.rule(
+            Relation.goal(Relation("caller"), -16),
+            (
+                Literal(Relation.true(Relation("dealt", (Relation("black"),)))),
+                Literal(Relation.true(Relation("held", (Relation("bluffer"),)))),
+                Literal(Relation.true(Relation("called", (Relation("caller"),)))),
+            ),
+        ),
+        Sentence.rule(
+            Relation.goal(Relation("bluffer"), -20),
+            (
+                Literal(Relation.true(Relation("dealt", (Relation("red"),)))),
+                Literal(Relation.true(Relation("held", (Relation("bluffer"),)))),
+                Literal(Relation.true(Relation("called", (Relation("caller"),)))),
+            ),
+        ),
+        Sentence.rule(
+            Relation.goal(Relation("caller"), 20),
+            (
+                Literal(Relation.true(Relation("dealt", (Relation("red"),)))),
+                Literal(Relation.true(Relation("held", (Relation("bluffer"),)))),
+                Literal(Relation.true(Relation("called", (Relation("caller"),)))),
+            ),
+        ),
+        # Terminal
+        Sentence.rule(
+            Relation.terminal(),
+            (Literal(Relation.true(Relation("resigned", (Relation("bluffer"),)))),),
+        ),
+        Sentence.rule(
+            Relation.terminal(),
+            (Literal(Relation.true(Relation("resigned", (Relation("caller"),)))),),
+        ),
+        Sentence.rule(
+            Relation.terminal(),
+            (
+                Literal(Relation.true(Relation("held", (Relation("bluffer"),)))),
+                Literal(Relation.true(Relation("called", (Relation("caller"),)))),
+            ),
+        ),
+    )
+)
