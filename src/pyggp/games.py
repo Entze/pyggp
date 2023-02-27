@@ -32,7 +32,7 @@ nim_ruleset: Ruleset = Ruleset(
                 Literal(Relation.role(_R1)),
                 Literal(Relation.role(_R2)),
                 Literal(Relation.distinct(_R1, _R2)),
-                Literal(Relation.control(_R2)),
+                Literal(Relation.true(Relation.control(_R2))),
                 Literal(Relation.true(Relation("pile", (Relation("size", (_S2,)),)))),
                 Literal(Relation.plus(_S1, _S, _S2)),
                 Literal(Relation.does(_R2, Relation("take", (_S,)))),
