@@ -688,7 +688,7 @@ Play: TypeAlias = Relation
 Plays are relations. They are `does/2` relations.
 
 """
-State: TypeAlias = FrozenSet[Relation]
+State: TypeAlias = FrozenSet[Subrelation]
 """State of a game."""
 
 PlayRecord: TypeAlias = Mapping[int, FrozenSet[Play]]
