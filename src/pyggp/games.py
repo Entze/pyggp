@@ -159,12 +159,29 @@ tic_tac_toe_ruleset: Ruleset = Ruleset(
                 *(Literal(Relation.true(_cell(m, _N, _P))) for m in range(1, 4)),
             ),
         ),
-        *(
-            Sentence.rule(
-                _diagonal(_P),
-                (Literal(Relation.role(_P)), *(Literal(Relation.true(_cell(abs(c - m), m, _P))) for m in range(1, 4))),
-            )
-            for c in (0, 3)
+        Sentence.rule(
+            _diagonal(_P),
+            (
+                Literal(Relation.role(_P)),
+                Literal(_cell(1, 1)),
+                Literal(_cell(2, 2)),
+                Literal(_cell(3, 3)),
+                Literal(Relation.true(_cell(1, 1, _P))),
+                Literal(Relation.true(_cell(2, 2, _P))),
+                Literal(Relation.true(_cell(3, 3, _P))),
+            ),
+        ),
+        Sentence.rule(
+            _diagonal(_P),
+            (
+                Literal(Relation.role(_P)),
+                Literal(_cell(1, 3)),
+                Literal(_cell(2, 2)),
+                Literal(_cell(3, 1)),
+                Literal(Relation.true(_cell(1, 3, _P))),
+                Literal(Relation.true(_cell(2, 2, _P))),
+                Literal(Relation.true(_cell(3, 1, _P))),
+            ),
         ),
         Sentence.rule(
             _line(_P),
@@ -249,7 +266,7 @@ tic_tac_toe_ruleset: Ruleset = Ruleset(
         # Terminal
         Sentence.rule(
             Relation.terminal(),
-            (Literal(Relation.role(_P)), Literal(Relation.true(_line(_P)))),
+            (Literal(Relation.role(_P)), Literal(_line(_P))),
         ),
         Sentence.rule(
             Relation.terminal(),
