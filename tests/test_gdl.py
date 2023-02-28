@@ -708,15 +708,29 @@ class TestRulesetGoalRules(unittest.TestCase):
                     *(Literal(Relation.true(Relation("cell", (m, N, P)))) for m in range(1, 4)),
                 ),
             ),
-            *(
-                Sentence.rule(
-                    Relation("diagonal", (P,)),
-                    (
-                        Literal(Relation.role(P)),
-                        *(Literal(Relation.true(Relation("cell", (abs(c - m), m, P)))) for m in range(1, 4)),
-                    ),
-                )
-                for c in (0, 3)
+            Sentence.rule(
+                Relation("diagonal", (P,)),
+                (
+                    Literal(Relation.role(P)),
+                    Literal(Relation("cell", (1, 1))),
+                    Literal(Relation("cell", (2, 2))),
+                    Literal(Relation("cell", (3, 3))),
+                    Literal(Relation.true(Relation("cell", (1, 1, P)))),
+                    Literal(Relation.true(Relation("cell", (2, 2, P)))),
+                    Literal(Relation.true(Relation("cell", (3, 3, P)))),
+                ),
+            ),
+            Sentence.rule(
+                Relation("diagonal", (P,)),
+                (
+                    Literal(Relation.role(P)),
+                    Literal(Relation("cell", (1, 3))),
+                    Literal(Relation("cell", (2, 2))),
+                    Literal(Relation("cell", (3, 1))),
+                    Literal(Relation.true(Relation("cell", (1, 3, P)))),
+                    Literal(Relation.true(Relation("cell", (2, 2, P)))),
+                    Literal(Relation.true(Relation("cell", (3, 1, P)))),
+                ),
             ),
             Sentence.rule(
                 Relation("line", (P,)),
