@@ -9,6 +9,9 @@ description = "A Python implementation of the General Game Playing (GGP) framewo
 authors = ["Lukas Grassauer <lukas@grassauer.eu>"]
 license = "MIT"
 readme = "README.md"
+packages = [
+    { include = "pyggp", from = "src" },
+]
 
 [tool.poetry.dependencies]
 python = "~3.11"
@@ -55,12 +58,19 @@ pdoc = "~12.3.1"
 line-length = 120
 
 
-[tool.docformatter]
-recursive = true
-wrap-summaries = 120
-wrap-descriptions = 120
-blank = true
+[tool.coverage.run]
+source = ['pyggp']
 
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "raise AssertionError",
+    "def __repr__",
+    "if __name__ = = .main.:"
+]
 
 [tool.commitizen]
 name = "cz_conventional_commits"
@@ -69,6 +79,13 @@ tag_format = "v$version"
 update_changelog_on_bump = true
 version = "0.0.0"
 version_files = ["pyproject.toml:version"]
+
+
+[tool.docformatter]
+recursive = true
+wrap-summaries = 120
+wrap-descriptions = 120
+blank = true
 
 
 [tool.mypy]
@@ -84,3 +101,4 @@ show_error_codes = true
 
 [tool.pylint]
 max-line-length = 120
+fail-under = 10
