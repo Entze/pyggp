@@ -345,7 +345,7 @@ rock_paper_scissors_ruleset: Ruleset = Ruleset(
             ),
         ),
         Sentence.rule(
-            Relation.goal(_R1, 0),
+            Relation.goal(_R1, 100),
             (
                 Literal(Relation.role(_R1)),
                 Literal(Relation.role(_R2)),
