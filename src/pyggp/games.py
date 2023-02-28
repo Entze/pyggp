@@ -514,8 +514,9 @@ minipoker_ruleset: Ruleset = Ruleset(
             Relation.legal(Relation.random(), Relation("deal", (_C,))),
             (Literal(Relation("colour", (_C,))),),
         ),
-        Sentence.fact(
+        Sentence.rule(
             Relation.legal(Relation("bluffer"), Relation("resign")),
+            (Literal(Relation.true(Relation("dealt", (Relation("red"),)))),),
         ),
         Sentence.fact(
             Relation.legal(Relation("bluffer"), Relation("hold")),
