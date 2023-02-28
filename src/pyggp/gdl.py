@@ -632,6 +632,9 @@ See Also:
 def from_clingo_symbol(symbol: clingo.Symbol) -> Subrelation:
     """Convert a clingo symbol to a semantically equivalent Subrelation.
 
+    Args:
+        symbol: The clingo symbol.
+
     Returns:
         A Subrelation.
 
