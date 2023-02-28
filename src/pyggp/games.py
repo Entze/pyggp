@@ -40,6 +40,15 @@ nim_ruleset: Ruleset = Ruleset(
             ),
         ),
         Sentence.rule(
+            Relation.next(Relation.control(_R)),
+            (
+                Literal(Relation.role(_R)),
+                Literal(Relation.true(Relation.control(_R))),
+                Literal(Relation.true(Relation("pile", (Relation("size", (_S,)),)))),
+                Literal(Relation.does(_R, Relation("take", (_S,)))),
+            ),
+        ),
+        Sentence.rule(
             Relation.next(Relation("pile", (Relation("size", (_S1,)),))),
             (
                 Literal(Relation.role(_R)),
@@ -67,7 +76,7 @@ nim_ruleset: Ruleset = Ruleset(
             (
                 Literal(Relation.role(_R)),
                 Literal(Relation.true(Relation("pile", (Relation("size", (0,)),)))),
-                -Literal(Relation.control(_R)),
+                -Literal(Relation.true(Relation.control(_R))),
             ),
         ),
         Sentence.rule(
@@ -75,7 +84,7 @@ nim_ruleset: Ruleset = Ruleset(
             (
                 Literal(Relation.role(_R)),
                 Literal(Relation.true(Relation("pile", (Relation("size", (0,)),)))),
-                Literal(Relation.control(_R)),
+                Literal(Relation.true(Relation.control(_R))),
             ),
         ),
         # Terminal
