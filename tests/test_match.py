@@ -1,6 +1,7 @@
 # pylint: disable=missing-docstring,invalid-name,unused-argument
 from unittest import TestCase
 
+from common import MockTimeoutAgent, SLEEP_TIME, MockCalledAgent
 from pyggp.actors import LocalActor
 from pyggp.agents import Agent
 from pyggp.exceptions import MatchDNSError
@@ -11,31 +12,11 @@ from pyggp.interpreters import ClingoInterpreter
 from pyggp.match import MatchConfiguration, Match
 
 
-class MockTimeoutAgent(Agent):
-    def prepare_match(
-        self,
-        role: Role,
-        ruleset: Ruleset,
-        startclock_config: GameClockConfiguration,
-        playclock_config: GameClockConfiguration,
-    ) -> None:
-        raise TimeoutError
-
-    def calculate_move(self, move_nr: int, total_time_ns: int, view: State) -> Move:
-        raise TimeoutError
-
-
-class MockAgent(Agent):
-    # pylint: disable=unused-argument
-    def calculate_move(self, move_nr: int, total_time_ns: int, view: State) -> Move:
-        return Relation("take", (1,))
-
-
 class TestMatchInitializeAgents(TestCase):
     def test_success(self) -> None:
         ruleset = nim_ruleset
-        first_agent = MockAgent()
-        second_agent = MockAgent()
+        first_agent = MockCalledAgent()
+        second_agent = MockCalledAgent()
         with first_agent, second_agent:
             first_actor = LocalActor(first_agent)
             second_actor = LocalActor(second_agent)
@@ -64,7 +45,7 @@ class TestMatchInitializeAgents(TestCase):
     def test_timeout(self) -> None:
         ruleset = nim_ruleset
         first_agent = MockTimeoutAgent()
-        second_agent = MockAgent()
+        second_agent = MockCalledAgent()
         with first_agent, second_agent:
             first_actor = LocalActor(first_agent)
             second_actor = LocalActor(second_agent)
@@ -76,7 +57,7 @@ class TestMatchInitializeAgents(TestCase):
                     Relation("second"): second_actor,
                 },
                 startclock_configs={
-                    Relation("first"): GameClockConfiguration(total_time=0.0, increment=0.0, delay=60.0),
+                    Relation("first"): GameClockConfiguration(total_time=SLEEP_TIME, increment=0.0, delay=0.0),
                     Relation("second"): GameClockConfiguration(total_time=0.0, increment=0.0, delay=60.0),
                 },
                 playclock_configs={
