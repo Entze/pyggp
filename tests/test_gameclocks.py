@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring,invalid-name,import-outside-toplevel
+# pylint: disable=missing-docstring,invalid-name,unused-argument
 from time import sleep
 from unittest import TestCase
 

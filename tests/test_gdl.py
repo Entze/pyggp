@@ -1,9 +1,10 @@
-# pylint: disable=missing-docstring,invalid-name,import-outside-toplevel
+# pylint: disable=missing-docstring,invalid-name,unused-argument
 import unittest
 from unittest import TestCase
 
 import clingo.ast
 
+from pyggp.games import tic_tac_toe_ruleset, rock_paper_scissors_ruleset
 from pyggp.gdl import Relation, Sentence, Literal, Sign, Variable, argument_signatures_match, from_clingo_symbol
 
 _pos = clingo.ast.Position("<string>", 0, 0)
@@ -582,8 +583,6 @@ class TestSentenceToInfixStr(TestCase):
 
 class TestRulesetRoleRules(unittest.TestCase):
     def test_tic_tac_toe(self) -> None:
-        from pyggp.games import tic_tac_toe_ruleset
-
         actual = tic_tac_toe_ruleset.role_rules
         expected = (
             Sentence.fact(Relation.role(Relation("x"))),
@@ -594,8 +593,6 @@ class TestRulesetRoleRules(unittest.TestCase):
 
 class TestRulesetInitRules(unittest.TestCase):
     def test_tic_tac_toe(self) -> None:
-        from pyggp.games import tic_tac_toe_ruleset
-
         actual = tic_tac_toe_ruleset.init_rules
         expected = (Sentence.fact(Relation.init(Relation.control(Relation("x")))),)
         self.assertSequenceEqual(actual, expected)
@@ -603,8 +600,6 @@ class TestRulesetInitRules(unittest.TestCase):
 
 class TestRulesetNextRules(unittest.TestCase):
     def test_rock_paper_scissors(self) -> None:
-        from pyggp.games import rock_paper_scissors_ruleset
-
         actual = rock_paper_scissors_ruleset.next_rules
         R = Variable("R")
         C = Variable("C")
@@ -652,8 +647,6 @@ class TestRulesetSeesRules(unittest.TestCase):
 
 class TestRulesetLegalRules(unittest.TestCase):
     def test_rock_paper_scissors(self) -> None:
-        from pyggp.games import rock_paper_scissors_ruleset
-
         actual = rock_paper_scissors_ruleset.legal_rules
         R = Variable("R")
         C = Variable("C")
