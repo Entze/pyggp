@@ -18,17 +18,20 @@ python = "~3.11"
 clingo = "~5.6.2"
 clingox = "~1.2.0"
 
+
 [tool.poetry.group.ci]
 optional = true
 
 [tool.poetry.group.ci.dependencies]
 tox = "~4.4.5"
 
+
 [tool.poetry.group.citests]
 optional = true
 
 [tool.poetry.group.citests.dependencies]
 tox-gh = "~1.0.0"
+
 
 [tool.poetry.group.dev]
 optional = true
@@ -46,6 +49,8 @@ pydocstyle = "~6.3.0"
 xdoctest = "~1.1.1"
 pygments = "~2.14.0"
 docformatter = "~1.5.1"
+pytest = "~7.2.1"
+
 
 [tool.poetry.group.docs]
 optional = true
