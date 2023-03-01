@@ -638,8 +638,6 @@ class TestRulesetNextRules(unittest.TestCase):
 
 class TestRulesetSeesRules(unittest.TestCase):
     def test_tic_tac_toe(self) -> None:
-        from pyggp.games import tic_tac_toe_ruleset
-
         actual = tic_tac_toe_ruleset.sees_rules
         expected = ()
         self.assertSequenceEqual(actual, expected)
@@ -670,8 +668,6 @@ class TestRulesetLegalRules(unittest.TestCase):
 
 class TestRulesetGoalRules(unittest.TestCase):
     def test_tic_tac_toe(self) -> None:
-        from pyggp.games import tic_tac_toe_ruleset
-
         actual = tic_tac_toe_ruleset.goal_rules
         P1 = Variable("P1")
         P2 = Variable("P2")
@@ -786,8 +782,6 @@ class TestRulesetGoalRules(unittest.TestCase):
 
 class TestRulesetTerminalRules(unittest.TestCase):
     def test_rock_paper_scissors(self) -> None:
-        from pyggp.games import rock_paper_scissors_ruleset
-
         actual = rock_paper_scissors_ruleset.terminal_rules
         R1 = Variable("R1")
         R2 = Variable("R2")
