@@ -109,7 +109,7 @@ class Match:
                     raises.append(MatchTimeoutError(self.move_nr, actor, role))
                 except ValueError:
                     self.utilities[role] = "DNF(Illegal Move)"
-                    raises.append(MatchIllegalMoveError(self.move_nr, actor, role))
+                    raises.append(MatchIllegalMoveError(self.move_nr, actor, role, move))
 
         if raises:
             raise ExceptionGroup("Match aborted", raises)

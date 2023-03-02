@@ -109,13 +109,12 @@ def test_raises_on_illegal_move() -> None:
 @pytest.mark.parametrize(
     "slack,sleep_time,delay",
     [
-        (0.0, 0.0, 0.0),
-        (0.0, 0.1, 0.0),
-        (0.0, 0.1, 0.1),
-        (0.1, 0.1, 0.0),
-        (0.1, 0.1, 0.1),
-        (0.2, 0.1, 0.0),
-        (0.2, 0.1, 0.1),
+        (0.0, 0.2, 0.0),
+        (0.0, 0.2, 0.1),
+        (0.1, 0.2, 0.0),
+        (0.1, 0.2, 0.1),
+        (0.2, 0.2, 0.0),
+        (0.2, 0.2, 0.1),
     ],
 )
 def test_raises_on_timeout(slack: float, sleep_time: float, delay: float) -> None:

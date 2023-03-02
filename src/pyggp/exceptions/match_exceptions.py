@@ -1,5 +1,5 @@
 from pyggp.actors import Actor
-from pyggp.gdl import Role
+from pyggp.gdl import Role, Move
 
 
 class MatchError(Exception):
@@ -30,5 +30,5 @@ class MatchTimeoutError(MatchDNFError):
 
 
 class MatchIllegalMoveError(MatchDNFError):
-    def __init__(self, move_nr: int, actor: Actor, role: Role) -> None:
-        super().__init__(move_nr, actor, role, "illegal move")
+    def __init__(self, move_nr: int, actor: Actor, role: Role, move: Move) -> None:
+        super().__init__(move_nr, actor, role, f"illegal move({move})")
