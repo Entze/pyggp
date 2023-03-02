@@ -50,6 +50,7 @@ xdoctest = "~1.1.1"
 pygments = "~2.14.0"
 docformatter = "~1.5.1"
 pytest = "~7.2.1"
+tryceratops = "~1.1.0"
 
 
 [tool.poetry.group.docs]
@@ -107,3 +108,14 @@ show_error_codes = true
 [tool.pylint]
 max-line-length = 120
 fail-under = 10
+
+
+[tool.tryceratops]
+exclude = [
+    "tests",
+    "docs",
+    ".venv",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".github"
+]
