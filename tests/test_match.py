@@ -3,8 +3,7 @@ from unittest import TestCase
 
 from common import MockTimeoutAgent, SLEEP_TIME, MockCalledAgent
 from pyggp.actors import LocalActor
-from pyggp.agents import Agent
-from pyggp.exceptions import MatchDNSError
+from pyggp.exceptions.match_exceptions import MatchDNSError
 from pyggp.gameclocks import GameClockConfiguration
 from pyggp.games import nim_ruleset
 from pyggp.gdl import Move, Role, Ruleset, Relation, State

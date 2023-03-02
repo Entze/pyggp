@@ -1,5 +1,5 @@
 from pyggp.agents import Agent
-from pyggp.exceptions import ActorNotStartedError
+from pyggp.exceptions.actor_exceptions import ActorNotStartedError
 from pyggp.gameclocks import GameClockConfiguration, GameClock
 from pyggp.gdl import Move, Role, Ruleset, State
 

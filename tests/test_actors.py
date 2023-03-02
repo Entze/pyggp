@@ -4,7 +4,7 @@ import pytest
 
 from common import SLEEP_TIME, MockCalledAgent, MockTimeoutAgent
 from pyggp.actors import LocalActor
-from pyggp.exceptions import ActorNotStartedError
+from pyggp.exceptions.actor_exceptions import ActorNotStartedError
 from pyggp.gameclocks import GameClockConfiguration
 from pyggp.gdl import Relation, Ruleset
 

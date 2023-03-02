@@ -1,23 +1,3 @@
-class MatchError(Exception):
-    pass
-
-
-class MatchPrematurelyTerminatedException(MatchError):
-    pass
-
-
-class MatchDNSError(MatchPrematurelyTerminatedException):
-    pass
-
-
-class ActorError(Exception):
-    pass
-
-
-class ActorNotStartedError(ActorError):
-    pass
-
-
 class InvalidGDLError(Exception):
     pass
 

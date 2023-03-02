@@ -7,7 +7,7 @@ from clingo import Control
 from clingo.ast import ProgramBuilder
 from clingox.backend import SymbolicBackend
 
-from pyggp.exceptions import (
+from pyggp.exceptions.gdl_exceptions import (
     MoreThanOneModelError,
     UnexpectedRoleError,
     MultipleGoalsError,
