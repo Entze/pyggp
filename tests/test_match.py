@@ -1,21 +1,45 @@
 # pylint: disable=missing-docstring,invalid-name,unused-argument
 from unittest import TestCase
 
-from common import MockTimeoutAgent, SLEEP_TIME, MockCalledAgent
+from common import MockTimeoutAgent, SLEEP_TIME, MockAgent, mock_match
 from pyggp.actors import LocalActor
 from pyggp.exceptions.match_exceptions import MatchDNSError
 from pyggp.gameclocks import GameClockConfiguration
 from pyggp.games import nim_ruleset
-from pyggp.gdl import Move, Role, Ruleset, Relation, State
+from pyggp.gdl import Relation
 from pyggp.interpreters import ClingoInterpreter
 from pyggp.match import MatchConfiguration, Match
+
+
+def test_as_expected_is_finished_non_finished() -> None:
+    match = mock_match()
+
+    assert not match.is_finished
+
+
+def test_as_expected_is_finished_finished() -> None:
+    match = mock_match(finish_match=True)
+
+    assert match.is_finished
+
+
+def test_as_expected_get_result() -> None:
+    agent_p1 = MockAgent()
+    match = mock_match(agents=(agent_p1,))
+
+    agent_p1.next_move = 1
+
+    match.execute_ply()
+    match.conclude_match()
+
+    assert match.get_result().utilities == {Relation("p1"): 1}
 
 
 class TestMatchInitializeAgents(TestCase):
     def test_success(self) -> None:
         ruleset = nim_ruleset
-        first_agent = MockCalledAgent()
-        second_agent = MockCalledAgent()
+        first_agent = MockAgent()
+        second_agent = MockAgent()
         with first_agent, second_agent:
             first_actor = LocalActor(first_agent)
             second_actor = LocalActor(second_agent)
@@ -37,14 +61,14 @@ class TestMatchInitializeAgents(TestCase):
             )
             match = Match(match_configuration)
             try:
-                match.initialize_agents()
+                match._initialize_agents()
             except TimeoutError:
                 self.fail("Should not timeout")
 
     def test_timeout(self) -> None:
         ruleset = nim_ruleset
         first_agent = MockTimeoutAgent()
-        second_agent = MockCalledAgent()
+        second_agent = MockAgent()
         with first_agent, second_agent:
             first_actor = LocalActor(first_agent)
             second_actor = LocalActor(second_agent)
@@ -66,4 +90,4 @@ class TestMatchInitializeAgents(TestCase):
             )
             match = Match(match_configuration)
             with self.assertRaises(MatchDNSError):
-                match.initialize_agents()
+                match._initialize_agents()

@@ -2,7 +2,7 @@
 
 import pytest
 
-from common import SLEEP_TIME, MockCalledAgent, MockTimeoutAgent
+from common import SLEEP_TIME, MockAgent, MockTimeoutAgent
 from pyggp.actors import LocalActor
 from pyggp.exceptions.actor_exceptions import ActorNotStartedError
 from pyggp.gameclocks import GameClockConfiguration
@@ -10,7 +10,7 @@ from pyggp.gdl import Relation, Ruleset
 
 
 def test_as_expected_local_actor() -> None:
-    agent = MockCalledAgent()
+    agent = MockAgent()
     actor = LocalActor(agent)
     assert not agent.called_prepare_match
     actor.send_start("role", Ruleset([]), GameClockConfiguration(), GameClockConfiguration())
@@ -30,14 +30,14 @@ def test_as_expected_local_actor() -> None:
     assert agent.called_abort_match
 
 
-def test_throws_exception_if_not_started() -> None:
-    agent = MockCalledAgent()
+def test_raises_if_not_started() -> None:
+    agent = MockAgent()
     actor = LocalActor(agent)
     with pytest.raises(ActorNotStartedError):
         actor.send_play(0, frozenset())
 
 
-def test_throws_exception_if_timeout_during_start() -> None:
+def test_raises_if_timeout_during_start() -> None:
     agent = MockTimeoutAgent()
     actor = LocalActor(agent)
     with pytest.raises(TimeoutError):
@@ -49,7 +49,7 @@ def test_throws_exception_if_timeout_during_start() -> None:
         )
 
 
-def test_throws_exception_if_timeout_during_play() -> None:
+def test_raises_if_timeout_during_play() -> None:
     agent = MockTimeoutAgent()
     actor = LocalActor(agent)
     actor.send_start(
