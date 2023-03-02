@@ -28,7 +28,7 @@ class Agent(AbstractContextManager[None]):
         startclock_config: GameClockConfiguration,
         playclock_config: GameClockConfiguration,
     ) -> None:
-        pass
+        pass  # pragma: no cover
 
     def abort_match(self) -> None:
         pass  # pragma: no cover
