@@ -80,7 +80,7 @@ class TestMatchInitializeAgents(TestCase):
                     Relation("second"): second_actor,
                 },
                 startclock_configs={
-                    Relation("first"): GameClockConfiguration(total_time=SLEEP_TIME, increment=0.0, delay=0.0),
+                    Relation("first"): GameClockConfiguration(total_time=SLEEP_TIME * 0.9, increment=0.0, delay=0.0),
                     Relation("second"): GameClockConfiguration(total_time=0.0, increment=0.0, delay=60.0),
                 },
                 playclock_configs={
