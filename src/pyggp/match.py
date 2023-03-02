@@ -29,9 +29,9 @@ class MatchConfiguration(TypedDict):  # as in PEP 692
     playclock_configs: Mapping[Role, GameClockConfiguration]
 
 
-Disqualifcation: TypeAlias = Literal["DNS", "DNF(Illegal Move)", "DNF(Timeout)"]
-ResultsMap: TypeAlias = Mapping[Subrelation, int | None | Disqualifcation]
-MutableResultsMap: TypeAlias = MutableMapping[Subrelation, int | None | Disqualifcation]
+Disqualification: TypeAlias = Literal["DNS", "DNF(Illegal Move)", "DNF(Timeout)"]
+ResultsMap: TypeAlias = Mapping[Subrelation, int | None | Disqualification]
+MutableResultsMap: TypeAlias = MutableMapping[Subrelation, int | None | Disqualification]
 
 
 class MatchResult(NamedTuple):
