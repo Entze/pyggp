@@ -138,7 +138,9 @@ class Match:
             for role, actor in self._role_actor_map.items():
                 try:
                     startclock_config = self._startclock_configs[role]
-                    actor_startfuture_map[actor].result(startclock_config.total_time + startclock_config.delay + 2.5)
+                    actor_startfuture_map[actor].result(
+                        startclock_config.total_time + startclock_config.delay + self._slack
+                    )
                 except TimeoutError:
                     self.utilities[role] = "DNS"
                     dns.append((role, actor))
