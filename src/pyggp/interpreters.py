@@ -166,6 +166,9 @@ class Interpreter:
         """
         return move in self.get_legal_moves(state).get(role, frozenset())
 
+    def get_legal_moves_by_role(self, state: State, role: Role) -> FrozenSet[Move]:
+        return self.get_legal_moves(state).get(role, frozenset())
+
     def get_goals(self, state: State) -> Mapping[Role, int | None]:
         """Return the goals for each role.
 
