@@ -122,7 +122,7 @@ class MockRetentionAgent(MockAgent):
 
 
 class MockRuleset1Interpreter(Interpreter):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         super().__init__(mock_ruleset_1)
 
     def get_roles(self) -> FrozenSet[Role]:
@@ -165,16 +165,16 @@ mock_ruleset_1 = Ruleset(
         Sentence.fact(Relation.legal(Relation("p1"), 1)),
         Sentence.fact(Relation.legal(Relation("p1"), 2)),
         Sentence.fact(Relation.legal(Relation("p1"), 3)),
-        Sentence.rule(Relation.goal(Relation("p1"), 1), (Literal(Relation("won")),)),
-        Sentence.rule(Relation.goal(Relation("p1"), 0), (Literal(Relation("lost")),)),
-        Sentence.rule(Relation.terminal(), (Literal(Relation("won")),)),
-        Sentence.rule(Relation.terminal(), (Literal(Relation("lost")),)),
+        Sentence.rule(Relation.goal(Relation("p1"), 1), (Literal(Relation.true(Relation("won"))),)),
+        Sentence.rule(Relation.goal(Relation("p1"), 0), (Literal(Relation.true(Relation("lost"))),)),
+        Sentence.rule(Relation.terminal(), (Literal(Relation.true(Relation("won"))),)),
+        Sentence.rule(Relation.terminal(), (Literal(Relation.true(Relation("lost"))),)),
     )
 )
 
 
 class MockRuleset2Interpreter(Interpreter):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         super().__init__(mock_ruleset_2)
 
     def get_roles(self) -> FrozenSet[Role]:
@@ -249,7 +249,7 @@ mock_ruleset_2 = Ruleset(
 
 
 class MockRuleset3Interpreter(Interpreter):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         super().__init__(mock_ruleset_3)
 
     def get_roles(self) -> FrozenSet[Role]:
