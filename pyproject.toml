@@ -17,6 +17,9 @@ packages = [
 python = "~3.11"
 clingo = "~5.6.2"
 clingox = "~1.2.0"
+typer = "~0.7.0"
+rich = "~13.3.1"
+inflection = "~0.5.1"
 
 
 [tool.poetry.group.ci]
@@ -75,7 +78,7 @@ exclude_lines = [
     "raise NotImplementedError",
     "raise AssertionError",
     "def __repr__",
-    "if __name__ = = .main.:"
+    "if __name__ == .main.:"
 ]
 
 [tool.commitizen]
