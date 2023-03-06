@@ -19,6 +19,7 @@ from typing import (
     Union,
     FrozenSet,
     Mapping,
+    Any,
 )
 
 import clingo.ast
@@ -225,6 +226,19 @@ class Relation:
 
         """
         return self.infix_str
+
+    def __repr__(self) -> str:
+        return str(self)
+
+    def __lt__(self, other: Any) -> bool:
+        if isinstance(other, (Relation, int, str, Variable)):
+            return Relation.Compare.from_subrelation(self) < Relation.Compare.from_subrelation(other)
+        return NotImplemented
+
+    def __gt__(self, other: Any) -> bool:
+        if isinstance(other, (Relation, int, str, Variable)):
+            return Relation.Compare.from_subrelation(self) > Relation.Compare.from_subrelation(other)
+        return NotImplemented
 
     # endregion
 
@@ -577,6 +591,87 @@ class Relation:
                 return arg.infix_str
             case _:
                 raise TypeError(f"Cannot convert {arg} to infix string.")
+
+    # endregion
+
+    # region Subclasses
+
+    @dataclass(frozen=True, eq=True)
+    class Compare:
+        type_rank: int
+        top_value: Union["Subrelation", Signature]
+        sub_values: Tuple[Self, ...] = field(default_factory=tuple)
+
+        def __lt__(self, other: Any) -> bool:
+            if not isinstance(other, Relation.Compare):
+                return NotImplemented
+            if self.type_rank != other.type_rank:
+                return self.type_rank < other.type_rank
+            if self.top_value != other.top_value:
+                return self.top_value < other.top_value
+            return self.sub_values < other.sub_values
+
+        def __gt__(self, other: Any) -> bool:
+            if not isinstance(other, Relation.Compare):
+                return NotImplemented
+            if self.type_rank != other.type_rank:
+                return self.type_rank > other.type_rank
+            if self.top_value != other.top_value:
+                return self.top_value > other.top_value
+            return self.sub_values > other.sub_values
+
+        @classmethod
+        def from_subrelation(cls, subrelation: "Subrelation") -> Self:
+            rank = Relation.Compare.get_rank(subrelation)
+            top_value = Relation.Compare.get_top_value(subrelation)
+            sub_values = Relation.Compare.get_sub_values(subrelation)
+            return cls(rank, top_value, sub_values)
+
+        @staticmethod
+        def get_rank(subrelation: "Subrelation") -> int:
+            match subrelation:
+                case Relation():
+                    return 0
+                case int():
+                    return 1
+                case str():
+                    return 2
+                case Variable():
+                    return 3
+                case _:
+                    raise TypeError(f"Cannot get rank of {subrelation} of type {type(subrelation).__name__}.")
+
+        @staticmethod
+        def get_top_value(subrelation: "Subrelation") -> Union["Subrelation", Signature]:
+            match subrelation:
+                case Relation():
+                    return subrelation.signature
+                case int():
+                    return subrelation
+                case str():
+                    return subrelation
+                case Variable():
+                    if subrelation.is_wildcard:
+                        return ""
+                    return subrelation.name
+                case _:
+                    raise TypeError(f"Cannot get top value of {subrelation} of type {type(subrelation).__name__}.")
+
+        @staticmethod
+        def get_sub_values(subrelation: "Subrelation") -> Tuple["Relation.Compare", ...]:
+            match subrelation:
+                case Relation():
+                    return tuple(Relation.Compare.from_subrelation(sub) for sub in subrelation.arguments)
+                case int():
+                    return ()
+                case str():
+                    return ()
+                case Variable():
+                    if subrelation.is_wildcard:
+                        return (subrelation.name[1:],)
+                    return ()
+                case _:
+                    raise TypeError(f"Cannot get sub values of {subrelation} of type {type(subrelation).__name__}.")
 
     # endregion
 

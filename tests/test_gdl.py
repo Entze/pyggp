@@ -3,9 +3,19 @@ import unittest
 from unittest import TestCase
 
 import clingo.ast
+import pytest
 
 from pyggp.games import tic_tac_toe_ruleset, rock_paper_scissors_ruleset
-from pyggp.gdl import Relation, Sentence, Literal, Sign, Variable, argument_signatures_match, from_clingo_symbol
+from pyggp.gdl import (
+    Relation,
+    Sentence,
+    Literal,
+    Sign,
+    Variable,
+    argument_signatures_match,
+    from_clingo_symbol,
+    Subrelation,
+)
 
 _pos = clingo.ast.Position("<string>", 0, 0)
 _loc = clingo.ast.Location(_pos, _pos)
@@ -806,3 +816,26 @@ class TestRulesetTerminalRules(unittest.TestCase):
             ),
         )
         self.assertSequenceEqual(actual, expected)
+
+
+@pytest.mark.parametrize(
+    "arg1,arg2,expected",
+    [
+        (Relation("a"), Relation("a"), False),
+        (Relation("a"), Relation("b"), True),
+        (Relation("b"), Relation("a"), False),
+        (Relation("a"), "b", True),
+        ("a", Relation("b"), False),
+        (1, 2, True),
+        (1, Relation(arguments=(1,)), False),
+        (Relation(arguments=(1,)), 1, True),
+        (Relation("a", (1, 2, 3)), Relation("a", (1, 2, 3)), False),
+        (Relation("a", (1, 2, 3)), Relation("a", (1, 2, 3, 4)), True),
+        (Relation("a", (1, 2, 3)), Relation("a", (1, 2)), False),
+        (Relation("a", (1, 2, 3)), Relation("a", (1, 2, 4)), True),
+    ],
+)
+def test_relation_compare___lt___as_expected(arg1: Subrelation, arg2: Subrelation, expected: bool):
+    arg1_compare = Relation.Compare.from_subrelation(arg1)
+    arg2_compare = Relation.Compare.from_subrelation(arg2)
+    assert (arg1_compare < arg2_compare) is expected
