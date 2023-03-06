@@ -2,7 +2,42 @@
 from time import sleep
 from unittest import TestCase
 
+import pytest
+
 from pyggp.gameclocks import GameClockConfiguration, GameClock
+
+
+@pytest.mark.parametrize(
+    "string,expected",
+    [
+        ("60", GameClockConfiguration(total_time=60.0, increment=0.0, delay=0.0)),
+        ("60.", GameClockConfiguration(total_time=60.0, increment=0.0, delay=0.0)),
+        ("60.0", GameClockConfiguration(total_time=60.0, increment=0.0, delay=0.0)),
+        (".1", GameClockConfiguration(total_time=0.1, increment=0.0, delay=0.0)),
+        ("60 d1", GameClockConfiguration(total_time=60.0, increment=0.0, delay=1.0)),
+        ("60 | 1", GameClockConfiguration(total_time=60.0, increment=1.0, delay=0.0)),
+        ("| 1", GameClockConfiguration(total_time=0.0, increment=1.0, delay=0.0)),
+        ("d60", GameClockConfiguration(total_time=0.0, increment=0.0, delay=60.0)),
+    ],
+)
+def test_from_str_as_expected(string: str, expected: GameClockConfiguration) -> None:
+    assert GameClockConfiguration.from_str(string) == expected
+
+
+@pytest.mark.parametrize(
+    "string,match",
+    [
+        ("60 | 10 1", "delay 1 must start with 'd'."),
+        ("60 + 10", "Divider between total time and increment must be '|'."),
+        ("60 | 10 d5 60", "could not parse 'd5 60' as float."),
+        ("AB", "could not parse 'AB' as float."),
+        ("60 | AB", "could not parse 'AB' as float."),
+        ("60 | 10 dAB", "could not parse 'AB' as float."),
+    ],
+)
+def test_from_str_raises(string: str, match: str) -> None:
+    with pytest.raises(ValueError, match=f"Invalid game clock configuration: '{string}', " + match):
+        GameClockConfiguration.from_str(string)
 
 
 class TestGameClock(TestCase):
