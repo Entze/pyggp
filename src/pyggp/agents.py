@@ -1,4 +1,6 @@
+import abc
 import random
+from abc import ABC
 from contextlib import AbstractContextManager
 from types import TracebackType
 from typing import Type
@@ -8,7 +10,10 @@ from pyggp.gdl import Ruleset, Move, Role, State
 from pyggp.interpreters import ClingoInterpreter, Interpreter
 
 
-class Agent(AbstractContextManager[None]):
+class Agent(AbstractContextManager[None], abc.ABC):
+    def __repr__(self):
+        return f"{self.__class__.__name__}(id={hex(id(self))})"
+
     def __enter__(self) -> None:
         self.set_up()
 
@@ -42,7 +47,7 @@ class Agent(AbstractContextManager[None]):
         raise NotImplementedError
 
 
-class InterpreterAgent(Agent):
+class InterpreterAgent(Agent, ABC):
     def __init__(self):
         self._interpreter: Interpreter | None = None
         self._role: Role | None = None
