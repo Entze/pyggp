@@ -28,7 +28,7 @@ _pos = clingo.ast.Position("<string>", 0, 0)
 _loc = clingo.ast.Location(_pos, _pos)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, order=True)
 class Variable:
     """Representation of a variable."""
 
@@ -61,6 +61,9 @@ class Variable:
 
         """
         return self.infix_str
+
+    def __repr__(self) -> str:
+        return str(self)
 
     # endregion
 
@@ -105,6 +108,17 @@ class Signature(NamedTuple):
     arity: int
     """Arity of the relation."""
 
+    def __rich__(self) -> str:
+        if self.arity == 0:
+            return f"[cyan]{self.name}"
+        return f"[cyan]{self.name}[white]/[purple]{self.arity}"
+
+    def __str__(self):
+        return f"{self.name}/{self.arity}"
+
+    def __repr__(self):
+        return f"{self.name}/{self.arity}"
+
 
 _SubargumentsSignature: TypeAlias = Tuple[str | None, Tuple[Union[int, str, None, "_SubargumentsSignature"], ...]]
 
@@ -112,7 +126,7 @@ ArgumentsSignature: TypeAlias = Tuple[int | str | None | _SubargumentsSignature,
 
 
 # pylint: disable=too-many-public-methods
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=True)
 class Relation:
     """Representation of a relation.
 
@@ -801,7 +815,7 @@ class Sign(IntEnum):
     "Negative, corresponds to `not atom`."
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, order=True)
 class Literal:
     """Representation of a literal."""
 
@@ -865,6 +879,9 @@ class Literal:
 
         """
         return self.infix_str
+
+    def __repr__(self) -> str:
+        return str(self)
 
     # endregion
 
@@ -941,6 +958,9 @@ class Sentence:
 
         """
         return self.to_infix_str()
+
+    def __repr__(self):
+        return str(self)
 
     # endregion
 
