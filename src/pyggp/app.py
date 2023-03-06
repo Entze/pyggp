@@ -1,0 +1,99 @@
+import logging
+from typing import List, Optional
+
+import typer
+
+import pyggp.agents
+from pyggp.commands import (
+    parse_agent_registry,
+    get_ruleset,
+    orchestrate_match,
+    get_clock_configs,
+    get_name_agenttypes_map,
+)
+from pyggp.gameclocks import GameClockConfiguration
+from pyggp.interpreters import ClingoInterpreter
+from pyggp.logging import log
+from pyggp.visualizers import NullVisualizer, SimpleRichVisualizer
+
+app = typer.Typer()
+
+
+def determine_log_level(verbose: int = 0, quiet: int = 0) -> int:
+    verbosity = verbose - quiet
+    if verbosity > 0:
+        log_level = logging.DEBUG
+    elif verbosity == 0:
+        log_level = logging.INFO
+    elif verbosity == -1:
+        log_level = logging.WARNING
+    elif verbosity == -2:
+        log_level = logging.ERROR
+    else:
+        log_level = logging.CRITICAL
+
+    return log_level
+
+
+@app.command()
+def match(
+    ruleset: str = typer.Argument(..., show_default=False),
+    registry: Optional[List[str]] = typer.Argument(None, metavar="[ROLE=AGENT]...", show_default=False),
+    startclock: Optional[List[str]] = typer.Option(None, "--startclock-config", show_default=False),
+    playclock: Optional[List[str]] = typer.Option(None, "--playclock-config", show_default=False),
+    verbose: int = typer.Option(0, "--verbose", "-v", count=True, show_default=False),
+    quiet: int = typer.Option(0, "--quiet", "-q", count=True, show_default=False),
+) -> None:
+    log_level = determine_log_level(verbose=verbose, quiet=quiet)
+
+    log.setLevel(log_level)
+    if __debug__:
+        log.setLevel(logging.DEBUG)
+    log.debug("Environment: " f"{pyggp.logging.console_width=}, " f"{pyggp.logging.log_line_length}")
+    log.debug(
+        "User Input: "
+        f"log_level={logging.getLevelName(log_level)}, "
+        f"{ruleset=}, "
+        f"{registry=}, "
+        f"{startclock=}, "
+        f"{playclock=}, "
+    )
+
+    ruleset = get_ruleset(ruleset)
+    interpreter = ClingoInterpreter(ruleset)
+    roles = interpreter.get_roles()
+    role_agentname_map = parse_agent_registry(registry, roles=roles)
+    name_agenttypes_map = get_name_agenttypes_map(role_agentname_map, default=pyggp.agents.ArbitraryAgent)
+    startclock_configs = get_clock_configs(
+        startclock, roles=roles, default=GameClockConfiguration.default_startclock_config()
+    )
+    playclock_configs = get_clock_configs(
+        playclock, roles=roles, default=GameClockConfiguration.default_playclock_config()
+    )
+    visualizer = SimpleRichVisualizer()
+    _newline = "\n\t"
+    log.debug(
+        "Parsed Input: "
+        f"ruleset=(\n\t{_newline.join(repr(rule) for rule in ruleset.rules)}\n), "
+        f"{interpreter=}, "
+        f"{roles=}, "
+        f"{role_agentname_map=}, "
+        f"{name_agenttypes_map=}, "
+        f"{startclock_configs=}, "
+        f"{playclock_configs=}, "
+        f"{visualizer=}"
+    )
+
+    orchestrate_match(
+        ruleset=ruleset,
+        interpreter=interpreter,
+        name_agenttypes_map=name_agenttypes_map,
+        role_agentname_map=role_agentname_map,
+        startclock_configs=startclock_configs,
+        playclock_configs=playclock_configs,
+        visualizer=visualizer,
+    )
+
+
+if __name__ == "__main__":
+    app(prog_name="pyggp")

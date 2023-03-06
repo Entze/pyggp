@@ -1,4 +1,4 @@
-from concurrent.futures import ThreadPoolExecutor, Future, ProcessPoolExecutor, Executor
+from concurrent.futures import ThreadPoolExecutor, Future, Executor
 from typing import (
     Mapping,
     Literal,
@@ -14,11 +14,11 @@ from pyggp.exceptions.match_exceptions import (
     MatchDNSError,
     MatchTimeoutError,
     MatchIllegalMoveError,
-    MatchNotStartedError,
 )
 from pyggp.gameclocks import GameClockConfiguration, GameClock
 from pyggp.gdl import Ruleset, Subrelation, Role, State, Move, Relation
 from pyggp.interpreters import Interpreter, get_roles_in_control
+from pyggp.logging import log
 
 
 class MatchConfiguration(TypedDict):  # as in PEP 692
@@ -39,10 +39,7 @@ class MatchResult(NamedTuple):
 
 
 def _get_executor(*actors: Actor) -> Executor:
-    if len(actors) == 1:
-        return ThreadPoolExecutor()
-    else:
-        return ProcessPoolExecutor()
+    return ThreadPoolExecutor()
 
 
 class Match:
@@ -56,6 +53,11 @@ class Match:
         self.move_nr = 0
         self.states: MutableSequence[State] = []
         self._slack = slack
+
+    def __repr__(self) -> str:
+        move_nr = self.move_nr
+        roles = set(self._role_actor_map.keys())
+        return f"Match(id={hex(id(self))}, {move_nr=}, {roles=})"
 
     @property
     def is_finished(self) -> bool:
@@ -73,6 +75,7 @@ class Match:
         self._abort_agents()
 
     def execute_ply(self) -> None:
+        log.debug(f"Starting to execute ply {self.move_nr}")
         state = self.states[-1]
         roles_in_control = get_roles_in_control(state)
         views = self._interpreter.get_sees(state)
@@ -118,6 +121,7 @@ class Match:
         plays = (Relation.does(role, move) for role, move in role_movemap.items())
         next_state = self._interpreter.get_next_state(state, *plays)
         self.states.append(next_state)
+        log.debug(f"Finished executing ply {self.move_nr - 1}")
 
     def get_result(self) -> MatchResult:
         return MatchResult(self.utilities)
