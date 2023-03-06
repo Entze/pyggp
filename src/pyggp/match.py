@@ -52,7 +52,7 @@ class Match:
         self._role_actor_map: Mapping[Role, Actor] = match_configuration["role_actor_map"]
         self._startclock_configs: Mapping[Role, GameClockConfiguration] = match_configuration["startclock_configs"]
         self._playclock_configs: Mapping[Role, GameClockConfiguration] = match_configuration["playclock_configs"]
-        self.utilities: MutableResultsMap = {role: None for role in self._role_actor_map.keys()}
+        self.utilities: MutableResultsMap = {role: None for role in self._role_actor_map}
         self.move_nr = 0
         self.states: MutableSequence[State] = []
         self._slack = slack
