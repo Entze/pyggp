@@ -9,6 +9,9 @@ class Actor:
         self.startclock: GameClock | None = None
         self.playclock: GameClock | None = None
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(id={hex(id(self))}, startclock={self.startclock!r}, playclock={self.playclock!r})"
+
     def send_start(
         self,
         role: Role,
