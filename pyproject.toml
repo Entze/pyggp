@@ -111,6 +111,11 @@ show_error_codes = true
 [tool.pylint]
 max-line-length = 120
 fail-under = 10
+disable = [ # Docstrings are checked by pydocstyle and darglint
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+]
 
 
 [tool.tryceratops]
