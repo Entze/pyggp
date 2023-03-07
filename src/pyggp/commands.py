@@ -7,13 +7,13 @@ from typing import Mapping, Type, TypeVar, Generic, Self, List, Optional, Frozen
 
 import inflection
 
+from pyggp._logging import log
 from pyggp.actors import LocalActor
 from pyggp.agents import Agent
 from pyggp.exceptions.match_exceptions import MatchDNSError, MatchDNFError
 from pyggp.gameclocks import GameClockConfiguration
 from pyggp.gdl import Ruleset, Relation
 from pyggp.interpreters import Interpreter
-from pyggp.logging import log
 from pyggp.match import MatchConfiguration, Match
 from pyggp.visualizers import Visualizer
 

@@ -9,6 +9,7 @@ from typing import (
     MutableSequence,
 )
 
+from pyggp._logging import log
 from pyggp.actors import Actor
 from pyggp.exceptions.match_exceptions import (
     MatchDNSError,
@@ -18,7 +19,6 @@ from pyggp.exceptions.match_exceptions import (
 from pyggp.gameclocks import GameClockConfiguration, GameClock
 from pyggp.gdl import Ruleset, Subrelation, Role, State, Move, Relation
 from pyggp.interpreters import Interpreter, get_roles_in_control
-from pyggp.logging import log
 
 
 class MatchConfiguration(TypedDict):  # as in PEP 692

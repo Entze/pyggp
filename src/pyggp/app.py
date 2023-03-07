@@ -4,6 +4,7 @@ from typing import List, Optional
 import typer
 
 import pyggp.agents
+from pyggp._logging import log
 from pyggp.commands import (
     parse_agent_registry,
     get_ruleset,
@@ -53,8 +54,8 @@ def match(
         log.setLevel(logging.DEBUG)
     log.debug(
         "Environment: console_width=%d, log_line_length=%d",
-        pyggp.logging.console_width,
-        pyggp.logging.log_line_length,
+        pyggp._logging.console_width,
+        pyggp._logging.log_line_length,
     )
     log.debug(
         "Command-line config: log_level=%s, ruleset=%s, registry=%s, startclock=%s, playclock=%s",
