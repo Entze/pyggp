@@ -50,20 +50,25 @@ tox-gh = "~1.0.0"
 optional = true
 
 [tool.poetry.group.dev.dependencies]
+# SCM
 pre-commit = "~3.0.4"
 commitizen = "~2.42.0"
+# Formatting
 black = "~23.1.0"
-mypy = "~1.0.0"
-pylint = "~2.16.2"
-coverage = "~7.1.0"
-tox = "~4.4.5"
-darglint = "~1.8.1"
-pydocstyle = "~6.3.0"
-xdoctest = "~1.1.1"
-pygments = "~2.14.0"
 docformatter = "~1.5.1"
-pytest = "~7.2.1"
+# Linting
+docsig = "~0.34.0"
+mypy = "~1.0.0"
+pydocstyle = "~6.3.0"
+pylint = "~2.16.2"
 tryceratops = "~1.1.0"
+# Testing
+coverage = "~7.1.0"
+pytest = "~7.2.1"
+tox = "~4.4.5"
+xdoctest = "~1.1.1"
+# Misc
+pygments = "~2.14.0"
 
 
 [tool.poetry.group.bin]
@@ -117,6 +122,13 @@ recursive = true
 wrap-summaries = 120
 wrap-descriptions = 120
 blank = true
+
+
+[tool.docsig]
+check-dunders = false
+check-overridden = false
+check-protected = false
+summary = true
 
 
 [tool.mypy]
