@@ -66,6 +66,9 @@ class Interpreter:
         """
         self.ruleset = ruleset
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(nr_of_rules={len(self.ruleset.rules)})"
+
     def get_roles(self) -> FrozenSet[Role]:
         """Return the roles in the game.
 
