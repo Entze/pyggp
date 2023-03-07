@@ -75,7 +75,7 @@ class Match:
         self._abort_agents()
 
     def execute_ply(self) -> None:
-        log.debug(f"Starting to execute ply {self.move_nr}")
+        log.debug("Starting to execute ply %d", self.move_nr)
         state = self.states[-1]
         roles_in_control = get_roles_in_control(state)
         views = self._interpreter.get_sees(state)
@@ -121,7 +121,7 @@ class Match:
         plays = (Relation.does(role, move) for role, move in role_movemap.items())
         next_state = self._interpreter.get_next_state(state, *plays)
         self.states.append(next_state)
-        log.debug(f"Finished executing ply {self.move_nr - 1}")
+        log.debug("Finished executing ply %d", self.move_nr - 1)
 
     def get_result(self) -> MatchResult:
         return MatchResult(self.utilities)

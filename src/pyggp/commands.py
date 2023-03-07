@@ -186,7 +186,7 @@ def orchestrate_match(
     agents = []
     agent_role_map = {}
     for role, agent_name in role_agentname_map.items():
-        log.debug(f"Instantiating agent {agent_name} for role {role}")
+        log.debug("Instantiating agent %s for role %s", agent_name, role)
         agent_type = name_agenttypes_map[agent_name]
         agent = agent_type()
         agent_role_map[agent] = role
@@ -197,10 +197,10 @@ def orchestrate_match(
     with contextlib.ExitStack() as stack:
         for agent in agents:
             role = agent_role_map[agent]
-            log.debug(f"Setting up role {role}'s agent {agent}")
+            log.debug("Setting up role %s's agent %s", role, agent)
             stack.enter_context(agent)
             actor = LocalActor(agent)
-            log.debug(f"Instantiating actor {actor} with agent {agent} for role {role}")
+            log.debug("Instantiating actor role %s's %s with %s", role, actor, agent)
             actors.append(actor)
             role_actor_map[role] = actor
 
@@ -212,33 +212,33 @@ def orchestrate_match(
             playclock_configs=playclock_configs,
         )
         match = Match(match_configuration)
-        log.info(f"Starting {match}")
+        log.info("Starting %s", match)
         aborted = False
         try:
             match.start_match()
             visualizer.update_state(match.states[0], 0)
-        except MatchDNSError:
+        except* MatchDNSError as exception_group:
             aborted = True
             visualizer.update_abort()
-            # TODO: logger
+            log.exception(exception_group)
 
         while not match.is_finished and not aborted:
             visualizer.draw()
             try:
                 match.execute_ply()
-            except* MatchDNFError as eg:
+            except* MatchDNFError as exception_group:
                 aborted = True
                 visualizer.update_abort()
-                # TODO: logger
+                log.exception(exception_group)
 
             visualizer.update_state(match.states[-1])
             visualizer.draw()
 
         if not aborted:
-            log.debug(f"Concluded {match}")
+            log.debug("Concluded %s", match)
             match.conclude_match()
         else:
-            log.debug(f"Aborted {match}")
+            log.debug("Aborted %s", match)
             match.abort_match()
 
         for move_nr, state in enumerate(match.states):
@@ -247,4 +247,4 @@ def orchestrate_match(
         visualizer.update_result(match.get_result())
         visualizer.draw()
 
-    log.info(f"Finished orchestrating {match}.")
+    log.info("Finished orchestrating %s", match)

@@ -49,14 +49,18 @@ def match(
     log.setLevel(log_level)
     if __debug__:
         log.setLevel(logging.DEBUG)
-    log.debug("Environment: " f"{pyggp.logging.console_width=}, " f"{pyggp.logging.log_line_length}")
     log.debug(
-        "User Input: "
-        f"log_level={logging.getLevelName(log_level)}, "
-        f"{ruleset=}, "
-        f"{registry=}, "
-        f"{startclock=}, "
-        f"{playclock=}, "
+        "Environment: console_width=%d, log_line_length=%d",
+        pyggp.logging.console_width,
+        pyggp.logging.log_line_length,
+    )
+    log.debug(
+        "Command-line config: log_level=%s, ruleset=%s, registry=%s, startclock=%s, playclock=%s",
+        logging.getLevelName(log_level),
+        ruleset,
+        registry,
+        startclock,
+        playclock,
     )
 
     ruleset = get_ruleset(ruleset)
@@ -71,17 +75,24 @@ def match(
         playclock, roles=roles, default=GameClockConfiguration.default_playclock_config()
     )
     visualizer = SimpleRichVisualizer()
-    _newline = "\n\t"
     log.debug(
         "Parsed Input: "
-        f"ruleset=(\n\t{_newline.join(repr(rule) for rule in ruleset.rules)}\n), "
-        f"{interpreter=}, "
-        f"{roles=}, "
-        f"{role_agentname_map=}, "
-        f"{name_agenttypes_map=}, "
-        f"{startclock_configs=}, "
-        f"{playclock_configs=}, "
-        f"{visualizer=}"
+        "ruleset=(\n\t%s\n), "
+        "interpreter=%s, "
+        "roles=%s, "
+        "role_agentname_map=%s, "
+        "name_agenttypes_map=%s, "
+        "startclock_configs=%s, "
+        "playclock_configs=%s, "
+        "visualizer=%s",
+        "\n\t".join(repr(rule) for rule in ruleset.rules),
+        interpreter,
+        roles,
+        role_agentname_map,
+        name_agenttypes_map,
+        startclock_configs,
+        playclock_configs,
+        visualizer,
     )
 
     orchestrate_match(
