@@ -2,6 +2,7 @@ import logging
 from typing import List, Optional
 
 import typer
+from rich import print  # pylint: disable=redefined-builtin
 
 import pyggp.agents
 from pyggp._logging import log
@@ -14,10 +15,15 @@ from pyggp.commands import (
 )
 from pyggp.gameclocks import GameClockConfiguration
 from pyggp.interpreters import ClingoInterpreter
-from pyggp.logging import log
 from pyggp.visualizers import SimpleRichVisualizer
 
 app = typer.Typer()
+
+
+def version_callback(value: bool) -> None:
+    if value:
+        print("[bold]pyggp[/bold] (version %s)" % pyggp.__version__)
+        raise typer.Exit()
 
 
 def determine_log_level(verbose: int = 0, quiet: int = 0) -> int:
@@ -107,6 +113,18 @@ def match(
         playclock_configs=playclock_configs,
         visualizer=visualizer,
     )
+
+
+@app.callback()
+def main(
+    version: bool = typer.Option(
+        False, "--version", "-V", help="Show version number and exit", is_eager=True, callback=version_callback
+    )
+) -> None:
+    """A GGP engine.
+
+    Use pyggp COMMAND --help for more information.
+    """
 
 
 if __name__ == "__main__":
