@@ -12,6 +12,13 @@ readme = "README.md"
 packages = [
     { include = "pyggp", from = "src" },
 ]
+keywords = ["ggp", "general game playing", "game", "gdl"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Topic :: Games/Entertainment :: Simulation",
+    "Topic :: Games/Entertainment :: Turn Based Strategy",
+    "Typing :: Typed"
+]
 
 [tool.poetry.scripts]
 pyggp = "pyggp.app:app"
