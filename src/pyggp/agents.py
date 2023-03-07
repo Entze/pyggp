@@ -5,13 +5,14 @@ from contextlib import AbstractContextManager
 from types import TracebackType
 from typing import Type
 
+from pyggp.exceptions.agent_exceptions import InterpreterAgentWithoutInterpreterError
 from pyggp.gameclocks import GameClockConfiguration
 from pyggp.gdl import Ruleset, Move, Role, State
 from pyggp.interpreters import ClingoInterpreter, Interpreter
 
 
 class Agent(AbstractContextManager[None], abc.ABC):
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}(id={hex(id(self))})"
 
     def __enter__(self) -> None:
@@ -48,7 +49,7 @@ class Agent(AbstractContextManager[None], abc.ABC):
 
 
 class InterpreterAgent(Agent, ABC):
-    def __init__(self):
+    def __init__(self) -> None:
         self._interpreter: Interpreter | None = None
         self._role: Role | None = None
         self._ruleset: Ruleset | None = None
@@ -78,5 +79,7 @@ class InterpreterAgent(Agent, ABC):
 
 class ArbitraryAgent(InterpreterAgent):
     def calculate_move(self, move_nr: int, total_time_ns: int, view: State) -> Move:
+        if self._interpreter is None:
+            raise InterpreterAgentWithoutInterpreterError
         moves = self._interpreter.get_legal_moves_by_role(view, self._role)
         return random.choice(tuple(moves))

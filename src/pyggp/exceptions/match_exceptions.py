@@ -15,7 +15,9 @@ class MatchPrematurelyTerminatedError(MatchError):
 
 
 class MatchDNSError(MatchPrematurelyTerminatedError):
-    pass
+    def __init__(self, role: Role, actor: Actor):
+        message = f"{role=}, {actor=}"
+        super().__init__(message)
 
 
 class MatchDNFError(MatchPrematurelyTerminatedError):

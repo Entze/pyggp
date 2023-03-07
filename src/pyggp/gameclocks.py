@@ -37,9 +37,9 @@ class GameClockConfiguration:
         return f"{self.__class__.__name__}({self.total_time} | {self.increment} d{self.delay})"
 
     @classmethod
-    def from_str(cls, s: str) -> Self:
+    def from_str(cls, string: str) -> Self:
         # TODO: Swap for a proper parser. Very manual parsing
-        split = s.split(" ", 3)
+        split = string.split(" ", 3)
         total_time_str: str | None = None
         increment_str: str | None = None
         delay_str: str | None = None
@@ -59,50 +59,50 @@ class GameClockConfiguration:
         elif len(split) == 4:
             total_time_str, divider_str, increment_str, delay_str = split
         else:
-            raise ValueError(f"Invalid game clock configuration: '{s}'")
+            raise ValueError(f"Invalid game clock configuration: '{string}'")
 
         if divider_str is not None and divider_str != "|":
             raise ValueError(
-                f"Invalid game clock configuration: '{s}', divider between total time and increment must be '|'."
+                f"Invalid game clock configuration: '{string}', divider between total time and increment must be '|'."
             )
         if delay_str is not None and not delay_str.startswith("d"):
-            raise ValueError(f"Invalid game clock configuration: '{s}', delay '{delay_str}' must start with 'd'.")
+            raise ValueError(f"Invalid game clock configuration: '{string}', delay '{delay_str}' must start with 'd'.")
 
         if total_time_str is not None:
             try:
                 total_time = float(total_time_str)
-            except ValueError as e:
+            except ValueError as exception:
                 raise ValueError(
-                    f"Invalid game clock configuration: '{s}', could not parse '{total_time_str}' as float."
-                ) from e
+                    f"Invalid game clock configuration: '{string}', could not parse '{total_time_str}' as float."
+                ) from exception
         else:
             total_time = 0.0
         if increment_str is not None:
             try:
                 increment = float(increment_str)
-            except ValueError as e:
+            except ValueError as exception:
                 raise ValueError(
-                    f"Invalid game clock configuration: '{s}', could not parse '{increment_str}' as float"
-                ) from e
+                    f"Invalid game clock configuration: '{string}', could not parse '{increment_str}' as float"
+                ) from exception
         else:
             increment = 0.0
         if delay_str is not None:
             try:
                 delay = float(delay_str[1:])
-            except ValueError as e:
+            except ValueError as exception:
                 raise ValueError(
-                    f"Invalid game clock configuration: '{s}', could not parse '{delay_str}' as float"
-                ) from e
+                    f"Invalid game clock configuration: '{string}', could not parse '{delay_str}' as float"
+                ) from exception
         else:
             delay = 0.0
         return cls(total_time=total_time, increment=increment, delay=delay)
 
     @classmethod
-    def default_startclock_config(cls, *args, **kwargs) -> Self:
+    def default_startclock_config(cls) -> Self:
         return cls(60.0, 0.0, 0.0)
 
     @classmethod
-    def default_playclock_config(cls, *args, **kwargs) -> Self:
+    def default_playclock_config(cls) -> Self:
         return cls(0.0, 0.0, 60.0)
 
 

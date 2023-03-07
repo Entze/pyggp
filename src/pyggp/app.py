@@ -14,7 +14,7 @@ from pyggp.commands import (
 from pyggp.gameclocks import GameClockConfiguration
 from pyggp.interpreters import ClingoInterpreter
 from pyggp.logging import log
-from pyggp.visualizers import NullVisualizer, SimpleRichVisualizer
+from pyggp.visualizers import SimpleRichVisualizer
 
 app = typer.Typer()
 
@@ -35,6 +35,8 @@ def determine_log_level(verbose: int = 0, quiet: int = 0) -> int:
     return log_level
 
 
+# Disables too-many-arguments, because typer builds the CLI from the function signature.
+# pylint: disable=too-many-arguments
 @app.command()
 def match(
     ruleset: str = typer.Argument(..., show_default=False),

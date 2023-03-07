@@ -94,6 +94,15 @@ See Also:
     :class:`Relation`
 
 """
+ConcretePrimitiveSubrelation: TypeAlias = int | str
+"""Type alias for subrelations, that are not self-referential and not variables.
+
+Concrete primitive subrelations cannot contain other relations. They are either integers or strings.
+
+See Also:
+    :class:`Relation`
+
+"""
 
 
 class Signature(NamedTuple):
@@ -113,10 +122,10 @@ class Signature(NamedTuple):
             return f"[cyan]{self.name}"
         return f"[cyan]{self.name}[white]/[purple]{self.arity}"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.name}/{self.arity}"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.name}/{self.arity}"
 
 
@@ -622,7 +631,13 @@ class Relation:
             if self.type_rank != other.type_rank:
                 return self.type_rank < other.type_rank
             if self.top_value != other.top_value:
-                return self.top_value < other.top_value
+                assert isinstance(self.top_value, other.top_value.__class__), (
+                    "Equal type_rank implies same type of top_value. "
+                    f"However, {self.top_value=} is of "
+                    f"type {type(self.top_value).__name__} and {other.top_value=} is of "
+                    f"type {type(other.top_value).__name__}"
+                )
+                return self.top_value < other.top_value  # type: ignore
             return self.sub_values < other.sub_values
 
         def __gt__(self, other: Any) -> bool:
@@ -631,7 +646,13 @@ class Relation:
             if self.type_rank != other.type_rank:
                 return self.type_rank > other.type_rank
             if self.top_value != other.top_value:
-                return self.top_value > other.top_value
+                assert isinstance(self.top_value, other.top_value.__class__), (
+                    "Equal type_rank implies same type of top_value. "
+                    f"However, {self.top_value=} is of "
+                    f"type {type(self.top_value).__name__} and {other.top_value=} is of "
+                    f"type {type(other.top_value).__name__}"
+                )
+                return self.top_value > other.top_value  # type: ignore
             return self.sub_values > other.sub_values
 
         @classmethod
@@ -682,7 +703,7 @@ class Relation:
                     return ()
                 case Variable():
                     if subrelation.is_wildcard:
-                        return (subrelation.name[1:],)
+                        return (Relation.Compare.from_subrelation(subrelation.name[1:]),)
                     return ()
                 case _:
                     raise TypeError(f"Cannot get sub values of {subrelation} of type {type(subrelation).__name__}.")
@@ -726,6 +747,16 @@ def argument_signatures_match(argument_signature1: ArgumentsSignature, argument_
     return True
 
 
+ConcreteSubrelation: TypeAlias = Relation | ConcretePrimitiveSubrelation
+"""Type alias for concrete subrelations.
+
+Either a relation or a concrete primitive subrelation.
+
+See Also:
+    :class:`Relation`
+    :class:`ConcretePrimitiveSubrelation`
+
+"""
 Subrelation: TypeAlias = Relation | PrimitiveSubrelation
 """Type alias for subrelations.
 
@@ -777,6 +808,8 @@ def from_clingo_symbol(symbol: clingo.Symbol) -> Subrelation:
         return Relation(name=name, arguments=arguments)
     raise TypeError(f"Cannot convert {symbol} of type {type(symbol).__name__} to a Subrelation.")  # pragma: no cover
 
+
+ConcreteRole: TypeAlias = ConcreteSubrelation
 
 Role: TypeAlias = Subrelation
 """Role played in a game.
@@ -959,7 +992,7 @@ class Sentence:
         """
         return self.to_infix_str()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(self)
 
     # endregion

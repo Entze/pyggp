@@ -1,8 +1,9 @@
 import logging
-import typer
-import rich.logging
 
-handler = rich.logging.RichHandler(
+import rich.logging
+import typer
+
+handler: rich.logging.RichHandler = rich.logging.RichHandler(
     rich_tracebacks=True,
     markup=True,
 )
@@ -13,7 +14,7 @@ if not __debug__:
         rich,
     ]
 
-FORMAT = "%(message)s"
+FORMAT: str = "%(message)s"
 logging.basicConfig(
     level=logging.NOTSET,
     format=FORMAT,
@@ -21,6 +22,6 @@ logging.basicConfig(
     handlers=[handler],
 )
 
-log = logging.getLogger("rich")
-console_width = rich.get_console().width
-log_line_length = console_width - 30
+log: logging.Logger = logging.getLogger("rich")
+console_width: int = rich.get_console().width
+log_line_length: int = console_width - 30

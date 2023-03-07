@@ -61,7 +61,7 @@ class Match:
 
     @property
     def is_finished(self) -> bool:
-        return self.states and self._interpreter.is_terminal(self.states[-1])
+        return bool(self.states) and self._interpreter.is_terminal(self.states[-1])
 
     def start_match(self) -> None:
         self._initialize_agents()
@@ -106,7 +106,7 @@ class Match:
                 except TimeoutError:
                     if wait_clock.is_expired:
                         # Makes sure the next actor isn't immediately expired
-                        wait_clock._total_time_ns = 0.0
+                        wait_clock._total_time_ns = 0.0  # pylint: disable=protected-access
                         assert not wait_clock.is_expired
                     self.utilities[role] = "DNF(Timeout)"
                     raises.append(MatchTimeoutError(self.move_nr, actor, role))
@@ -147,10 +147,10 @@ class Match:
                     )
                 except TimeoutError:
                     self.utilities[role] = "DNS"
-                    dns.append((role, actor))
+                    dns.append(MatchDNSError(role, actor))
 
         if dns:
-            raise MatchDNSError
+            raise ExceptionGroup("Timeout while initializing agents", dns)
 
     def _finalize_agents(self) -> None:
         views = self._interpreter.get_sees(self.states[-1])

@@ -2,8 +2,8 @@ from typing import MutableSequence, Set
 
 import rich.panel
 import rich.table
-from rich import print
-from rich.pretty import pprint
+from rich import print  # pylint: disable=redefined-builtin
+import rich.pretty
 
 from pyggp.gdl import State, Signature, Subrelation, Relation
 from pyggp.match import MatchResult
