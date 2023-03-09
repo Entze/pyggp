@@ -1,5 +1,6 @@
 import logging
 
+import inflection
 import rich.logging
 import typer
 
@@ -25,3 +26,15 @@ logging.basicConfig(
 log: logging.Logger = logging.getLogger("rich")
 console_width: int = rich.get_console().width
 log_line_length: int = console_width - 30
+
+
+def inflect(noun: str, count: int = 0, with_count: bool = True) -> str:
+    if count == 1:
+        noun_ = inflection.singularize(noun)
+    else:
+        noun_ = inflection.pluralize(noun)
+    if with_count:
+        count_str = f"{count} "
+    else:
+        count_str = ""
+    return f"{count_str}{noun_}"
