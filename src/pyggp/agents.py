@@ -109,3 +109,39 @@ class RandomAgent(InterpreterAgent):
             raise InterpreterAgentWithoutInterpreterError
         moves = self._interpreter.get_legal_moves_by_role(view, self._role)
         return random.choice(tuple(moves))
+
+
+class HumanAgent(InterpreterAgent):
+    def calculate_move(self, move_nr: int, total_time_ns: int, view: State) -> Move:
+        log.info("Calculating move %d for %s, view=%s", move_nr, self, view)
+        if self._interpreter is None:
+            raise InterpreterAgentWithoutInterpreterError
+        moves = sorted(self._interpreter.get_legal_moves_by_role(view, self._role))
+
+        move_idx: int | None = None
+        while move_idx is None or not (1 <= move_idx <= len(moves)):
+            console = rich.console.Console()
+            ctx = contextlib.nullcontext() if len(moves) <= 10 else console.pager()
+            with ctx:
+                console.print("Legal moves:")
+                console.print(f"\n".join(f"\t[{n + 1}] {move}" for n, move in enumerate(moves)))
+            move_prompt: str = rich.prompt.Prompt.ask("> ", default="1")
+            try:
+                move_idx = int(move_prompt)
+            except ValueError:
+                pass
+            try:
+                search: str | Relation = move_prompt
+                if (move_prompt.startswith("'") and move_prompt.endswith("'")) or (
+                    move_prompt.startswith('"') and move_prompt.endswith('"')
+                ):
+                    search = move_prompt[1:-1]
+                else:
+                    search = Relation(move_prompt)
+                move_idx = moves.index(search) + 1
+            except ValueError:
+                pass
+            if move_idx is None or not (1 <= move_idx <= len(moves)):
+                print(f"[red]Invalid move [italic purple]{move_prompt}.")
+
+        return moves[move_idx - 1]
