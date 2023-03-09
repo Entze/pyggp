@@ -30,10 +30,10 @@ class Agent(AbstractContextManager[None], abc.ABC):
         self.tear_down()
 
     def set_up(self) -> None:
-        pass
+        log.debug("Setting up %s", self)
 
     def tear_down(self) -> None:
-        pass
+        log.debug("Tearing down %s", self)
 
     def prepare_match(
         self,
@@ -42,13 +42,23 @@ class Agent(AbstractContextManager[None], abc.ABC):
         startclock_config: GameClockConfiguration,
         playclock_config: GameClockConfiguration,
     ) -> None:
-        pass  # pragma: no cover
+        log.debug(
+            "Preparing %s for match, role=%s, "
+            "ruleset=Ruleset(nr_of_rules=%s)), "
+            "startclock_config=%s, "
+            "playclock_config=%s",
+            self,
+            role,
+            len(ruleset.rules),
+            startclock_config,
+            playclock_config,
+        )
 
     def abort_match(self) -> None:
-        pass  # pragma: no cover
+        log.debug("Aborting match for %s", self)
 
     def conclude_match(self, view: State) -> None:
-        pass  # pragma: no cover
+        log.debug("Concluding match for %s, view=%s", self, view)
 
     def calculate_move(self, move_nr: int, total_time_ns: int, view: State) -> Move:
         raise NotImplementedError
@@ -69,6 +79,7 @@ class InterpreterAgent(Agent, ABC):
         startclock_config: GameClockConfiguration,
         playclock_config: GameClockConfiguration,
     ) -> None:
+        super().prepare_match(role, ruleset, startclock_config, playclock_config)
         self._role = role
         self._ruleset = ruleset
         self._startclock_config = startclock_config
@@ -76,6 +87,7 @@ class InterpreterAgent(Agent, ABC):
         self._interpreter = ClingoInterpreter(ruleset)
 
     def conclude_match(self, view: State) -> None:
+        super().conclude_match(view)
         self._interpreter = None
         self._role = None
         self._ruleset = None

@@ -14,6 +14,7 @@ from pyggp.commands import (
     parse_agent_registry,
 )
 from pyggp.gameclocks import GameClockConfiguration
+from pyggp.gdl import Relation
 from pyggp.interpreters import ClingoInterpreter
 from pyggp.visualizers import SimpleRichVisualizer
 
@@ -48,8 +49,8 @@ def determine_log_level(verbose: int = 0, quiet: int = 0) -> int:
 def match(
     ruleset: str = typer.Argument(..., show_default=False),
     registry: Optional[List[str]] = typer.Argument(None, metavar="[ROLE=AGENT]...", show_default=False),
-    startclock: Optional[List[str]] = typer.Option(None, "--startclock-config", show_default=False),
-    playclock: Optional[List[str]] = typer.Option(None, "--playclock-config", show_default=False),
+    startclock: Optional[List[str]] = typer.Option(None, show_default=False),
+    playclock: Optional[List[str]] = typer.Option(None, show_default=False),
     verbose: int = typer.Option(0, "--verbose", "-v", count=True, show_default=False),
     quiet: int = typer.Option(0, "--quiet", "-q", count=True, show_default=False),
 ) -> None:
@@ -72,21 +73,38 @@ def match(
         playclock,
     )
 
-    ruleset = get_ruleset(ruleset)
-    interpreter = ClingoInterpreter(ruleset)
-    roles = interpreter.get_roles()
-    role_agentname_map = parse_agent_registry(registry, roles=roles)
-    name_agenttypes_map = get_name_agenttypes_map(role_agentname_map, default=pyggp.agents.ArbitraryAgent)
-    startclock_configs = get_clock_configs(
-        startclock, roles=roles, default=GameClockConfiguration.default_startclock_config()
+    log.debug("Fetching ruleset")
+    ruleset_ = get_ruleset(ruleset)
+    log.debug("Instantiating interpreter")
+    interpreter_ = ClingoInterpreter(ruleset_)
+    roles_ = interpreter_.get_roles()
+    log.debug("Mapping roles to agent names")
+    role_agentname_map_ = parse_agent_registry(registry, roles=roles_)
+    log.debug("Mapping agent names to agent types")
+    name_agenttypes_map_ = get_name_agenttypes_map(role_agentname_map_, default=pyggp.agents.HumanAgent)
+    log.debug("Mapping clock configs to roles")
+    default_config = {
+        role: GameClockConfiguration.default_no_timeout_config()
+        for role in roles_
+        if role == Relation.random() or name_agenttypes_map_[role_agentname_map_[role]] == pyggp.agents.HumanAgent
+    }
+    startclock_configs_ = get_clock_configs(
+        startclock,
+        roles=roles_,
+        default_config=default_config,
+        default_clock_config=GameClockConfiguration.default_startclock_config(),
     )
-    playclock_configs = get_clock_configs(
-        playclock, roles=roles, default=GameClockConfiguration.default_playclock_config()
+    playclock_configs_ = get_clock_configs(
+        playclock,
+        roles=roles_,
+        default_config=default_config,
+        default_clock_config=GameClockConfiguration.default_playclock_config(),
     )
-    visualizer = SimpleRichVisualizer()
+    log.debug("Initializing visualizer")
+    visualizer_ = SimpleRichVisualizer()
     log.debug(
         "Parsed Input: "
-        "ruleset=(\n\t%s\n), "
+        "ruleset=\n%s\n, "
         "interpreter=%s, "
         "roles=%s, "
         "role_agentname_map=%s, "
@@ -94,24 +112,24 @@ def match(
         "startclock_configs=%s, "
         "playclock_configs=%s, "
         "visualizer=%s",
-        "\n\t".join(repr(rule) for rule in ruleset.rules),
-        interpreter,
-        roles,
-        role_agentname_map,
-        name_agenttypes_map,
-        startclock_configs,
-        playclock_configs,
-        visualizer,
+        ruleset_,
+        interpreter_,
+        roles_,
+        role_agentname_map_,
+        name_agenttypes_map_,
+        startclock_configs_,
+        playclock_configs_,
+        visualizer_,
     )
 
     orchestrate_match(
-        ruleset=ruleset,
-        interpreter=interpreter,
-        name_agenttypes_map=name_agenttypes_map,
-        role_agentname_map=role_agentname_map,
-        startclock_configs=startclock_configs,
-        playclock_configs=playclock_configs,
-        visualizer=visualizer,
+        ruleset=ruleset_,
+        interpreter=interpreter_,
+        name_agenttypes_map=name_agenttypes_map_,
+        role_agentname_map=role_agentname_map_,
+        startclock_configs=startclock_configs_,
+        playclock_configs=playclock_configs_,
+        visualizer=visualizer_,
     )
 
 

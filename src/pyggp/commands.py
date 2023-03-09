@@ -196,7 +196,9 @@ def orchestrate_match(
     agents = []
     agent_role_map = {}
     for role, agent_name in role_agentname_map.items():
-        log.debug("Instantiating agent %s for role %s", agent_name, role)
+        log.debug(
+            "Instantiating agent [italic]%s[/italic] for role [italic yellow]%s[/italic yellow]", agent_name, role
+        )
         agent_type = name_agenttypes_map[agent_name]
         agent = agent_type()
         agent_role_map[agent] = role
@@ -207,10 +209,11 @@ def orchestrate_match(
     with contextlib.ExitStack() as stack:
         for agent in agents:
             role = agent_role_map[agent]
-            log.debug("Setting up role %s's agent %s", role, agent)
+            log.debug("Beginning setup for %s with role [italic yellow]%s[/italic yellow]", agent, role)
             stack.enter_context(agent)
             is_human_actor = isinstance(agent, HumanAgent)
             actor = LocalActor(agent=agent, is_human_actor=is_human_actor)
+            log.debug("Instantiating %s for %s with role [italic yellow]%s[/italic yellow]", actor, agent, role)
             actors.append(actor)
             role_actor_map[role] = actor
 

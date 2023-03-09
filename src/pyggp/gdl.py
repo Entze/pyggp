@@ -1223,6 +1223,23 @@ class Ruleset:
 
     # endregion
 
+    # region Magic Methods
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(nr_of_rules={len(self.rules)})"
+
+    def __str__(self) -> str:
+        return "\n".join(str(rule) for rule in self.rules)
+
+    def __rich_console__(
+        self, console: rich_console.Console, options: rich_console.ConsoleOptions
+    ) -> rich_console.RenderResult:
+        syntax = rich_syntax.Syntax(str(self), "clingo", line_numbers=True)
+
+        yield syntax
+
+    # endregion
+
     # region Methods
 
     def _get_related_rules_by_relation(self, relation: Relation) -> set[Sentence]:
