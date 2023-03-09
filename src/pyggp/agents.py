@@ -7,7 +7,7 @@ from typing import Type
 
 from pyggp.exceptions.agent_exceptions import InterpreterAgentWithoutInterpreterError
 from pyggp.gameclocks import GameClockConfiguration
-from pyggp.gdl import Ruleset, Move, Role, State
+from pyggp.gdl import Move, Relation, Role, Ruleset, State
 from pyggp.interpreters import ClingoInterpreter, Interpreter
 
 
@@ -78,6 +78,14 @@ class InterpreterAgent(Agent, ABC):
 
 
 class ArbitraryAgent(InterpreterAgent):
+    def calculate_move(self, move_nr: int, total_time_ns: int, view: State) -> Move:
+        if self._interpreter is None:
+            raise InterpreterAgentWithoutInterpreterError
+        moves = self._interpreter.get_legal_moves_by_role(view, self._role)
+        return random.choice(tuple(moves))
+
+
+class RandomAgent(InterpreterAgent):
     def calculate_move(self, move_nr: int, total_time_ns: int, view: State) -> Move:
         if self._interpreter is None:
             raise InterpreterAgentWithoutInterpreterError
