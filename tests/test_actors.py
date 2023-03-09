@@ -1,8 +1,8 @@
 # pylint: disable=missing-docstring,invalid-name,unused-argument
 
 import pytest
-
 from common import SLEEP_TIME, MockAgent, MockTimeoutAgent
+
 from pyggp.actors import LocalActor
 from pyggp.exceptions.actor_exceptions import ActorNotStartedError
 from pyggp.gameclocks import GameClockConfiguration
