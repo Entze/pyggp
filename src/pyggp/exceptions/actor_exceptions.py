@@ -4,3 +4,11 @@ class ActorError(Exception):
 
 class ActorNotStartedError(ActorError):
     pass
+
+
+class ActorTimeoutError(ActorError):
+    pass
+
+
+class ActorIllegalMoveError(ActorError):
+    pass
