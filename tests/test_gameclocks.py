@@ -4,7 +4,7 @@ from unittest import TestCase
 
 import pytest
 
-from pyggp.gameclocks import GameClockConfiguration, GameClock
+from pyggp.gameclocks import GameClock, GameClockConfiguration
 
 
 @pytest.mark.parametrize(

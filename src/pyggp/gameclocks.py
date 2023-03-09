@@ -3,7 +3,7 @@ import time
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Type, Self
+from typing import Self, Type
 
 
 @dataclass(frozen=True)
@@ -105,6 +105,10 @@ class GameClockConfiguration:
     def default_playclock_config(cls) -> Self:
         return cls(0.0, 0.0, 60.0)
 
+    @classmethod
+    def default_no_timeout_config(cls) -> Self:
+        return cls(0.0, 0.0, float("inf"))
+
 
 class GameClock(AbstractContextManager[int]):
     """A game clock that can be used to track the time remaining for a player.
@@ -134,12 +138,25 @@ class GameClock(AbstractContextManager[int]):
             :class:`GameClockConfig`
 
         """
-        self._total_time_ns = int(game_clock_config.total_time * 1e9)
+        self._total_time_is_inf = game_clock_config.total_time == float("inf")
+        self._increment_is_inf = game_clock_config.increment == float("inf")
+        self._delay_is_inf = game_clock_config.delay == float("inf")
+        try:
+            self._total_time_ns = int(game_clock_config.total_time * 1e9)
+        except OverflowError:
+            self._total_time_ns = int(365 * 24 * 60 * 60 * 1e9)
         self._increment = game_clock_config.increment
-        self._increment_ns = int(game_clock_config.increment * 1e9)
+        try:
+            self._increment_ns = int(game_clock_config.increment * 1e9)
+        except OverflowError:
+            self._increment_ns = int(365 * 24 * 60 * 60 * 1e9)
         self._delay = game_clock_config.delay
-        self._delay_ns = int(game_clock_config.delay * 1e9)
+        try:
+            self._delay_ns = int(game_clock_config.delay * 1e9)
+        except OverflowError:
+            self._delay_ns = int(365 * 24 * 60 * 60 * 1e9)
         self.__start: int | None = None
+        self._last_delta_ns: int | None = None
 
     def __enter__(self) -> int:
         """Start the game clock.
@@ -172,7 +189,13 @@ class GameClock(AbstractContextManager[int]):
         return f"{self.__total_time_repr} | {self.__increment_repr} d{self.__delay_repr}"
 
     @property
+    def _can_timeout(self) -> bool:
+        return not self._total_time_is_inf and not self._delay_is_inf
+
+    @property
     def __total_time_repr(self) -> str:
+        if self._total_time_is_inf:
+            return "∞"
         if self._total_time_ns > 60_000_000_000:
             minutes = self._total_time_ns // 60_000_000_000
             seconds = (self._total_time_ns % 60_000_000_000) // 1_000_000_000
@@ -189,12 +212,16 @@ class GameClock(AbstractContextManager[int]):
 
     @property
     def __increment_repr(self) -> str:
+        if self._increment_is_inf:
+            return "∞"
         if self._increment.is_integer():
             return f"{int(self._increment)}"
         return f"{self._increment}"
 
     @property
     def __delay_repr(self) -> str:
+        if self._delay_is_inf:
+            return "∞"
         if self._delay.is_integer():
             return f"{int(self._delay)}"
         return f"{self._delay}"
@@ -202,17 +229,29 @@ class GameClock(AbstractContextManager[int]):
     @property
     def is_expired(self) -> bool:
         """Check if the game clock is expired."""
-        return self._total_time_ns < 0
+        return self._can_timeout and self._total_time_ns < 0
 
     @property
     def total_time(self) -> float:
         """Get the total time left in seconds."""
+        if self._total_time_is_inf:
+            return float("inf")
         return self._total_time_ns / 1e9
 
     @property
     def total_time_ns(self) -> int:
         """Get the total time left in nanoseconds."""
         return self._total_time_ns
+
+    @property
+    def last_delta_ns(self) -> int | None:
+        return self._last_delta_ns
+
+    @property
+    def last_delta(self) -> float | None:
+        if self._last_delta_ns is None:
+            return None
+        return self._last_delta_ns / 1e9
 
     def start(self) -> None:
         """Start the game clock.
@@ -233,13 +272,17 @@ class GameClock(AbstractContextManager[int]):
 
         """
         stop = time.monotonic_ns()
-        if self.__start is not None:
+        if self.__start is not None and self._can_timeout:
             time_delta = stop - self.__start
             clock_delta = max(0, time_delta - self._delay_ns)
             self._total_time_ns -= clock_delta
             if not self.is_expired:
                 self._total_time_ns += self._increment_ns
+            self._last_delta_ns = stop - self.__start
             self.__start = None
+
+        if self._increment_is_inf:
+            self._total_time_is_inf = True
 
     def get_timeout(self, slack: float = 0.0) -> float:
         """Get the timeout for the current move.
