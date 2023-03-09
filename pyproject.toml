@@ -30,6 +30,7 @@ clingox = "~1.2.0"
 typer = "~0.7.0"
 rich = "~13.3.1"
 inflection = "~0.5.1"
+pygments-clingo = "~0.1.8"
 
 
 [tool.poetry.group.ci]
@@ -82,7 +83,9 @@ shiv = "~1.0.3"
 optional = true
 
 [tool.poetry.group.docs.dependencies]
-pdoc = "~12.3.1"
+mkdocs-material = "~9.1.1"
+mkdocs-autorefs = "~0.4.1"
+mkdocstrings = {version = "~0.20.0", extras=["python"]}
 
 
 [tool.black]
