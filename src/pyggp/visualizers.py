@@ -160,9 +160,9 @@ class SimpleRichVisualizer(Visualizer):
             self._draw_state(self._states[-1], self._states[-1], len(self._states) - 1)
             self.last_drawn_state = len(self._states) - 1
             if self.aborted:
-                panel_title = "[bold red]Aborted[/bold red]"
+                panel_title = "[bold red]Aborted match[/bold red]"
             else:
-                panel_title = "[bold green]Finished[/bold green]"
+                panel_title = "[bold green]Finished match[/bold green]"
             panel = rich.panel.Panel(rich.pretty.Pretty(self.result.utilities), title=panel_title, title_align="center")
             print(panel)
 
