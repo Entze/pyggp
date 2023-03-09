@@ -5,14 +5,17 @@ from pyggp.gdl import Move, Role, Ruleset, State
 
 
 class Actor:
-    def __init__(self) -> None:
+    def __init__(self, is_human_actor: bool = False) -> None:
         self.startclock: GameClock | None = None
         self.playclock: GameClock | None = None
+        self.is_human_actor = is_human_actor
 
     def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}(id={hex(id(self))}, "
-            f"startclock={self.startclock!r}, playclock={self.playclock!r})"
+            f"is_human_actor={self.is_human_actor!r}, "
+            f"startclock={self.startclock!r}, "
+            f"playclock={self.playclock!r})"
         )
 
     def send_start(
@@ -69,8 +72,8 @@ class Actor:
 
 
 class LocalActor(Actor):
-    def __init__(self, agent: Agent) -> None:
-        super().__init__()
+    def __init__(self, agent: Agent, is_human_actor: bool = False) -> None:
+        super().__init__(is_human_actor=is_human_actor)
         self.agent = agent
 
     def _send_start(
