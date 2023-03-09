@@ -1,0 +1,23 @@
+site_name: pyggp
+site_url: https://pyggp.github.io/
+site_author: Lukas Grassauer
+site_description: Python implementation of the General Game Playing (GGP) framework
+
+repo_name: entze/pyggp
+repo_url: https://github.com/entze/pyggp
+
+copyright: Copyright &copy; 2023 Lukas Grassauer
+
+theme:
+  name: material
+
+plugins:
+  - search
+  - autorefs
+  - mkdocstrings
+
+nav:
+  - Overview: index.md
+  - Reference:
+      - actors: api/actors.md
+      - gdl: api/gdl.md
