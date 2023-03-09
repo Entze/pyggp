@@ -209,8 +209,8 @@ def orchestrate_match(
             role = agent_role_map[agent]
             log.debug("Setting up role %s's agent %s", role, agent)
             stack.enter_context(agent)
-            actor = LocalActor(agent)
-            log.debug("Instantiating actor role %s's %s with %s", role, actor, agent)
+            is_human_actor = isinstance(agent, HumanAgent)
+            actor = LocalActor(agent=agent, is_human_actor=is_human_actor)
             actors.append(actor)
             role_actor_map[role] = actor
 

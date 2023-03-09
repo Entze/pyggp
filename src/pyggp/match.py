@@ -46,7 +46,7 @@ def _get_executor(*actors: Actor) -> Executor:
 
 
 class Match:
-    def __init__(self, match_configuration: MatchConfiguration, slack: float = 2.5) -> None:
+    def __init__(self, match_configuration: MatchConfiguration, max_wait: float = 60 * 60, slack: float = 2.5) -> None:
         self._ruleset: Ruleset = match_configuration["ruleset"]
         self._interpreter: Interpreter = match_configuration["interpreter"]
         self._role_actor_map: Mapping[Role, Actor] = match_configuration["role_actor_map"]
@@ -55,7 +55,9 @@ class Match:
         self.utilities: MutableResultsMap = {role: None for role in self._role_actor_map}
         self.move_nr = 0
         self.states: MutableSequence[State] = []
+        self._max_wait = max_wait
         self._slack = slack
+        self._polling_rate = 0.1
 
     def __repr__(self) -> str:
         move_nr = self.move_nr
@@ -89,33 +91,90 @@ class Match:
         with _get_executor(*(self._role_actor_map[role] for role in roles_in_control)) as executor:
             for role in roles_in_control:
                 actor = self._role_actor_map[role]
+                log.debug("Submitting send_play to %s", actor)
                 actor_movefuture_map[actor] = executor.submit(actor.send_play, self.move_nr, views[role])
 
             wait_time = 0.0
             for actor in actor_movefuture_map:
-                wait_time = max(wait_time, actor.playclock.get_timeout())
-            wait_clock_config = GameClockConfiguration(wait_time, 0.0, self._slack)
+                wait_time = min(self._max_wait, max(wait_time, actor.playclock.get_timeout()))
+            log.debug(
+                "Waiting at most [bold cyan]%.2fs[/bold cyan] for %s to send a play",
+                wait_time,
+                inflect("actor", len(actor_movefuture_map)),
+            )
+            wait_clock_config = GameClockConfiguration(wait_time + self._slack, 0.0, 0.0)
             wait_clock = GameClock(wait_clock_config)
 
-            for role in roles_in_control:
+            role_padding = max(len(str(role)) for role in roles_in_control) + 2
+            display = not any(actor.is_human_actor for actor in self._role_actor_map.values())
+
+            with rich_progress.Progress(
+                rich_progress.TextColumn("[progress.description]{task.description}"),
+                rich_progress.BarColumn(),
+                rich_progress.TimeElapsedColumn(),
+                rich_progress.TextColumn("/"),
+                rich_progress.TimeRemainingColumn(),
+                disable=not display,
+                transient=True,
+            ) as progress:
+                role_task_map = {}
+                for role in roles_in_control:
+                    actor = self._role_actor_map[role]
+                    task = progress.add_task(
+                        str(role).rjust(role_padding) + f"{'(calculating)': >14}", total=actor.playclock.get_timeout()
+                    )
+                    role_task_map[role] = task
+
+                while not wait_clock.is_expired and not all(move is not None for move in role_movemap.values()):
+                    for role in roles_in_control:
+                        if role_movemap[role] is not None:
+                            continue
+                        actor = self._role_actor_map[role]
+                        if actor.playclock.is_expired:
+                            continue
+
+                        timeout = min(self._polling_rate, wait_clock.get_timeout())
+                        if actor.is_human_actor:
+                            timeout = actor.playclock.get_timeout()
+                            if timeout == float("inf"):
+                                timeout = None
+                        try:
+                            with wait_clock:
+                                move = actor_movefuture_map[actor].result(timeout=timeout)
+                            if not self._interpreter.is_legal(state, role, move):
+                                raise ActorIllegalMoveError
+                            role_movemap[role] = move
+                            progress.update(
+                                role_task_map[role], description=str(role).rjust(role_padding) + f"{'(done)': >14}"
+                            )
+                            progress.stop_task(role_task_map[role])
+                        except TimeoutError:
+                            pass
+                        except ActorTimeoutError:
+                            log.warning("%s timed out", actor)
+                            self.utilities[role] = "DNF(Timeout)"
+                            raises.append(MatchTimeoutError(self.move_nr, actor, role))
+                        except ActorIllegalMoveError:
+                            log.warning("%s sent an illegal move", actor)
+                            self.utilities[role] = "DNF(Illegal Move)"
+                            raises.append(MatchIllegalMoveError(self.move_nr, actor, role, move))
+                        disable = False
+                        for role_ in roles_in_control:
+                            if role_movemap[role_] is None:
+                                progress.advance(role_task_map[role_], advance=wait_clock.last_delta)
+                                actor = self._role_actor_map[role_]
+                                disable = disable or actor.is_human_actor
+
+                        progress.disable = disable
+                        if not display and not disable:
+                            progress.live.start(refresh=True)
+
+        for role in roles_in_control:
+            if role_movemap[role] is None and self.utilities[role] not in ("DNF(Timeout)", "DNF(Illegal Move)"):
                 actor = self._role_actor_map[role]
-                move_future = actor_movefuture_map[actor]
-                try:
-                    with wait_clock:
-                        move = move_future.result(wait_clock.get_timeout())
-                    if not self._interpreter.is_legal(state, role, move):
-                        raise ValueError
-                    role_movemap[role] = move
-                except TimeoutError:
-                    if wait_clock.is_expired:
-                        # Makes sure the next actor isn't immediately expired
-                        wait_clock._total_time_ns = 0.0  # pylint: disable=protected-access
-                        assert not wait_clock.is_expired
-                    self.utilities[role] = "DNF(Timeout)"
-                    raises.append(MatchTimeoutError(self.move_nr, actor, role))
-                except ValueError:
-                    self.utilities[role] = "DNF(Illegal Move)"
-                    raises.append(MatchIllegalMoveError(self.move_nr, actor, role, move))
+                log.warning("%s timed out", actor)
+                self.utilities[role] = "DNF(Timeout)"
+                raises.append(MatchTimeoutError(self.move_nr, actor, role))
 
         if raises:
             raise ExceptionGroup("Match aborted", raises)
@@ -146,7 +205,7 @@ class Match:
                 try:
                     startclock_config = self._startclock_configs[role]
                     actor_startfuture_map[actor].result(
-                        startclock_config.total_time + startclock_config.delay + self._slack
+                        min(self._max_wait, startclock_config.total_time + startclock_config.delay + self._slack)
                     )
                 except TimeoutError:
                     self.utilities[role] = "DNS"

@@ -48,7 +48,7 @@ class Actor:
         with self.playclock:
             move = self._send_play(move_nr, view)
         if self.playclock.is_expired:
-            raise TimeoutError
+            raise ActorTimeoutError
         return move
 
     def _send_play(self, move_nr: int, view: State) -> Move:
