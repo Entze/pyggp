@@ -7,11 +7,11 @@ from rich import print  # pylint: disable=redefined-builtin
 import pyggp.agents
 from pyggp._logging import log
 from pyggp.commands import (
-    parse_agent_registry,
-    get_ruleset,
-    orchestrate_match,
     get_clock_configs,
     get_name_agenttypes_map,
+    get_ruleset,
+    orchestrate_match,
+    parse_agent_registry,
 )
 from pyggp.gameclocks import GameClockConfiguration
 from pyggp.interpreters import ClingoInterpreter

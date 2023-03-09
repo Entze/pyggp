@@ -5,24 +5,26 @@ This includes the necessary classes and functions for representing GDL programs.
 
 """
 from dataclasses import dataclass, field
-from enum import auto, IntEnum
+from enum import IntEnum, auto
 from typing import (
-    Sequence,
-    Self,
-    TypeAlias,
-    Type,
-    NamedTuple,
-    Tuple,
-    MutableSequence,
-    MutableMapping,
-    Set,
-    Union,
+    Any,
     FrozenSet,
     Mapping,
-    Any,
+    MutableMapping,
+    MutableSequence,
+    NamedTuple,
+    Self,
+    Sequence,
+    Set,
+    Tuple,
+    Type,
+    TypeAlias,
+    Union,
 )
 
 import clingo.ast
+import rich.console as rich_console
+import rich.syntax as rich_syntax
 
 _pos = clingo.ast.Position("<string>", 0, 0)
 _loc = clingo.ast.Location(_pos, _pos)

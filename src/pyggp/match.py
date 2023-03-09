@@ -1,23 +1,26 @@
-from concurrent.futures import ThreadPoolExecutor, Future, Executor
+from concurrent.futures import Executor, Future, ThreadPoolExecutor
 from typing import (
-    Mapping,
     Literal,
-    NamedTuple,
-    TypedDict,
+    Mapping,
     MutableMapping,
-    TypeAlias,
     MutableSequence,
+    NamedTuple,
+    TypeAlias,
+    TypedDict,
 )
 
-from pyggp._logging import log
+import rich.progress as rich_progress
+
+from pyggp._logging import inflect, log
 from pyggp.actors import Actor
+from pyggp.exceptions.actor_exceptions import ActorIllegalMoveError, ActorTimeoutError
 from pyggp.exceptions.match_exceptions import (
     MatchDNSError,
-    MatchTimeoutError,
     MatchIllegalMoveError,
+    MatchTimeoutError,
 )
-from pyggp.gameclocks import GameClockConfiguration, GameClock
-from pyggp.gdl import Ruleset, Subrelation, Role, State, Move, Relation
+from pyggp.gameclocks import GameClock, GameClockConfiguration
+from pyggp.gdl import Move, Relation, Role, Ruleset, State, Subrelation
 from pyggp.interpreters import Interpreter, get_roles_in_control
 
 

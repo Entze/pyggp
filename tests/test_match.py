@@ -1,14 +1,15 @@
 # pylint: disable=missing-docstring,invalid-name,unused-argument
 from unittest import TestCase
 
-from common import MockTimeoutAgent, SLEEP_TIME, MockAgent, mock_match
+from common import SLEEP_TIME, MockAgent, MockTimeoutAgent, mock_match
+
 from pyggp.actors import LocalActor
 from pyggp.exceptions.match_exceptions import MatchDNSError
 from pyggp.gameclocks import GameClockConfiguration
 from pyggp.games import nim_ruleset
 from pyggp.gdl import Relation
 from pyggp.interpreters import ClingoInterpreter
-from pyggp.match import MatchConfiguration, Match
+from pyggp.match import Match, MatchConfiguration
 
 
 def test_as_expected_is_finished_non_finished() -> None:

@@ -2,25 +2,35 @@ import contextlib
 import importlib
 import importlib.util
 from dataclasses import dataclass
-from functools import cached_property
-from typing import Mapping, Type, TypeVar, Generic, Self, List, Optional, FrozenSet
+from functools import cache, cached_property
+from typing import (
+    FrozenSet,
+    Generic,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Self,
+    Type,
+    TypeVar,
+)
 
 import inflection
 
-from pyggp._logging import log
+from pyggp._logging import inflect, log
 from pyggp.actors import LocalActor
-from pyggp.agents import Agent
-from pyggp.exceptions.match_exceptions import MatchDNSError, MatchDNFError
+from pyggp.agents import Agent, HumanAgent, RandomAgent
+from pyggp.exceptions.match_exceptions import MatchDNFError, MatchDNSError
 from pyggp.gameclocks import GameClockConfiguration
-from pyggp.gdl import Ruleset, Relation
+from pyggp.gdl import ConcreteRole, Relation, Ruleset
 from pyggp.interpreters import Interpreter
-from pyggp.match import MatchConfiguration, Match
+from pyggp.match import Match, MatchConfiguration
 from pyggp.visualizers import Visualizer
 
 T = TypeVar("T")
 
 
-@dataclass
+@dataclass(frozen=True, order=True)
 class DynamicLoader(Generic[T]):
     module: str | None
     name: str

@@ -1,5 +1,5 @@
 from pyggp.actors import Actor
-from pyggp.gdl import Role, Move
+from pyggp.gdl import Move, Role
 
 
 class MatchError(Exception):

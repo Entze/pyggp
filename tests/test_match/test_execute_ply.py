@@ -1,20 +1,20 @@
 # pylint: disable=missing-docstring,invalid-name,unused-argument
 
 import pytest
-
 from common import (
     MockAgent,
-    MockTimeoutAgent,
     MockRetentionAgent,
     MockRuleset1Interpreter,
-    mock_ruleset_1,
     MockRuleset2Interpreter,
-    mock_ruleset_2,
     MockRuleset3Interpreter,
-    mock_ruleset_3,
+    MockTimeoutAgent,
     mock_match,
+    mock_ruleset_1,
+    mock_ruleset_2,
+    mock_ruleset_3,
 )
-from pyggp.exceptions.match_exceptions import MatchTimeoutError, MatchIllegalMoveError
+
+from pyggp.exceptions.match_exceptions import MatchIllegalMoveError, MatchTimeoutError
 from pyggp.gameclocks import GameClockConfiguration
 from pyggp.gdl import Relation, State
 

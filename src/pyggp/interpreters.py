@@ -1,6 +1,6 @@
 """Interpreters for GDL rulesets."""
 from dataclasses import dataclass
-from typing import FrozenSet, Mapping, Sequence, MutableMapping, Set
+from typing import FrozenSet, Mapping, MutableMapping, Sequence, Set
 
 import clingo.ast
 from clingo import Control
@@ -8,18 +8,27 @@ from clingo.ast import ProgramBuilder
 from clingox.backend import SymbolicBackend
 
 from pyggp.exceptions.gdl_exceptions import (
-    MoreThanOneModelError,
-    UnexpectedRoleError,
-    MultipleGoalsError,
-    UnsatRolesError,
-    UnsatInitError,
-    UnsatNextError,
-    UnsatSeesError,
-    UnsatLegalError,
-    UnsatGoalError,
     GoalNotIntegerError,
+    MoreThanOneModelError,
+    MultipleGoalsError,
+    UnexpectedRoleError,
+    UnsatGoalError,
+    UnsatInitError,
+    UnsatLegalError,
+    UnsatNextError,
+    UnsatRolesError,
+    UnsatSeesError,
 )
-from pyggp.gdl import Ruleset, State, Role, Move, Play, Relation, from_clingo_symbol, Subrelation
+from pyggp.gdl import (
+    Move,
+    Play,
+    Relation,
+    Role,
+    Ruleset,
+    State,
+    Subrelation,
+    from_clingo_symbol,
+)
 
 
 def get_roles_in_control(state: State) -> FrozenSet[Role]:

@@ -5,16 +5,16 @@ from unittest import TestCase
 import clingo.ast
 import pytest
 
-from pyggp.games import tic_tac_toe_ruleset, rock_paper_scissors_ruleset
+from pyggp.games import rock_paper_scissors_ruleset, tic_tac_toe_ruleset
 from pyggp.gdl import (
+    Literal,
     Relation,
     Sentence,
-    Literal,
     Sign,
+    Subrelation,
     Variable,
     argument_signatures_match,
     from_clingo_symbol,
-    Subrelation,
 )
 
 _pos = clingo.ast.Position("<string>", 0, 0)

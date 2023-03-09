@@ -1,9 +1,10 @@
 from typing import Self
 
-from common import MockRetentionAgent, MockTimeoutAgent, SLEEP_TIME, mock_ruleset_1
+from common import SLEEP_TIME, MockRetentionAgent, MockTimeoutAgent, mock_ruleset_1
+
 from pyggp.commands import orchestrate_match
 from pyggp.gameclocks import GameClockConfiguration
-from pyggp.gdl import State, Relation
+from pyggp.gdl import Relation, State
 from pyggp.interpreters import ClingoInterpreter
 from pyggp.match import MatchResult
 from pyggp.visualizers import Visualizer

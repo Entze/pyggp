@@ -1,6 +1,6 @@
 import pytest
 
-from pyggp.gdl import Ruleset, Sentence, Relation, Role
+from pyggp.gdl import Relation, Role, Ruleset, Sentence
 from pyggp.interpreters import ClingoInterpreter
 
 

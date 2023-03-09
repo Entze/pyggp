@@ -1,5 +1,5 @@
 """Definitions of basic games."""
-from pyggp.gdl import Ruleset, Relation, Sentence, Literal, Subrelation, Variable
+from pyggp.gdl import Literal, Relation, Ruleset, Sentence, Subrelation, Variable
 
 _R = Variable("R")
 _R1 = Variable("R1")

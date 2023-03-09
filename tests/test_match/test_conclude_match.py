@@ -1,5 +1,5 @@
 # pylint: disable=missing-docstring,invalid-name,unused-argument
-from common import MockAgent, mock_ruleset_1, mock_match, MockRuleset1Interpreter
+from common import MockAgent, MockRuleset1Interpreter, mock_match, mock_ruleset_1
 
 
 def test_passes_state():

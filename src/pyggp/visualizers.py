@@ -5,7 +5,7 @@ import rich.pretty
 import rich.table
 from rich import print  # pylint: disable=redefined-builtin
 
-from pyggp.gdl import State, Signature, Subrelation, Relation
+from pyggp.gdl import Relation, Signature, State, Subrelation
 from pyggp.match import MatchResult
 
 

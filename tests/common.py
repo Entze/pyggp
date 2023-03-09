@@ -1,14 +1,24 @@
 # pylint: disable=missing-docstring,invalid-name,unused-argument
-import time
 import random
+import time
 from typing import FrozenSet, Mapping, Sequence
 
 from pyggp.actors import Actor, LocalActor
 from pyggp.agents import Agent
 from pyggp.gameclocks import GameClockConfiguration
-from pyggp.gdl import Role, Ruleset, State, Move, Relation, Play, Sentence, Literal, Variable
+from pyggp.gdl import (
+    Literal,
+    Move,
+    Play,
+    Relation,
+    Role,
+    Ruleset,
+    Sentence,
+    State,
+    Variable,
+)
 from pyggp.interpreters import Interpreter
-from pyggp.match import MatchConfiguration, Match
+from pyggp.match import Match, MatchConfiguration
 
 SLEEP_TIME: float = 0.25
 
