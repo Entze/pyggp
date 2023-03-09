@@ -53,7 +53,7 @@ class DynamicLoader(Generic[T]):
         return f"{self.module}.{self.name}"
 
     def __call__(self, *args, **kwargs) -> T:
-        return self.cls
+        return self.obj
 
     @property
     def exists(self) -> bool:
@@ -66,56 +66,81 @@ class DynamicLoader(Generic[T]):
         if spec is None:
             return False
         try:
-            self.cls()
+            obj = self.obj
         except AttributeError:
             return False
         return True
 
     @cached_property
-    def cls(self) -> T:
+    def obj(self) -> T:
         module = importlib.import_module(self.module)
-        cls: T = getattr(module, self.name)
-        return cls
+        obj: T = getattr(module, self.name)
+        return obj
 
 
+def get_loaders(name_str: str) -> Iterator[DynamicLoader]:
+    snake_case_name = inflection.underscore(name_str)
+    name_bases = (name_str, snake_case_name)
+    if name_str == snake_case_name:
+        name_bases = (name_str,)
+    for top_level in ("pyggp", ""):
+        for supmodule_base in ("agents", "games", ""):
+            supmodule = f".{supmodule_base}" if supmodule_base != "" and top_level != "" else supmodule_base
+            for submodule_base in (f"{snake_case_name}", f"{snake_case_name}_agent", f"{snake_case_name}_ruleset", ""):
+                submodule = (
+                    f".{submodule_base}"
+                    if submodule_base != "" and (supmodule != "" or top_level != "")
+                    else submodule_base
+                )
+                module = f"{top_level}{supmodule}{submodule}"
+                assert ".." not in module
+                assert not module.startswith(".")
+                assert not module.endswith(".")
+                if module == "":
+                    continue
+                for name_suffix in ("Agent", "_agent", "Ruleset", "_ruleset", ""):
+                    for name_base in name_bases:
+                        name = f"{name_base}{name_suffix}"
+                        yield DynamicLoader(
+                            module,
+                            name,
+                        )
+
+
+@cache
 def load_by_name(name: str) -> Type[Agent] | Ruleset:
     loader = DynamicLoader.from_absolute_module_name(name)
     if loader.exists:
         return loader()
+
+    loaders = ()
     if "." not in name:
-        snake_case_name = inflection.underscore(name)
-        loaders = (
-            DynamicLoader(f"pyggp.games.{snake_case_name}", name),
-            DynamicLoader("pyggp.games", name),
-            DynamicLoader(f"pyggp.agents.{snake_case_name}", name),
-            DynamicLoader("pyggp.agents", name),
-            DynamicLoader(f"pyggp.{snake_case_name}", name),
-            DynamicLoader("pyggp", name),
-            DynamicLoader(snake_case_name, name),
-        )
+        loaders = set(get_loaders(name))
         valid_loaders = tuple(loader for loader in loaders if loader.exists)
+        log.debug("Found %s for [italic]%s[/italic]: %s", inflect("loader", len(valid_loaders)), name, valid_loaders)
         if len(valid_loaders) == 1:
             return valid_loaders[0]()
         if len(valid_loaders) > 1:
             raise ValueError(f"Multiple resources for {name}: {valid_loaders}")
+    log.error("No loaders for [italic]%s[/italic], tried: \n%s", name, "\n".join(str(loader) for loader in loaders))
     raise ValueError(f"No resources for {name}")
 
 
 def load_ruleset_by_file(ruleset_file: str) -> Ruleset:
     # TODO: Implement real method
-    if ruleset_file == "tic-tac-toe":
-        from pyggp.games import tic_tac_toe_ruleset
-
-        return tic_tac_toe_ruleset
-    if ruleset_file == "rock-paper-scissors":
-        from pyggp.games import rock_paper_scissors_ruleset
-
-        return rock_paper_scissors_ruleset
-    if ruleset_file == "minipoker":
-        from pyggp.games import minipoker_ruleset
-
-        return minipoker_ruleset
     raise FileNotFoundError(f"No rulesets for {ruleset_file}")
+
+
+def get_ruleset(ruleset_str: str) -> Ruleset:
+    try:
+        return load_ruleset_by_file(ruleset_str)
+    except FileNotFoundError:
+        pass
+    try:
+        return load_by_name(ruleset_str)
+    except ValueError:
+        pass
+    raise ValueError(f"No (unique) ruleset for {ruleset_str}")
 
 
 def parse_role_str(role_str: str) -> Relation | str | int:
@@ -132,40 +157,47 @@ def parse_agent_registry(
     registry: List[str], roles: FrozenSet[Relation | str | int]
 ) -> Mapping[Relation | str | int, str | None]:
     rolestr_agentstr_map = {role: None for role in roles}
+    if Relation.random() in roles:
+        rolestr_agentstr_map[Relation.random()] = "__random__"
     for rolestr_agentstr in registry:
         rolestr, *rest = rolestr_agentstr.split("=", maxsplit=1)
+        role = parse_role_str(rolestr)
+        if role not in roles:
+            raise ValueError(f"Unknown role {role} in registry")
         agentstr: str | None = None
         if rest:
             agentstr = rest[0]
-        role = parse_role_str(rolestr)
         rolestr_agentstr_map[role] = agentstr
+    if roles != set(rolestr_agentstr_map.keys()):
+        superfluous = set(rolestr_agentstr_map.keys()) - roles
+        raise ValueError(f"Superfluous roles in registry: {superfluous}")
+
     return rolestr_agentstr_map
 
 
 def get_clock_configs(
-    clock_config_strs: List[str] | None, roles: FrozenSet[Relation | str | int], default: GameClockConfiguration
+    clock_config_strs: List[str] | None,
+    roles: FrozenSet[Relation | str | int],
+    default_clock_config: GameClockConfiguration,
+    default_config: Mapping[ConcreteRole, GameClockConfiguration] | None = None,
+    **default_config_kwargs: GameClockConfiguration,
 ) -> Mapping[Relation | str | int, GameClockConfiguration]:
-    clock_configs = {role: default for role in roles}
+    if default_config is None:
+        default_config = default_config_kwargs
+    else:
+        default_config = {
+            **default_config,
+            **{parse_role_str(role_str): config for role_str, config in default_config_kwargs.items()},
+        }
+    clock_configs = {role: default_clock_config for role in roles} | default_config
     for clock_config_str in clock_config_strs:
         rolestr, *rest = clock_config_str.split("=", maxsplit=1)
         clock_config: GameClockConfiguration | None = None
         if rest:
             clock_config = GameClockConfiguration.from_str(rest[0])
         role = parse_role_str(rolestr)
-        clock_configs[role] = clock_config or default
+        clock_configs[role] = clock_config or default_clock_config
     return clock_configs
-
-
-def get_ruleset(ruleset_str: str) -> Ruleset:
-    try:
-        return load_ruleset_by_file(ruleset_str)
-    except FileNotFoundError:
-        pass
-    try:
-        return load_by_name(ruleset_str)
-    except ValueError:
-        pass
-    raise ValueError(f"No ruleset for {ruleset_str}")
 
 
 def get_name_agenttypes_map(
@@ -174,12 +206,16 @@ def get_name_agenttypes_map(
     if default is None:
         raise ValueError("Default agent type must be specified")  # TODO: Remove this requirement
     name_agenttypes_map = {}
-    for agent_name in role_agentname_map.values():
-        if agent_name is not None:
+    for role, agent_name in role_agentname_map.items():
+        agent_name_ = agent_name
+        if agent_name is not None and agent_name != "__random__":
             agent_type = load_by_name(agent_name)
+        elif role == Relation.random():
+            agent_type = RandomAgent
+            agent_name_ = "__random__"
         else:
             agent_type = default
-        name_agenttypes_map[agent_name] = agent_type
+        name_agenttypes_map[agent_name_] = agent_type
     return name_agenttypes_map
 
 
