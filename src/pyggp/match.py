@@ -125,7 +125,11 @@ class Match:
                     )
                     role_task_map[role] = task
 
-                while not wait_clock.is_expired and not all(move is not None for move in role_movemap.values()):
+                while (
+                    not wait_clock.is_expired
+                    and not raises
+                    and not all(move is not None for move in role_movemap.values())
+                ):
                     for role in roles_in_control:
                         if role_movemap[role] is not None:
                             continue
