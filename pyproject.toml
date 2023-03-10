@@ -39,6 +39,7 @@ optional = true
 
 [tool.poetry.group.ci.dependencies]
 nox = "=2022.11.21"
+tomli = ">=2.0.1,<2.1.0"
 
 
 [tool.poetry.group.dev]
