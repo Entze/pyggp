@@ -242,7 +242,7 @@ class TestRelationToInfixStr(unittest.TestCase):
 
     def test_invalid_type(self) -> None:
         with self.assertRaises(TypeError):
-            Relation.to_infix_str(None)  # type: ignore
+            Relation.to_infix_str(None)
 
 
 class TestRelationToClingoAST(unittest.TestCase):
@@ -276,7 +276,7 @@ class TestRelationToClingoAST(unittest.TestCase):
 
     def test_invalid_type(self) -> None:
         with self.assertRaises(TypeError):
-            relation = Relation("test", (None,))  # type: ignore
+            relation = Relation("test", (None,))
             relation.to_clingo_ast()
 
 
@@ -305,7 +305,7 @@ class TestRelationToClingoSymbol(TestCase):
             relation.to_clingo_symbol()
 
     def test_invalid_type(self) -> None:
-        relation = Relation("test", (None,))  # type: ignore
+        relation = Relation("test", (None,))
         with self.assertRaises(TypeError):
             relation.to_clingo_symbol()
 
@@ -463,7 +463,7 @@ class TestLiteralToClingoAST(unittest.TestCase):
 
     def test_invalid_type(self) -> None:
         relation = Relation("test")
-        literal = Literal(relation, sign=None)  # type: ignore
+        literal = Literal(relation, sign=None)
         with self.assertRaises(TypeError):
             literal.to_clingo_ast()
 

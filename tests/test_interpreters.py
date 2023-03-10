@@ -2,11 +2,7 @@
 from unittest import TestCase
 
 import pyggp.games
-from pyggp.exceptions.gdl_exceptions import (
-    MoreThanOneModelError,
-    MultipleGoalsError,
-    UnexpectedRoleError,
-)
+from pyggp.exceptions.gdl_exceptions import MoreThanOneModelError, MultipleGoalsError, UnexpectedRoleError
 from pyggp.gdl import Literal, Relation, Ruleset, Sentence, State
 from pyggp.interpreters import ClingoInterpreter, get_roles_in_control
 

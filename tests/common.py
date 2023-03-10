@@ -1,22 +1,12 @@
 # pylint: disable=missing-docstring,invalid-name,unused-argument
 import random
 import time
-from typing import FrozenSet, Mapping, Sequence
+from typing import FrozenSet, Mapping, Optional, Sequence
 
 from pyggp.actors import Actor, LocalActor
 from pyggp.agents import Agent
 from pyggp.gameclocks import GameClockConfiguration
-from pyggp.gdl import (
-    Literal,
-    Move,
-    Play,
-    Relation,
-    Role,
-    Ruleset,
-    Sentence,
-    State,
-    Variable,
-)
+from pyggp.gdl import Literal, Move, Play, Relation, Role, Ruleset, Sentence, State, Variable
 from pyggp.interpreters import Interpreter
 from pyggp.match import Match, MatchConfiguration
 
@@ -154,7 +144,7 @@ class MockRuleset1Interpreter(Interpreter):
     def get_legal_moves(self, state: State) -> Mapping[Role, FrozenSet[Move]]:
         return {Relation("p1"): frozenset({1, 2, 3})}
 
-    def get_goals(self, state: State) -> Mapping[Role, int | None]:
+    def get_goals(self, state: State) -> Mapping[Role, Optional[int]]:
         if Relation("won") in state:
             return {Relation("p1"): 1}
         if Relation("lost") in state:
@@ -212,7 +202,7 @@ class MockRuleset2Interpreter(Interpreter):
     def get_legal_moves(self, state: State) -> Mapping[Role, FrozenSet[Move]]:
         return {role: frozenset({1, 2, 3, 4}) for role in self.get_roles()}
 
-    def get_goals(self, state: State) -> Mapping[Role, int | None]:
+    def get_goals(self, state: State) -> Mapping[Role, Optional[int]]:
         default = {role: None for role in self.get_roles()}
         for relation in state:
             if isinstance(relation, Relation) and relation.match("won", 1):
@@ -279,7 +269,7 @@ class MockRuleset3Interpreter(Interpreter):
     def get_legal_moves(self, state: State) -> Mapping[Role, FrozenSet[Move]]:
         return {role: frozenset({Relation("dibs")}) for role in self.get_roles()}
 
-    def get_goals(self, state: State) -> Mapping[Role, int | None]:
+    def get_goals(self, state: State) -> Mapping[Role, Optional[int]]:
         return {role: 1 for role in self.get_roles()}
 
     def is_terminal(self, state: State) -> bool:
@@ -311,12 +301,12 @@ mock_ruleset_3 = Ruleset(
 
 
 def mock_match_configuration(
-    ruleset: Ruleset | None = None,
-    interpreter: Interpreter | None = None,
+    ruleset: Optional[Ruleset] = None,
+    interpreter: Optional[Interpreter] = None,
     agents: Sequence[Agent] = (),
     actors: Sequence[Actor] = (),
-    startclock_configs: Mapping[Role, GameClockConfiguration] | None = None,
-    playclock_configs: Mapping[Role, GameClockConfiguration] | None = None,
+    startclock_configs: Optional[Mapping[Role, GameClockConfiguration]] = None,
+    playclock_configs: Optional[Mapping[Role, GameClockConfiguration]] = None,
 ) -> MatchConfiguration:
     if ruleset is None:
         ruleset = mock_ruleset_1
@@ -347,12 +337,12 @@ def mock_match_configuration(
 
 
 def mock_match(
-    ruleset: Ruleset | None = None,
-    interpreter: Interpreter | None = None,
+    ruleset: Optional[Ruleset] = None,
+    interpreter: Optional[Interpreter] = None,
     agents: Sequence[Agent] = (),
     actors: Sequence[Actor] = (),
-    startclock_configs: Mapping[Role, GameClockConfiguration] | None = None,
-    playclock_configs: Mapping[Role, GameClockConfiguration] | None = None,
+    startclock_configs: Optional[Mapping[Role, GameClockConfiguration]] = None,
+    playclock_configs: Optional[Mapping[Role, GameClockConfiguration]] = None,
     slack: float = 2.5,
     start_match: bool = True,
     finish_match: bool = False,
