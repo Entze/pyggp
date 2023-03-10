@@ -281,4 +281,4 @@ poetry.toml
 
 # Ignore executable
 exe/
-pyggp
+pyggp-*
