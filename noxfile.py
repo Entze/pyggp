@@ -4,7 +4,7 @@ import sys
 from typing import List, Mapping, MutableMapping, Optional
 
 import nox
-import tomllib
+import tomli as tomllib
 
 PYTHON_VERSIONS: List[str] = ["3.8", "3.9", "3.10", "3.11", "pypy-3.8", "pypy-3.9"]
 PYTHON_IMPLEMENTATIONS_SHORT_NAMES: Mapping[str, str] = {"cpython": "py", "pypy": "pypy"}
