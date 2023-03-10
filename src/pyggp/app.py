@@ -60,11 +60,6 @@ def match(
     if __debug__:
         log.setLevel(logging.DEBUG)
     log.debug(
-        "Environment: console_width=%d, log_line_length=%d",
-        pyggp._logging.console_width,
-        pyggp._logging.log_line_length,
-    )
-    log.debug(
         "Command-line config: log_level=%s, ruleset=%s, registry=%s, startclock=%s, playclock=%s",
         logging.getLevelName(log_level),
         ruleset,
@@ -103,7 +98,7 @@ def match(
     log.debug("Initializing visualizer")
     visualizer_ = SimpleRichVisualizer()
     log.debug(
-        "Parsed Input: "
+        "Finalized Config: "
         "ruleset=\n%s\n, "
         "interpreter=%s, "
         "roles=%s, "

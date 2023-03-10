@@ -23,9 +23,7 @@ logging.basicConfig(
     handlers=[handler],
 )
 
-log: logging.Logger = logging.getLogger("rich")
-console_width: int = rich.get_console().width
-log_line_length: int = console_width - 30
+log: logging.Logger = logging.getLogger("pyggp")
 
 
 def inflect(noun: str, count: int = 0, with_count: bool = True) -> str:
