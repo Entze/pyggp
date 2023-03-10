@@ -4,7 +4,7 @@ import random
 from abc import ABC
 from contextlib import AbstractContextManager
 from types import TracebackType
-from typing import Type
+from typing import Optional, Type
 
 import rich.console
 import rich.prompt
@@ -25,7 +25,7 @@ class Agent(AbstractContextManager[None], abc.ABC):
         self.set_up()
 
     def __exit__(
-        self, exc_type: Type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None
+        self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[TracebackType]
     ) -> None:
         self.tear_down()
 
@@ -66,11 +66,11 @@ class Agent(AbstractContextManager[None], abc.ABC):
 
 class InterpreterAgent(Agent, ABC):
     def __init__(self) -> None:
-        self._interpreter: Interpreter | None = None
-        self._role: Role | None = None
-        self._ruleset: Ruleset | None = None
-        self._startclock_config: GameClockConfiguration | None = None
-        self._playclock_config: GameClockConfiguration | None = None
+        self._interpreter: Optional[Interpreter] = None
+        self._role: Optional[Role] = None
+        self._ruleset: Optional[Ruleset] = None
+        self._startclock_config: Optional[GameClockConfiguration] = None
+        self._playclock_config: Optional[GameClockConfiguration] = None
 
     def prepare_match(
         self,
@@ -118,7 +118,7 @@ class HumanAgent(InterpreterAgent):
             raise InterpreterAgentWithoutInterpreterError
         moves = sorted(self._interpreter.get_legal_moves_by_role(view, self._role))
 
-        move_idx: int | None = None
+        move_idx: Optional[int] = None
         while move_idx is None or not (1 <= move_idx <= len(moves)):
             console = rich.console.Console()
             ctx = contextlib.nullcontext() if len(moves) <= 10 else console.pager()
@@ -131,7 +131,6 @@ class HumanAgent(InterpreterAgent):
             except ValueError:
                 pass
             try:
-                search: str | Relation = move_prompt
                 if (move_prompt.startswith("'") and move_prompt.endswith("'")) or (
                     move_prompt.startswith('"') and move_prompt.endswith('"')
                 ):

@@ -13,18 +13,18 @@ from typing import (
     MutableMapping,
     MutableSequence,
     NamedTuple,
-    Self,
+    Optional,
     Sequence,
     Set,
     Tuple,
     Type,
-    TypeAlias,
     Union,
 )
 
 import clingo.ast
 import rich.console as rich_console
 import rich.syntax as rich_syntax
+from typing_extensions import Self, TypeAlias
 
 _pos = clingo.ast.Position("<string>", 0, 0)
 _loc = clingo.ast.Location(_pos, _pos)
@@ -87,7 +87,7 @@ class Variable:
     # end region
 
 
-PrimitiveSubrelation: TypeAlias = int | str | Variable
+PrimitiveSubrelation: TypeAlias = Union[int, str, Variable]
 """Type alias for subrelations, that are not self-referential.
 
 Primitive subrelations cannot contain other relations. They are either integers, strings, or variables.
@@ -96,7 +96,7 @@ See Also:
     :class:`Relation`
 
 """
-ConcretePrimitiveSubrelation: TypeAlias = int | str
+ConcretePrimitiveSubrelation: TypeAlias = Union[int, str]
 """Type alias for subrelations, that are not self-referential and not variables.
 
 Concrete primitive subrelations cannot contain other relations. They are either integers or strings.
@@ -114,7 +114,7 @@ class Signature(NamedTuple):
 
     """
 
-    name: str | None
+    name: Optional[str]
     """Name of the relation."""
     arity: int
     """Arity of the relation."""
@@ -131,9 +131,9 @@ class Signature(NamedTuple):
         return f"{self.name}/{self.arity}"
 
 
-_SubargumentsSignature: TypeAlias = Tuple[str | None, Tuple[Union[int, str, None, "_SubargumentsSignature"], ...]]
+_SubargumentsSignature: TypeAlias = Tuple[Optional[str], Tuple[Union[int, str, None, "_SubargumentsSignature"], ...]]
 
-ArgumentsSignature: TypeAlias = Tuple[int | str | None | _SubargumentsSignature, ...]
+ArgumentsSignature: TypeAlias = Tuple[Union[int, str, None, _SubargumentsSignature], ...]
 
 
 # pylint: disable=too-many-public-methods
@@ -149,9 +149,9 @@ class Relation:
     """
 
     # region Attributes and Properties
-    name: str | None = None
+    name: Optional[str] = None
     "Name of the relation. If None, the relation is an atom."
-    arguments: Sequence[Self | PrimitiveSubrelation] = field(default_factory=tuple)
+    arguments: Sequence[Union[Self, PrimitiveSubrelation]] = field(default_factory=tuple)
     "Arguments of the relation."
 
     @property
@@ -195,7 +195,7 @@ class Relation:
             (1, ('inner', (None, 2)))
 
         """
-        arguments_signature: MutableSequence[int | str | None | _SubargumentsSignature] = []
+        arguments_signature: MutableSequence[Union[int, str, None, _SubargumentsSignature]] = []
         for argument in self.arguments:
             if isinstance(argument, Relation):
                 arguments_signature.append((argument.name, argument.arguments_signature))
@@ -269,7 +269,7 @@ class Relation:
 
     # region Methods
 
-    def match(self, name: str | None = None, arity: int = 0) -> bool:
+    def match(self, name: Optional[str] = None, arity: int = 0) -> bool:
         """Check if the relation matches the given signature.
 
         Args:
@@ -294,15 +294,14 @@ class Relation:
         """
         arguments = []
         for argument in self.arguments:
-            match argument:
-                case int():
-                    arguments.append(clingo.ast.SymbolicTerm(_loc, clingo.Number(argument)))
-                case str():
-                    arguments.append(clingo.ast.SymbolicTerm(_loc, clingo.String(argument)))
-                case Variable() | Relation():
-                    arguments.append(argument.to_clingo_ast())
-                case _:
-                    raise TypeError(f"Invalid argument type: {type(argument).__name__}")
+            if isinstance(argument, int):
+                arguments.append(clingo.ast.SymbolicTerm(_loc, clingo.Number(argument)))
+            elif isinstance(argument, str):
+                arguments.append(clingo.ast.SymbolicTerm(_loc, clingo.String(argument)))
+            elif isinstance(argument, (Relation, Variable)):
+                arguments.append(argument.to_clingo_ast())
+            else:
+                raise TypeError(f"Invalid argument type: {type(argument).__name__}")
         if self.name is None:
             name = ""
         else:
@@ -324,17 +323,16 @@ class Relation:
         """
         arguments = []
         for argument in self.arguments:
-            match argument:
-                case int():
-                    arguments.append(clingo.Number(argument))
-                case str():
-                    arguments.append(clingo.String(argument))
-                case Relation():
-                    arguments.append(argument.to_clingo_symbol())
-                case Variable():
-                    raise ValueError("Cannot convert relation with variables to clingo symbol.")
-                case _:
-                    raise TypeError(f"Invalid argument type: {type(argument).__name__}")
+            if isinstance(argument, int):
+                arguments.append(clingo.Number(argument))
+            elif isinstance(argument, str):
+                arguments.append(clingo.String(argument))
+            elif isinstance(argument, Relation):
+                arguments.append(argument.to_clingo_symbol())
+            elif isinstance(argument, Variable):
+                raise ValueError("Cannot convert relation with variables to clingo symbol.")
+            else:
+                raise TypeError(f"Invalid argument type: {type(argument).__name__}")
         if self.name is None:
             name = ""
         else:
@@ -345,7 +343,7 @@ class Relation:
 
     # region Alternative Constructors
     @classmethod
-    def role(cls, role: Self | PrimitiveSubrelation) -> Self:
+    def role(cls, role: Union[Self, PrimitiveSubrelation]) -> Self:
         """Create a `role` relation.
 
         Returns a relation with the name `role` and the given argument.
@@ -388,7 +386,7 @@ class Relation:
         return cls(name="init", arguments=(atom,))
 
     @classmethod
-    def control(cls, role: Self | PrimitiveSubrelation) -> Self:
+    def control(cls, role: Union[Self, PrimitiveSubrelation]) -> Self:
         """Create a `control` relation.
 
         Returns a relation with the name `control` and the given argument. Control relations signal which role is
@@ -404,7 +402,7 @@ class Relation:
         return cls(name="control", arguments=(role,))
 
     @classmethod
-    def true(cls, atom: Self | PrimitiveSubrelation) -> Self:
+    def true(cls, atom: Union[Self, PrimitiveSubrelation]) -> Self:
         """Create a `true` relation.
 
         Returns a relation with the name `true` and the given argument. True relations are used to represent the current
@@ -436,7 +434,7 @@ class Relation:
         return cls(name="next", arguments=(atom,))
 
     @classmethod
-    def does(cls, role: Self | PrimitiveSubrelation, move: Self | PrimitiveSubrelation) -> Self:
+    def does(cls, role: Union[Self, PrimitiveSubrelation], move: Union[Self, PrimitiveSubrelation]) -> Self:
         """Create a `does` relation.
 
         Returns a relation with the name `does` and the given arguments. Does relations are used to represent moves.
@@ -453,7 +451,7 @@ class Relation:
         return cls(name="does", arguments=(role, move))
 
     @classmethod
-    def distinct(cls, arg1: Self | PrimitiveSubrelation, arg2: Self | PrimitiveSubrelation) -> Self:
+    def distinct(cls, arg1: Union[Self, PrimitiveSubrelation], arg2: Union[Self, PrimitiveSubrelation]) -> Self:
         """Create a `distinct` relation.
 
         Returns a relation with the name `distinct` and the given arguments. Distinct relations are used to represent
@@ -470,7 +468,7 @@ class Relation:
         return cls(name="distinct", arguments=(arg1, arg2))
 
     @classmethod
-    def sees(cls, role: Self | PrimitiveSubrelation, atom: Self | PrimitiveSubrelation) -> Self:
+    def sees(cls, role: Union[Self, PrimitiveSubrelation], atom: Union[Self, PrimitiveSubrelation]) -> Self:
         """Create a `sees` relation.
 
         Returns a relation with the name `sees` and the given arguments. Sees relations are used to represent that a
@@ -487,7 +485,7 @@ class Relation:
         return cls(name="sees", arguments=(role, atom))
 
     @classmethod
-    def legal(cls, role: Self | PrimitiveSubrelation, move: Self | PrimitiveSubrelation) -> Self:
+    def legal(cls, role: Union[Self, PrimitiveSubrelation], move: Union[Self, PrimitiveSubrelation]) -> Self:
         """Create a `legal` relation.
 
         Returns a relation with the name `legal` and the given arguments. Legal relations are used to represent that a
@@ -504,7 +502,7 @@ class Relation:
         return cls(name="legal", arguments=(role, move))
 
     @classmethod
-    def goal(cls, role: Self | PrimitiveSubrelation, utility: int) -> Self:
+    def goal(cls, role: Union[Self, PrimitiveSubrelation], utility: int) -> Self:
         """Create a `goal` relation.
 
         Returns a relation with the name `goal` and the given arguments. Goal relations are used to represent the
@@ -535,7 +533,7 @@ class Relation:
 
     # pylint: disable=invalid-name
     @classmethod
-    def gt(cls, arg1: Self | PrimitiveSubrelation, arg2: Self | PrimitiveSubrelation) -> Self:
+    def gt(cls, arg1: Union[Self, PrimitiveSubrelation], arg2: Union[Self, PrimitiveSubrelation]) -> Self:
         """Create a `gt` relation.
 
         Returns a relation with the name `gt` and the given arguments. Gt relations are used to represent that the first
@@ -554,9 +552,9 @@ class Relation:
     @classmethod
     def plus(
         cls,
-        summand1: Self | PrimitiveSubrelation,
-        summand2: Self | PrimitiveSubrelation,
-        sum_: Self | PrimitiveSubrelation,
+        summand1: Union[Self, PrimitiveSubrelation],
+        summand2: Union[Self, PrimitiveSubrelation],
+        sum_: Union[Self, PrimitiveSubrelation],
     ) -> Self:
         """Create a `plus` relation.
 
@@ -607,15 +605,14 @@ class Relation:
             :fun:`Relation.to_infix_str`
 
         """
-        match arg:
-            case str():
-                return arg
-            case int():
-                return str(arg)
-            case Variable() | Relation():
-                return arg.infix_str
-            case _:
-                raise TypeError(f"Cannot convert {arg} to infix string.")
+
+        if isinstance(arg, int):
+            return str(arg)
+        if isinstance(arg, str):
+            return arg
+        if isinstance(arg, (Variable, Relation)):
+            return arg.infix_str
+        raise TypeError(f"Cannot convert {arg} of type {type(arg).__name__} to infix string.")
 
     # endregion
 
@@ -639,7 +636,7 @@ class Relation:
                     f"type {type(self.top_value).__name__} and {other.top_value=} is of "
                     f"type {type(other.top_value).__name__}"
                 )
-                return self.top_value < other.top_value  # type: ignore
+                return self.top_value < other.top_value
             return self.sub_values < other.sub_values
 
         def __gt__(self, other: Any) -> bool:
@@ -654,7 +651,7 @@ class Relation:
                     f"type {type(self.top_value).__name__} and {other.top_value=} is of "
                     f"type {type(other.top_value).__name__}"
                 )
-                return self.top_value > other.top_value  # type: ignore
+                return self.top_value > other.top_value
             return self.sub_values > other.sub_values
 
         @classmethod
@@ -666,49 +663,41 @@ class Relation:
 
         @staticmethod
         def get_rank(subrelation: "Subrelation") -> int:
-            match subrelation:
-                case Relation():
-                    return 0
-                case int():
-                    return 1
-                case str():
-                    return 2
-                case Variable():
-                    return 3
-                case _:
-                    raise TypeError(f"Cannot get rank of {subrelation} of type {type(subrelation).__name__}.")
+            if isinstance(subrelation, Relation):
+                return 0
+            if isinstance(subrelation, int):
+                return 1
+            if isinstance(subrelation, str):
+                return 2
+            if isinstance(subrelation, Variable):
+                return 3
+            raise TypeError(f"Cannot get rank of {subrelation} of type {type(subrelation).__name__}.")
 
         @staticmethod
         def get_top_value(subrelation: "Subrelation") -> Union["Subrelation", Signature]:
-            match subrelation:
-                case Relation():
-                    return subrelation.signature
-                case int():
-                    return subrelation
-                case str():
-                    return subrelation
-                case Variable():
-                    if subrelation.is_wildcard:
-                        return ""
-                    return subrelation.name
-                case _:
-                    raise TypeError(f"Cannot get top value of {subrelation} of type {type(subrelation).__name__}.")
+            if isinstance(subrelation, Relation):
+                return subrelation.signature
+            if isinstance(subrelation, (int, str)):
+                return subrelation
+            if isinstance(subrelation, Variable):
+                if subrelation.is_wildcard:
+                    return ""
+                return subrelation.name
+            raise TypeError(f"Cannot get top value of {subrelation} of type {type(subrelation).__name__}.")
 
         @staticmethod
         def get_sub_values(subrelation: "Subrelation") -> Tuple["Relation.Compare", ...]:
-            match subrelation:
-                case Relation():
-                    return tuple(Relation.Compare.from_subrelation(sub) for sub in subrelation.arguments)
-                case int():
-                    return ()
-                case str():
-                    return ()
-                case Variable():
-                    if subrelation.is_wildcard:
-                        return (Relation.Compare.from_subrelation(subrelation.name[1:]),)
-                    return ()
-                case _:
-                    raise TypeError(f"Cannot get sub values of {subrelation} of type {type(subrelation).__name__}.")
+            if isinstance(subrelation, Relation):
+                return tuple(Relation.Compare.from_subrelation(sub) for sub in subrelation.arguments)
+            if isinstance(subrelation, (int, str)):
+                return ()
+            if isinstance(subrelation, Variable):
+                if subrelation.is_wildcard:
+                    # Disable Pycharm's warning about redundant parentheses. Reason: Black formats them this way.
+                    # noinspection PyRedundantParentheses
+                    return (Relation.Compare.from_subrelation(subrelation.name[1:]),)
+                return ()
+            raise TypeError(f"Cannot get sub values of {subrelation} of type {type(subrelation).__name__}.")
 
     # endregion
 
@@ -749,7 +738,7 @@ def argument_signatures_match(argument_signature1: ArgumentsSignature, argument_
     return True
 
 
-ConcreteSubrelation: TypeAlias = Relation | ConcretePrimitiveSubrelation
+ConcreteSubrelation: TypeAlias = Union[Relation, ConcretePrimitiveSubrelation]
 """Type alias for concrete subrelations.
 
 Either a relation or a concrete primitive subrelation.
@@ -759,7 +748,7 @@ See Also:
     :class:`ConcretePrimitiveSubrelation`
 
 """
-Subrelation: TypeAlias = Relation | PrimitiveSubrelation
+Subrelation: TypeAlias = Union[Relation, PrimitiveSubrelation]
 """Type alias for subrelations.
 
 Either a relation or a primitive subrelation.
@@ -787,8 +776,8 @@ def from_clingo_symbol(symbol: clingo.Symbol) -> Subrelation:
         's'
         >>> from_clingo_symbol(clingo.Function("atom"))
         Relation(name='atom', arguments=())
-        >>> symbol = clingo.Function("nested", (clingo.Number(1), clingo.String("two"), clingo.Function("three")))
-        >>> symbol
+        >>> symb = clingo.Function("nested", (clingo.Number(1), clingo.String("two"), clingo.Function("three")))
+        >>> symb
         Function('nested', [Number(1), String('two'), Function('three', [], True)], True)
         >>> from_clingo_symbol(symbol)
         Relation(name='nested', arguments=(1, 'two', Relation(name='three', arguments=())))
@@ -939,15 +928,15 @@ class Literal:
             TypeError: The sign is of invalid type.
 
         """
-        match self.sign:
-            case Sign.NOSIGN:
-                sign = clingo.ast.Sign.NoSign
-                comparison = clingo.ast.ComparisonOperator.NotEqual
-            case Sign.NEGATIVE:
-                sign = clingo.ast.Sign.Negation
-                comparison = clingo.ast.ComparisonOperator.Equal
-            case _:
-                raise TypeError(f"Invalid sign {self.sign}.")
+
+        if self.sign == Sign.NOSIGN:
+            sign = clingo.ast.Sign.NoSign
+            comparison = clingo.ast.ComparisonOperator.NotEqual
+        elif self.sign == Sign.NEGATIVE:
+            sign = clingo.ast.Sign.Negation
+            comparison = clingo.ast.ComparisonOperator.Equal
+        else:
+            raise TypeError(f"Invalid sign {self.sign}.")
         if self.atom.match("distinct", 2):
             term = self.atom.to_clingo_ast()
             arguments = term.arguments
@@ -1090,7 +1079,7 @@ class Sentence:
 
 
 _RuleSignatureMutableMapping: TypeAlias = MutableMapping[
-    Tuple[str | None, int], MutableMapping[ArgumentsSignature, Set[Sentence]]
+    Tuple[Optional[str], int], MutableMapping[ArgumentsSignature, Set[Sentence]]
 ]
 
 
@@ -1231,6 +1220,8 @@ class Ruleset:
     def __str__(self) -> str:
         return "\n".join(str(rule) for rule in self.rules)
 
+    # Disable PyCharms warning about unused locals. These are necessary from rich upstream.
+    # noinspection PyUnusedLocal
     def __rich_console__(
         self, console: rich_console.Console, options: rich_console.ConsoleOptions
     ) -> rich_console.RenderResult:
@@ -1251,11 +1242,11 @@ class Ruleset:
                 related_rules.update(rules)
         return related_rules
 
-    def _get_root_rules_by_signature(self, name: str | None = None, arity: int = 0) -> set[Sentence]:
+    def _get_root_rules_by_signature(self, name: Optional[str] = None, arity: int = 0) -> set[Sentence]:
         rules = self._rules_by_head_signature.get((name, arity), {})
         return set.union(*rules.values(), set())
 
-    def _get_related_rules_by_signature(self, name: str | None = None, arity: int = 0) -> set[Sentence]:
+    def _get_related_rules_by_signature(self, name: Optional[str] = None, arity: int = 0) -> set[Sentence]:
         related_rules = set(self._get_root_rules_by_signature(name=name, arity=arity))
         changed = True
         while changed:

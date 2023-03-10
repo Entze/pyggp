@@ -1,4 +1,6 @@
 """Definitions of basic games."""
+from typing import Union
+
 from pyggp.gdl import Literal, Relation, Ruleset, Sentence, Subrelation, Variable
 
 _R = Variable("R")
@@ -104,12 +106,12 @@ def _cell(*args: Subrelation) -> Relation:
 
 
 # pylint: disable=invalid-name
-def _row(m: int | Variable, p: Subrelation) -> Relation:
+def _row(m: Union[int, Variable], p: Subrelation) -> Relation:
     return Relation("row", (m, p))
 
 
 # pylint: disable=invalid-name
-def _column(n: int | Variable, p: Subrelation) -> Relation:
+def _column(n: Union[int, Variable], p: Subrelation) -> Relation:
     return Relation("column", (n, p))
 
 

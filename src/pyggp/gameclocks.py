@@ -1,9 +1,11 @@
 """Game clocks for GGP."""
+import contextlib
 import time
-from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Self, Type
+from typing import Optional, Type
+
+from typing_extensions import Self
 
 
 @dataclass(frozen=True)
@@ -40,10 +42,10 @@ class GameClockConfiguration:
     def from_str(cls, string: str) -> Self:
         # TODO: Swap for a proper parser. Very manual parsing
         split = string.split(" ", 3)
-        total_time_str: str | None = None
-        increment_str: str | None = None
-        delay_str: str | None = None
-        divider_str: str | None = None
+        total_time_str: Optional[str] = None
+        increment_str: Optional[str] = None
+        delay_str: Optional[str] = None
+        divider_str: Optional[str] = None
         if len(split) == 1:
             if not split[0].startswith("d"):
                 total_time_str = split[0]
@@ -110,7 +112,7 @@ class GameClockConfiguration:
         return cls(0.0, 0.0, float("inf"))
 
 
-class GameClock(AbstractContextManager[int]):
+class GameClock(contextlib.AbstractContextManager[int]):
     """A game clock that can be used to track the time remaining for a player.
 
     The game clock is a context manager that can be used to track the time remaining for a player. Use the with
@@ -155,8 +157,8 @@ class GameClock(AbstractContextManager[int]):
             self._delay_ns = int(game_clock_config.delay * 1e9)
         except OverflowError:
             self._delay_ns = int(365 * 24 * 60 * 60 * 1e9)
-        self.__start: int | None = None
-        self._last_delta_ns: int | None = None
+        self.__start: Optional[int] = None
+        self._last_delta_ns: Optional[int] = None
 
     def __enter__(self) -> int:
         """Start the game clock.
@@ -172,7 +174,7 @@ class GameClock(AbstractContextManager[int]):
         return self._total_time_ns
 
     def __exit__(
-        self, exc_type: Type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None
+        self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[TracebackType]
     ) -> None:
         """Stop the game clock."""
         self.stop()
@@ -244,11 +246,11 @@ class GameClock(AbstractContextManager[int]):
         return self._total_time_ns
 
     @property
-    def last_delta_ns(self) -> int | None:
+    def last_delta_ns(self) -> Optional[int]:
         return self._last_delta_ns
 
     @property
-    def last_delta(self) -> float | None:
+    def last_delta(self) -> Optional[float]:
         if self._last_delta_ns is None:
             return None
         return self._last_delta_ns / 1e9

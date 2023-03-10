@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pyggp.agents import Agent
 from pyggp.exceptions.actor_exceptions import ActorNotStartedError, ActorTimeoutError
 from pyggp.gameclocks import GameClock, GameClockConfiguration
@@ -6,8 +8,8 @@ from pyggp.gdl import Move, Role, Ruleset, State
 
 class Actor:
     def __init__(self, is_human_actor: bool = False) -> None:
-        self.startclock: GameClock | None = None
-        self.playclock: GameClock | None = None
+        self.startclock: Optional[GameClock] = None
+        self.playclock: Optional[GameClock] = None
         self.is_human_actor = is_human_actor
 
     def __repr__(self) -> str:

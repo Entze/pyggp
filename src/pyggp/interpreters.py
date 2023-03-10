@@ -1,6 +1,6 @@
 """Interpreters for GDL rulesets."""
 from dataclasses import dataclass
-from typing import FrozenSet, Mapping, MutableMapping, Sequence, Set
+from typing import FrozenSet, Mapping, MutableMapping, Optional, Sequence, Set
 
 import clingo.ast
 from clingo import Control
@@ -19,16 +19,7 @@ from pyggp.exceptions.gdl_exceptions import (
     UnsatRolesError,
     UnsatSeesError,
 )
-from pyggp.gdl import (
-    Move,
-    Play,
-    Relation,
-    Role,
-    Ruleset,
-    State,
-    Subrelation,
-    from_clingo_symbol,
-)
+from pyggp.gdl import Move, Play, Relation, Role, Ruleset, State, Subrelation, from_clingo_symbol
 
 
 def get_roles_in_control(state: State) -> FrozenSet[Role]:
@@ -41,12 +32,12 @@ def get_roles_in_control(state: State) -> FrozenSet[Role]:
         The roles in control in the given state.
 
     Examples:
-        >>> state = frozenset()
-        >>> get_roles_in_control(state)
+        >>> s = frozenset()
+        >>> get_roles_in_control(s)
         frozenset()
         >>> from pyggp.gdl import Relation
         >>> r = Relation("r")
-        >>> state = frozenset({Relation.control(r)})
+        >>> s = frozenset({Relation.control(r)})
         >>> get_roles_in_control(state)
         frozenset({Relation(name='r', arguments=())})
 
@@ -181,7 +172,7 @@ class Interpreter:
     def get_legal_moves_by_role(self, state: State, role: Role) -> FrozenSet[Move]:
         return self.get_legal_moves(state).get(role, frozenset())
 
-    def get_goals(self, state: State) -> Mapping[Role, int | None]:
+    def get_goals(self, state: State) -> Mapping[Role, Optional[int]]:
         """Return the goals for each role.
 
         Calculates the goal relation for the given state.
@@ -198,7 +189,7 @@ class Interpreter:
         """
         raise NotImplementedError
 
-    def get_goal_by_role(self, state: State, role: Role) -> int | None:
+    def get_goal_by_role(self, state: State, role: Role) -> Optional[int]:
         """Return the goal (utility value) for the given role.
 
         Args:
@@ -227,9 +218,11 @@ class Interpreter:
         raise NotImplementedError
 
 
-def _get_ctl(state: State | None = None, plays: Sequence[Play] = (), rules: Sequence[clingo.ast.AST] = ()) -> Control:
+def _get_ctl(
+    state: Optional[State] = None, plays: Sequence[Play] = (), rules: Sequence[clingo.ast.AST] = ()
+) -> Control:
     ctl = Control()
-    ctl.configuration.solve.models = 2  # type: ignore
+    ctl.configuration.solve.models = 2
 
     if state is not None and state:
         with SymbolicBackend(ctl.backend()) as backend:
@@ -278,7 +271,7 @@ class ClingoInterpreter(Interpreter):
     # region Magic Methods
 
     def __init__(
-        self, ruleset: Ruleset, model_timeout: float | None = 10.0, prove_only_model_timeout: float | None = 2.0
+        self, ruleset: Ruleset, model_timeout: Optional[float] = 10.0, prove_only_model_timeout: Optional[float] = 2.0
     ) -> None:
         """Initialize the interpreter.
 
@@ -334,7 +327,7 @@ class ClingoInterpreter(Interpreter):
         model = self._get_model(ctl)
         if model is None:
             raise UnsatSeesError
-        views: MutableMapping[Role, Set[Subrelation] | None] = self._get_role_mapping(model, "sees", 2)
+        views: MutableMapping[Role, Optional[Set[Subrelation]]] = self._get_role_mapping(model, "sees", 2)
         if Relation.random() in self.get_roles():
             views[Relation.random()] = set(state)
         return {role: frozenset(view) if view is not None else frozenset() for role, view in views.items()}
@@ -349,13 +342,13 @@ class ClingoInterpreter(Interpreter):
             role: frozenset(moves) if moves is not None else frozenset() for role, moves in role_moves_mapping.items()
         }
 
-    def get_goals(self, state: State) -> Mapping[Role, int | None]:
+    def get_goals(self, state: State) -> Mapping[Role, Optional[int]]:
         ctl = _get_ctl(state=state, rules=self._rules.goal_rules)
         model = self._get_model(ctl)
         if model is None:
             raise UnsatGoalError
         role_goalset_mapping = self._get_role_mapping(model, "goal", 2)
-        goals: MutableMapping[Role, int | None] = {}
+        goals: MutableMapping[Role, Optional[int]] = {}
         for role, goalset in role_goalset_mapping.items():
             if goalset is None:
                 goals[role] = None
@@ -375,7 +368,7 @@ class ClingoInterpreter(Interpreter):
         model = self._get_model(ctl)
         return model is None
 
-    def _get_model(self, ctl: Control) -> Sequence[clingo.Symbol] | None:
+    def _get_model(self, ctl: Control) -> Optional[Sequence[clingo.Symbol]]:
         ctl.ground((("base", ()),))
         solve_handle = ctl.solve(yield_=True, async_=True)
         assert isinstance(solve_handle, clingo.SolveHandle)
@@ -399,8 +392,8 @@ class ClingoInterpreter(Interpreter):
 
     def _get_role_mapping(
         self, model: Sequence[clingo.Symbol] = (), name: str = "", arity: int = 0
-    ) -> MutableMapping[Role, Set[Subrelation] | None]:
-        mapping: MutableMapping[Role, Set[Subrelation] | None] = {role: None for role in self.get_roles()}
+    ) -> MutableMapping[Role, Optional[Set[Subrelation]]]:
+        mapping: MutableMapping[Role, Optional[Set[Subrelation]]] = {role: None for role in self.get_roles()}
         unexpected_roles = set()
         for symbol in model:
             if symbol.match(name, arity):

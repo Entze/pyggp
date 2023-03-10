@@ -1,24 +1,14 @@
 from concurrent.futures import Executor, Future, ThreadPoolExecutor
-from typing import (
-    Literal,
-    Mapping,
-    MutableMapping,
-    MutableSequence,
-    NamedTuple,
-    TypeAlias,
-    TypedDict,
-)
+from typing import Literal, Mapping, MutableMapping, MutableSequence, NamedTuple, Optional, TypedDict, Union
 
+import exceptiongroup
 import rich.progress as rich_progress
+from typing_extensions import TypeAlias
 
 from pyggp._logging import inflect, log
 from pyggp.actors import Actor
 from pyggp.exceptions.actor_exceptions import ActorIllegalMoveError, ActorTimeoutError
-from pyggp.exceptions.match_exceptions import (
-    MatchDNSError,
-    MatchIllegalMoveError,
-    MatchTimeoutError,
-)
+from pyggp.exceptions.match_exceptions import MatchDNSError, MatchIllegalMoveError, MatchTimeoutError
 from pyggp.gameclocks import GameClock, GameClockConfiguration
 from pyggp.gdl import Move, Relation, Role, Ruleset, State, Subrelation
 from pyggp.interpreters import Interpreter, get_roles_in_control
@@ -32,9 +22,12 @@ class MatchConfiguration(TypedDict):  # as in PEP 692
     playclock_configs: Mapping[Role, GameClockConfiguration]
 
 
+_DNS: Literal["DNS"] = "DNS"
+_DNF_ILLEGAL_MOVE: Literal["DNF(Illegal Move)"] = "DNF(Illegal Move)"
+_DNF_TIMEOUT: Literal["DNF(Timeout)"] = "DNF(Timeout)"
 Disqualification: TypeAlias = Literal["DNS", "DNF(Illegal Move)", "DNF(Timeout)"]
-ResultsMap: TypeAlias = Mapping[Subrelation, int | None | Disqualification]
-MutableResultsMap: TypeAlias = MutableMapping[Subrelation, int | None | Disqualification]
+ResultsMap: TypeAlias = Mapping[Subrelation, Union[int, None, Disqualification]]
+MutableResultsMap: TypeAlias = MutableMapping[Subrelation, Union[int, None, Disqualification]]
 
 
 class MatchResult(NamedTuple):
@@ -84,10 +77,10 @@ class Match:
         state = self.states[-1]
         roles_in_control = get_roles_in_control(state)
         views = self._interpreter.get_sees(state)
-        actor_movefuture_map: MutableMapping[Actor, Future[Move | None]] = {}
+        actor_movefuture_map: MutableMapping[Actor, Future[Optional[Move]]] = {}
         role_movemap = {role: None for role in roles_in_control}
 
-        raises: MutableSequence[MatchTimeoutError | MatchIllegalMoveError] = []
+        raises: MutableSequence[Union[MatchTimeoutError, MatchIllegalMoveError]] = []
         with _get_executor(*(self._role_actor_map[role] for role in roles_in_control)) as executor:
             for role in roles_in_control:
                 actor = self._role_actor_map[role]
@@ -156,11 +149,11 @@ class Match:
                             pass
                         except ActorTimeoutError:
                             log.warning("%s timed out", actor)
-                            self.utilities[role] = "DNF(Timeout)"
+                            self.utilities[role] = _DNF_TIMEOUT
                             raises.append(MatchTimeoutError(self.move_nr, actor, role))
                         except ActorIllegalMoveError:
                             log.warning("%s sent an illegal move", actor)
-                            self.utilities[role] = "DNF(Illegal Move)"
+                            self.utilities[role] = _DNF_ILLEGAL_MOVE
                             raises.append(MatchIllegalMoveError(self.move_nr, actor, role, move))
                         disable = False
                         for role_ in roles_in_control:
@@ -181,7 +174,7 @@ class Match:
                 raises.append(MatchTimeoutError(self.move_nr, actor, role))
 
         if raises:
-            raise ExceptionGroup("Match aborted", raises)
+            raise exceptiongroup.ExceptionGroup("Match aborted", raises)
 
         self.move_nr += 1
         plays = (Relation.does(role, move) for role, move in role_movemap.items())
@@ -216,7 +209,7 @@ class Match:
                     dns.append(MatchDNSError(role, actor))
 
         if dns:
-            raise ExceptionGroup("Timeout while initializing agents", dns)
+            raise exceptiongroup.ExceptionGroup("Timeout while initializing agents", dns)
 
     def _finalize_agents(self) -> None:
         views = self._interpreter.get_sees(self.states[-1])

@@ -1,4 +1,4 @@
-from typing import MutableSequence, Set
+from typing import MutableSequence, Optional, Set, Union
 
 import rich.panel
 import rich.pretty
@@ -11,9 +11,9 @@ from pyggp.match import MatchResult
 
 class Visualizer:
     def __init__(self):
-        self._states: MutableSequence[State | None] = []
+        self._states: MutableSequence[Optional[State]] = []
 
-    def update_state(self, state: State, move_nr: int | None = None) -> None:
+    def update_state(self, state: State, move_nr: Optional[int] = None) -> None:
         if move_nr is None:
             self._states.append(state)
             return
@@ -33,7 +33,7 @@ class Visualizer:
 
 
 class NullVisualizer(Visualizer):  # pragma: no cover
-    def update_state(self, state: State, move_nr: int | None = None) -> None:
+    def update_state(self, state: State, move_nr: Optional[int] = None) -> None:
         pass
 
     def update_result(self, result: MatchResult) -> None:
@@ -48,7 +48,7 @@ class NullVisualizer(Visualizer):  # pragma: no cover
 
 def _add_relation_to_subtable(
     subtable: rich.table.Table,
-    signature: Signature | int | str,
+    signature: Union[Signature, int, str],
     relations: Set[Subrelation],
     new_relations: Set[Subrelation],
     old_relations: Set[Subrelation],
@@ -86,7 +86,7 @@ def _add_relation_to_subtable(
 
 def _add_mutably_exclusive_relation_to_subtable(
     subtable: rich.table.Table,
-    signature: Signature | int | str,
+    signature: Union[Signature, int, str],
     relations: Set[Subrelation],
     new_relations: Set[Subrelation],
     old_relations: Set[Subrelation],
@@ -172,7 +172,7 @@ class SimpleRichVisualizer(Visualizer):
     def update_abort(self) -> None:
         self.aborted = True
 
-    def _draw_state(self, state: State, last_state: State | None, move_nr: int) -> None:
+    def _draw_state(self, state: State, last_state: Optional[State], move_nr: int) -> None:
         if last_state is None:
             last_state = set()
         signatures_sequence = tuple(

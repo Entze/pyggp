@@ -3,19 +3,11 @@ import importlib
 import importlib.util
 from dataclasses import dataclass
 from functools import cache, cached_property
-from typing import (
-    FrozenSet,
-    Generic,
-    Iterator,
-    List,
-    Mapping,
-    Optional,
-    Self,
-    Type,
-    TypeVar,
-)
+from typing import FrozenSet, Generic, Iterator, List, Mapping, Optional, Type, TypeVar, Union
 
+import exceptiongroup
 import inflection
+from typing_extensions import Self
 
 from pyggp._logging import inflect, log
 from pyggp.actors import LocalActor
@@ -32,7 +24,7 @@ T = TypeVar("T")
 
 @dataclass(frozen=True, order=True)
 class DynamicLoader(Generic[T]):
-    module: str | None
+    module: Optional[str]
     name: str
 
     @classmethod
@@ -108,7 +100,7 @@ def get_loaders(name_str: str) -> Iterator[DynamicLoader]:
 
 
 @cache
-def load_by_name(name: str) -> Type[Agent] | Ruleset:
+def load_by_name(name: str) -> Union[Type[Agent], Ruleset]:
     loader = DynamicLoader.from_absolute_module_name(name)
     if loader.exists:
         return loader()
@@ -143,7 +135,7 @@ def get_ruleset(ruleset_str: str) -> Ruleset:
     raise ValueError(f"No (unique) ruleset for {ruleset_str}")
 
 
-def parse_role_str(role_str: str) -> Relation | str | int:
+def parse_role_str(role_str: str) -> ConcreteRole:
     try:
         return int(role_str)
     except ValueError:
@@ -153,9 +145,7 @@ def parse_role_str(role_str: str) -> Relation | str | int:
     return Relation(role_str)
 
 
-def parse_agent_registry(
-    registry: List[str], roles: FrozenSet[Relation | str | int]
-) -> Mapping[Relation | str | int, str | None]:
+def parse_agent_registry(registry: List[str], roles: FrozenSet[ConcreteRole]) -> Mapping[ConcreteRole, Optional[str]]:
     rolestr_agentstr_map = {role: None for role in roles}
     if Relation.random() in roles:
         rolestr_agentstr_map[Relation.random()] = "__random__"
@@ -164,7 +154,7 @@ def parse_agent_registry(
         role = parse_role_str(rolestr)
         if role not in roles:
             raise ValueError(f"Unknown role {role} in registry")
-        agentstr: str | None = None
+        agentstr: Optional[str] = None
         if rest:
             agentstr = rest[0]
         rolestr_agentstr_map[role] = agentstr
@@ -176,12 +166,12 @@ def parse_agent_registry(
 
 
 def get_clock_configs(
-    clock_config_strs: List[str] | None,
-    roles: FrozenSet[Relation | str | int],
+    clock_config_strs: Optional[List[str]],
+    roles: FrozenSet[ConcreteRole],
     default_clock_config: GameClockConfiguration,
-    default_config: Mapping[ConcreteRole, GameClockConfiguration] | None = None,
+    default_config: Optional[Mapping[ConcreteRole, GameClockConfiguration]] = None,
     **default_config_kwargs: GameClockConfiguration,
-) -> Mapping[Relation | str | int, GameClockConfiguration]:
+) -> Mapping[ConcreteRole, GameClockConfiguration]:
     if default_config is None:
         default_config = default_config_kwargs
     else:
@@ -192,7 +182,7 @@ def get_clock_configs(
     clock_configs = {role: default_clock_config for role in roles} | default_config
     for clock_config_str in clock_config_strs:
         rolestr, *rest = clock_config_str.split("=", maxsplit=1)
-        clock_config: GameClockConfiguration | None = None
+        clock_config: Optional[GameClockConfiguration] = None
         if rest:
             clock_config = GameClockConfiguration.from_str(rest[0])
         role = parse_role_str(rolestr)
@@ -201,7 +191,7 @@ def get_clock_configs(
 
 
 def get_name_agenttypes_map(
-    role_agentname_map: Mapping[Relation | str | int, str | None], default: Optional[Type[Agent]] = None
+    role_agentname_map: Mapping[ConcreteRole, Optional[str]], default: Optional[Type[Agent]] = None
 ) -> Mapping[str, Type[Agent]]:
     if default is None:
         raise ValueError("Default agent type must be specified")  # TODO: Remove this requirement
@@ -219,13 +209,18 @@ def get_name_agenttypes_map(
     return name_agenttypes_map
 
 
+def _match_error_handler(excgroup: exceptiongroup.ExceptionGroup) -> None:
+    for exc in excgroup.exceptions:
+        log.exception(exc)
+
+
 def orchestrate_match(
     ruleset: Ruleset,
     interpreter: Interpreter,
     name_agenttypes_map: Mapping[str, Type[Agent]],
-    role_agentname_map: Mapping[Relation | str | int, str],
-    startclock_configs: Mapping[Relation | str | int, GameClockConfiguration],
-    playclock_configs: Mapping[Relation | str | int, GameClockConfiguration],
+    role_agentname_map: Mapping[ConcreteRole, str],
+    startclock_configs: Mapping[ConcreteRole, GameClockConfiguration],
+    playclock_configs: Mapping[ConcreteRole, GameClockConfiguration],
     visualizer: Visualizer,
 ) -> None:
     log.debug("Started orchestrating match")
@@ -262,26 +257,35 @@ def orchestrate_match(
         )
         match = Match(match_configuration)
         log.info("Starting %s", match)
-        aborted = False
-        try:
+        aborted = True
+        with exceptiongroup.catch(
+            {
+                MatchDNSError: _match_error_handler,
+            }
+        ):
             match.start_match()
             visualizer.update_state(match.states[0], 0)
-        except* MatchDNSError as exception_group:
-            aborted = True
+            aborted = False
+
+        if aborted:
             visualizer.update_abort()
-            log.exception(exception_group)
 
         while not match.is_finished and not aborted:
             visualizer.draw()
-            try:
+            aborted = True
+            with exceptiongroup.catch(
+                {
+                    MatchDNFError: _match_error_handler,
+                }
+            ):
                 match.execute_ply()
-            except* MatchDNFError as exception_group:
-                aborted = True
-                visualizer.update_abort()
-                log.exception(exception_group)
+                aborted = False
 
-            visualizer.update_state(match.states[-1])
-            visualizer.draw()
+            if not aborted:
+                visualizer.update_state(match.states[-1])
+                visualizer.draw()
+            else:
+                visualizer.update_abort()
 
         if not aborted:
             log.debug("Concluded %s", match)
