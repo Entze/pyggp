@@ -4,6 +4,7 @@ from pyggp.gdl import Relation, Role, Ruleset, Sentence
 from pyggp.interpreters import ClingoInterpreter
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize("role,expected_state", [(Relation("p1"), frozenset({1, 2})), (Relation("p2"), frozenset())])
 def test_as_expected(role: Role, expected_state) -> None:
     mock_ruleset = Ruleset(

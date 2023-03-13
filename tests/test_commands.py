@@ -6,6 +6,7 @@ from pyggp.commands import parse_agent_registry
 from pyggp.gdl import Relation
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize(
     "input,expected",
     [

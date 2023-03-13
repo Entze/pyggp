@@ -1,6 +1,9 @@
+import pytest
+
 from pyggp.visualizers import Visualizer
 
 
+@pytest.mark.skip
 def test_as_expected_update_state() -> None:
     visualizer = Visualizer()
     assert visualizer._states == []

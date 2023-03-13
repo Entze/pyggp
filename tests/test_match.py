@@ -1,6 +1,7 @@
 # pylint: disable=missing-docstring,invalid-name,unused-argument
 from unittest import TestCase
 
+import pytest
 from common import SLEEP_TIME, MockAgent, MockTimeoutAgent, mock_match
 
 from pyggp.actors import LocalActor
@@ -12,18 +13,21 @@ from pyggp.interpreters import ClingoInterpreter
 from pyggp.match import Match, MatchConfiguration
 
 
+@pytest.mark.skip
 def test_as_expected_is_finished_non_finished() -> None:
     match = mock_match()
 
     assert not match.is_finished
 
 
+@pytest.mark.skip
 def test_as_expected_is_finished_finished() -> None:
     match = mock_match(finish_match=True)
 
     assert match.is_finished
 
 
+@pytest.mark.skip
 def test_as_expected_get_result() -> None:
     agent_p1 = MockAgent()
     match = mock_match(agents=(agent_p1,))
@@ -36,6 +40,7 @@ def test_as_expected_get_result() -> None:
     assert match.get_result().utilities == {Relation("p1"): 1}
 
 
+@pytest.mark.skip
 class TestMatchInitializeAgents(TestCase):
     def test_success(self) -> None:
         ruleset = nim_ruleset

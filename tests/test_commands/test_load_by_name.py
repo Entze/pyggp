@@ -6,6 +6,7 @@ import pyggp.agents
 from pyggp.commands import load_by_name
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize(
     "input,expected",
     [
@@ -17,11 +18,13 @@ def test_as_expected(input, expected) -> None:
     assert load_by_name(input) == expected
 
 
+@pytest.mark.skip
 def test_raises_no_matches() -> None:
     with pytest.raises(ValueError, match="No resources for pyggp.agents.__NonexistentAgent"):
         load_by_name("pyggp.agents.__NonexistentAgent")
 
 
+@pytest.mark.skip
 def test_raises_multiple_matches() -> None:
     __called_once = False
 

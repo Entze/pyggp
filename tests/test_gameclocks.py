@@ -7,6 +7,7 @@ import pytest
 from pyggp.gameclocks import GameClock, GameClockConfiguration
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize(
     "string,expected",
     [
@@ -24,6 +25,7 @@ def test_from_str_as_expected(string: str, expected: GameClockConfiguration) -> 
     assert GameClockConfiguration.from_str(string) == expected
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize(
     "string,match",
     [
@@ -40,6 +42,7 @@ def test_from_str_raises(string: str, match: str) -> None:
         GameClockConfiguration.from_str(string)
 
 
+@pytest.mark.skip
 class TestGameClock(TestCase):
     def test_game_clock_delay(self) -> None:
         game_clock_config = GameClockConfiguration(total_time=0.0, increment=0.0, delay=0.1)

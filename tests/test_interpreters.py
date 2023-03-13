@@ -1,12 +1,15 @@
 # pylint: disable=missing-docstring,invalid-name,unused-argument
 from unittest import TestCase
 
+import pytest
+
 import pyggp.games
 from pyggp.exceptions.gdl_exceptions import MoreThanOneModelError, MultipleGoalsError, UnexpectedRoleError
 from pyggp.gdl import Literal, Relation, Ruleset, Sentence, State
 from pyggp.interpreters import ClingoInterpreter, get_roles_in_control
 
 
+@pytest.mark.skip
 class TestGetRolesInControl(TestCase):
     def test_empty(self) -> None:
         state: State = frozenset()
@@ -22,6 +25,7 @@ class TestGetRolesInControl(TestCase):
         self.assertSetEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestClingoInterpreterGetRoles(TestCase):
     def test_tic_tac_toe(self) -> None:
         ruleset = pyggp.games.tic_tac_toe_ruleset

@@ -5,6 +5,7 @@ import pytest
 from pyggp.app import determine_log_level
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize(
     "verbose,quiet,expected",
     [

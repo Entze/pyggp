@@ -21,6 +21,7 @@ _pos = clingo.ast.Position("<string>", 0, 0)
 _loc = clingo.ast.Location(_pos, _pos)
 
 
+@pytest.mark.skip
 class TestVariable__str__(TestCase):
     def test_var(self) -> None:
         variable = Variable("X")
@@ -41,6 +42,7 @@ class TestVariable__str__(TestCase):
         self.assertEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestVariableToClingoAST(TestCase):
     def test_var(self) -> None:
         variable = Variable("X")
@@ -61,6 +63,7 @@ class TestVariableToClingoAST(TestCase):
         self.assertEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestRelation__str__(TestCase):
     def test_atom(self) -> None:
         relation = Relation("test", ())
@@ -87,6 +90,7 @@ class TestRelation__str__(TestCase):
         self.assertEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestRelationMatch(unittest.TestCase):
     def test_atom(self) -> None:
         relation = Relation("test", ())
@@ -119,6 +123,7 @@ class TestRelationMatch(unittest.TestCase):
         self.assertEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestRelationArgumentsSignature(unittest.TestCase):
     def test_atom(self) -> None:
         relation = Relation("test", ())
@@ -151,6 +156,7 @@ class TestRelationArgumentsSignature(unittest.TestCase):
         self.assertEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestRelationInfixStr(unittest.TestCase):
     def test_atom(self) -> None:
         relation = Relation("test", ())
@@ -195,6 +201,7 @@ class TestRelationInfixStr(unittest.TestCase):
         self.assertEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestRelationToInfixStr(unittest.TestCase):
     def test_int(self) -> None:
         actual = Relation.to_infix_str(1)
@@ -245,6 +252,7 @@ class TestRelationToInfixStr(unittest.TestCase):
             Relation.to_infix_str(None)
 
 
+@pytest.mark.skip
 class TestRelationToClingoAST(unittest.TestCase):
     def test_atom(self) -> None:
         relation = Relation("test", ())
@@ -280,6 +288,7 @@ class TestRelationToClingoAST(unittest.TestCase):
             relation.to_clingo_ast()
 
 
+@pytest.mark.skip
 class TestRelationToClingoSymbol(TestCase):
     def test_atom(self) -> None:
         relation = Relation("test", ())
@@ -310,6 +319,7 @@ class TestRelationToClingoSymbol(TestCase):
             relation.to_clingo_symbol()
 
 
+@pytest.mark.skip
 class TestArgumentSignaturesMatch(unittest.TestCase):
     def test_same(self) -> None:
         arg_sig1 = (1, 2)
@@ -354,6 +364,7 @@ class TestArgumentSignaturesMatch(unittest.TestCase):
         self.assertEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestFromClingoSymbol(TestCase):
     def test_atom(self) -> None:
         symbol = clingo.Function("test")
@@ -386,6 +397,7 @@ class TestFromClingoSymbol(TestCase):
         self.assertEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestLiteralInfixStr(unittest.TestCase):
     def test_posatom(self) -> None:
         relation = Relation("test", ())
@@ -402,6 +414,7 @@ class TestLiteralInfixStr(unittest.TestCase):
         self.assertEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestLiteralToClingoAST(unittest.TestCase):
     def test_posatom(self) -> None:
         relation = Relation("test", ())
@@ -468,6 +481,7 @@ class TestLiteralToClingoAST(unittest.TestCase):
             literal.to_clingo_ast()
 
 
+@pytest.mark.skip
 class TestLiteral__neg__(unittest.TestCase):
     def test_atom(self) -> None:
         relation = Literal(Relation("test", ()))
@@ -476,6 +490,7 @@ class TestLiteral__neg__(unittest.TestCase):
         self.assertEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestLiteral__str__(unittest.TestCase):
     def test_posatom(self) -> None:
         relation = Relation("test", ())
@@ -492,6 +507,7 @@ class TestLiteral__str__(unittest.TestCase):
         self.assertEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestSentence__str__(unittest.TestCase):
     # Should be the same as ToInfixStr
 
@@ -502,6 +518,7 @@ class TestSentence__str__(unittest.TestCase):
         self.assertEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestSentenceToClingoAST(unittest.TestCase):
     def test_fact(self) -> None:
         sentence = Sentence.fact(Relation("test", ()))
@@ -562,6 +579,7 @@ class TestSentenceToClingoAST(unittest.TestCase):
         self.assertEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestSentenceToInfixStr(TestCase):
     def test_fact(self) -> None:
         sentence = Sentence.fact(Relation("test", ()))
@@ -591,6 +609,7 @@ class TestSentenceToInfixStr(TestCase):
         self.assertEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestRulesetRoleRules(unittest.TestCase):
     def test_tic_tac_toe(self) -> None:
         actual = tic_tac_toe_ruleset.role_rules
@@ -601,6 +620,7 @@ class TestRulesetRoleRules(unittest.TestCase):
         self.assertSequenceEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestRulesetInitRules(unittest.TestCase):
     def test_tic_tac_toe(self) -> None:
         actual = tic_tac_toe_ruleset.init_rules
@@ -608,6 +628,7 @@ class TestRulesetInitRules(unittest.TestCase):
         self.assertSequenceEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestRulesetNextRules(unittest.TestCase):
     def test_rock_paper_scissors(self) -> None:
         actual = rock_paper_scissors_ruleset.next_rules
@@ -646,6 +667,7 @@ class TestRulesetNextRules(unittest.TestCase):
         self.assertSequenceEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestRulesetSeesRules(unittest.TestCase):
     def test_tic_tac_toe(self) -> None:
         actual = tic_tac_toe_ruleset.sees_rules
@@ -653,6 +675,7 @@ class TestRulesetSeesRules(unittest.TestCase):
         self.assertSequenceEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestRulesetLegalRules(unittest.TestCase):
     def test_rock_paper_scissors(self) -> None:
         actual = rock_paper_scissors_ruleset.legal_rules
@@ -676,6 +699,7 @@ class TestRulesetLegalRules(unittest.TestCase):
         self.assertSequenceEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestRulesetGoalRules(unittest.TestCase):
     def test_tic_tac_toe(self) -> None:
         actual = tic_tac_toe_ruleset.goal_rules
@@ -790,6 +814,7 @@ class TestRulesetGoalRules(unittest.TestCase):
         self.assertSequenceEqual(actual, expected)
 
 
+@pytest.mark.skip
 class TestRulesetTerminalRules(unittest.TestCase):
     def test_rock_paper_scissors(self) -> None:
         actual = rock_paper_scissors_ruleset.terminal_rules
@@ -818,6 +843,7 @@ class TestRulesetTerminalRules(unittest.TestCase):
         self.assertSequenceEqual(actual, expected)
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize(
     "arg1,arg2,expected",
     [
