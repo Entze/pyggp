@@ -1093,7 +1093,7 @@ class Ruleset:
 
     # region Attributes and Properties
 
-    rules: Sequence[Sentence]
+    rules: Sequence[Sentence] = field(default_factory=tuple)
     """Rules of the ruleset.
 
     Despite the name, this is not actually a set, as the order of the rules is important.
