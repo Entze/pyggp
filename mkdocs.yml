@@ -14,10 +14,24 @@ theme:
 plugins:
   - search
   - autorefs
-  - mkdocstrings
+  - mkdocstrings:
+      handlers:
+        python:
+          selection:
+            docstring_style: google
+            docstring_options:
+              ignore_init_summary: true
+          options:
+            filters:
+              - "!__repr__"
+
 
 nav:
   - Overview: index.md
+  - Contributing:
+      - Overview: contributing/index.md
+      - Testing: contributing/testing.md
   - Reference:
-      - actors: api/actors.md
-      - gdl: api/gdl.md
+      - Overview: reference/index.md
+      - actors: reference/actors.md
+      - gdl: reference/gdl.md
