@@ -124,9 +124,11 @@ blank = true
 
 
 [tool.docsig]
+check-class = true
 check-dunders = false
-check-overridden = false
+check-overridden = true
 check-protected = false
+check-property-returns = true
 summary = true
 
 
@@ -145,6 +147,10 @@ check_untyped_defs = true
 warn_return_any = true
 warn_unused_ignores = true
 show_error_codes = true
+
+
+[tool.pydocstyle]
+convention = "google"
 
 
 [tool.pylint]
