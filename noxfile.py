@@ -45,7 +45,7 @@ def src_lint(session: nox.Session) -> None:
     session.run("tryceratops", "src")
 
 
-@nox.session(tags=["checks", "ci", "lint"])
+@nox.session
 def docs_lint(session: nox.Session) -> None:
     session.install(".")
     _install(session, "docsig")
