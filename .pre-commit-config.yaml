@@ -6,6 +6,10 @@ default_stages:
   - manual
 fail_fast: true
 repos:
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.12.1
+    hooks:
+      - id: validate-pyproject
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
@@ -33,18 +37,11 @@ repos:
     rev: 23.1.0
     hooks:
       - id: black
-  - repo: https://github.com/PyCQA/isort
-    rev: 5.12.0
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.0.256
     hooks:
-      - id: isort
-  - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.10.0
-    hooks:
-      - id: python-check-blanket-noqa
-      - id: python-check-blanket-type-ignore
-      - id: python-check-mock-methods
-      - id: python-no-eval
-      - id: python-no-log-warn
+      - id: ruff
+        args: [--select, "I,PGH,E501", --fixable, "I", --fix, --exit-non-zero-on-fix]
   - repo: https://github.com/python-jsonschema/check-jsonschema
     rev: 0.21.0
     hooks:
@@ -55,10 +52,6 @@ repos:
       - id: pymarkdown
         args: [ --config=.pymarkdown-config.json, scan, . ]
         exclude: (^.github/|CHANGELOG.md)
-  - repo: https://github.com/tox-dev/tox-ini-fmt
-    rev: 0.6.1
-    hooks:
-      - id: tox-ini-fmt
   - repo: local
     hooks:
       - id: poetry-check
