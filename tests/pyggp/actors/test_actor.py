@@ -1,7 +1,6 @@
 from unittest import mock
 
 import pytest
-
 from pyggp.actors import Actor
 from pyggp.exceptions.actor_exceptions import ActorNotStartedError, ActorTimeoutError
 from pyggp.gameclocks import GameClock, GameClockConfiguration
