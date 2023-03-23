@@ -13,25 +13,6 @@ files = [
 ]
 
 [[package]]
-name = "anytree"
-version = "2.8.0"
-description = "Powerful and Lightweight Python Tree Data Structure.."
-category = "main"
-optional = false
-python-versions = "*"
-files = [
-    {file = "anytree-2.8.0-py2.py3-none-any.whl", hash = "sha256:14c55ac77492b11532395049a03b773d14c7e30b22aa012e337b1e983de31521"},
-    {file = "anytree-2.8.0.tar.gz", hash = "sha256:3f0f93f355a91bc3e6245319bf4c1d50e3416cc7a35cc1133c1ff38306bbccab"},
-]
-
-[package.dependencies]
-six = ">=1.9.0"
-
-[package.extras]
-dev = ["check-manifest"]
-test = ["coverage"]
-
-[[package]]
 name = "arcon"
 version = "0.2.1"
 description = "Persistent runtime config"
@@ -1771,7 +1752,7 @@ setuptools = "*"
 name = "six"
 version = "1.16.0"
 description = "Python 2 and 3 compatibility utilities"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
 files = [
@@ -2229,4 +2210,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.12"
-content-hash = "c6fa0f6f7d2417003e0ec18f6426c7c0c6168920a9c612513c00d84488b30dfe"
+content-hash = "2bd9f6493dcf8f0c8ecb70b80b68f2450a489ba6b8717bb4c0983eea098d2ac6"
