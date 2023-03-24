@@ -2,12 +2,13 @@
 
 Actors are the interface between the game engine and the agents. Their API is inspired by the ggp.stanford.edu courses'
 third chapter (see http://ggp.stanford.edu/chapters/chapter_03.html).
+
 """
 
 from typing import Optional
 
 from pyggp.agents import Agent
-from pyggp.exceptions.actor_exceptions import ActorNotStartedError, ActorTimeoutError
+from pyggp.exceptions.actor_exceptions import ActorPlayclockIsNoneError, ActorTimeoutError
 from pyggp.gameclocks import GameClock, GameClockConfiguration
 from pyggp.gdl import ConcreteRole, Move, Role, Ruleset, State
 
@@ -19,6 +20,7 @@ class Actor:
         startclock: Startclock of the actor
         playclock: Playclock of the actor
         is_human_actor: Whether the actor is a human actor
+
     """
 
     # Disables FBT001 (Boolean positional arg in function definition). Reason: is_human_actor is a value of an Actor
@@ -39,6 +41,7 @@ class Actor:
 
         Returns:
             Representation of Actor
+
         """
         return (
             f"{self.__class__.__name__}(id={hex(id(self))}, "
@@ -95,9 +98,10 @@ class Actor:
         Raises:
             ActorNotStartedError: playclock is None
             ActorTimeoutError: playclock expired
+
         """
         if self.playclock is None:
-            raise ActorNotStartedError
+            raise ActorPlayclockIsNoneError
         assert self.playclock is not None
         with self.playclock:
             move = self._send_play(move_nr, view)
@@ -131,6 +135,7 @@ class Actor:
 
         Args:
             view: The current state of the game as seen by the agent
+
         """
         self.startclock = None
         self.playclock = None
@@ -146,6 +151,7 @@ class LocalActor(Actor):
     Attributes:
         agent: Agent that is controlled by this actor
         is_human_actor: Whether the actor is a human actor
+
     """
 
     # Disables FBT001 (Boolean positional arg in function definition). Reason: is_human_actor is a value of an Actor
@@ -156,6 +162,7 @@ class LocalActor(Actor):
         Args:
             agent: Agent that is controlled by this actor
             is_human_actor: Whether the actor is a human actor
+
         """
         super().__init__(is_human_actor=is_human_actor)
         self.agent: Agent = agent

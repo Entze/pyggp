@@ -2,7 +2,7 @@ from unittest import mock
 
 import pytest
 from pyggp.actors import Actor
-from pyggp.exceptions.actor_exceptions import ActorNotStartedError, ActorTimeoutError
+from pyggp.exceptions.actor_exceptions import ActorPlayclockIsNoneError, ActorTimeoutError
 from pyggp.gameclocks import GameClock, GameClockConfiguration
 from pyggp.gdl import ConcreteRole, Ruleset
 
@@ -29,7 +29,7 @@ def test_send_start_raises_if_the_startclock_expires() -> None:
 def test_send_play_raises_if_the_playclock_is_none() -> None:
     actor: Actor = Actor()
     actor.playclock = None
-    with pytest.raises(ActorNotStartedError):
+    with pytest.raises(ActorPlayclockIsNoneError):
         actor.send_play(0, frozenset())
 
 
