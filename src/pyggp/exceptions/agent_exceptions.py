@@ -1,10 +1,13 @@
+"""Exceptions regarding agents."""
+
+
 class AgentError(Exception):
-    pass
+    """Base class for all exceptions regarding agents."""
 
 
 class InterpreterAgentError(AgentError):
-    pass
+    """Base class for all exceptions regarding interpreter agents."""
 
 
-class InterpreterAgentWithoutInterpreterError(InterpreterAgentError):
-    pass
+class InterpreterIsNoneInterpreterAgentError(InterpreterAgentError):
+    """Accessed interpreter when it was None."""
