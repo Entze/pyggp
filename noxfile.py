@@ -53,18 +53,15 @@ ALL_TARGETS: Sequence[str] = ("src", "src/*", "tests", "tests/*", "noxfile.py")
 ArgConfig: TypeAlias = Mapping[str, Mapping[str, Args]]
 
 ARGS: Final[ArgConfig] = dict(
-    unittest=dict(
+    unittests=dict(
         pytest=Args(
             allow_targets=("tests",),
-            default_targets=(
-                "tests",
-                "tests/*",
-            ),
+            default_targets=("tests",),
         )
     ),
-    doctest=dict(
+    doctests=dict(
         pytest=Args(
-            static_opts=("--doctest-modules",),
+            static_opts=("--doctest-modules", "--ignore-glob=test_*.py"),
             allow_targets=("src",),
             default_targets=("src",),
         )
@@ -87,7 +84,15 @@ ARGS: Final[ArgConfig] = dict(
             default_targets=("src", "tests", "noxfile.py"),
         ),
         pytest=Args(
-            static_opts=("--doctest-modules",),
+            static_opts=(
+                "--doctest-modules",
+                "--ignore-glob=test_*.py",
+            ),
+            allow_opts=(
+                "--ignore-glob=test_*.py",
+                "--doctest-modules",
+                "--ignore-glob=tests/*",
+            ),
             allow_targets=ALL_TARGETS,
             default_targets=("src",),
             success_codes=(0, 5),
@@ -105,7 +110,7 @@ ARGS: Final[ArgConfig] = dict(
                 "pyproject.toml",
             ),
             allow_targets=ALL_TARGETS,
-            default_targets=("src", "tests", "noxfile.py"),
+            default_targets=("src", "tests"),
         ),
     ),
     fix=dict(
@@ -218,7 +223,7 @@ def unittests(session: nox.Session) -> None:
     _install(session, *programs)
     run = functools.partial(_run, session=session, context="unittests", posargs=session.posargs)
     for program in programs:
-        run(program)
+        run(program=program)
 
 
 @nox.session(tags=["checks", "tests"])
