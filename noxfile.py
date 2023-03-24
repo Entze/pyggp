@@ -95,8 +95,15 @@ ARGS: Final[ArgConfig] = dict(
     ),
     typecheck=dict(
         mypy=Args(
-            allow_opts=("--strict",),
-            default_opts=("--strict",),
+            allow_opts=(
+                "--strict",
+                "--config-file",
+                "pyproject.toml",
+            ),
+            default_opts=(
+                "--config-file",
+                "pyproject.toml",
+            ),
             allow_targets=ALL_TARGETS,
             default_targets=("src", "tests", "noxfile.py"),
         ),
