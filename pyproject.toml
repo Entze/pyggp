@@ -52,13 +52,9 @@ commitizen = ">=2.42.0,<2.43.0"
 # Formatting
 black = ">=23.1.0,<23.2.0"
 docformatter = ">=1.5.1,<1.6.0"
-isort = ">=5.12.0,<5.13.0"
 # Linting
-docsig = ">=0.34.0,<0.35.0"
 mypy = ">=1.0.0,<1.1.0"
-pydocstyle = ">=6.3.0,<6.4.0"
-pylint = ">=2.16.2,<2.17.0"
-tryceratops = ">=1.1.0,<1.2.0"
+ruff = ">=0.0.0,<0.2.0"
 # Testing
 coverage = ">=7.1.0,<7.2.0"
 pytest = ">=7.2.1,<7.3.0"
@@ -67,7 +63,6 @@ nox = "=2022.11.21"
 tomli = ">=2.0.1,<2.1.0"
 shiv = ">=1.0.3,<1.1.0"
 pytest-unordered = ">=0.5.2,<0.6.0"
-ruff = ">=0.0.0,<0.2.0"
 
 
 [tool.poetry.group.bin]
@@ -128,21 +123,6 @@ wrap-descriptions = 120
 blank = true
 
 
-[tool.docsig]
-check-class = true
-check-dunders = false
-check-overridden = true
-check-protected = false
-check-property-returns = true
-summary = true
-
-
-[tool.isort]
-profile = "black"
-py_version = 38
-line_length = 120
-
-
 [tool.mypy]
 check_untyped_defs = true
 disallow_any_generics = true
@@ -162,19 +142,6 @@ warn_return_any = true
 warn_unused_configs = true
 warn_unused_ignores = true
 
-
-[tool.pydocstyle]
-convention = "google"
-
-
-[tool.pylint]
-max-line-length = 120
-fail-under = 10
-disable = [# Docstrings are checked by pydocstyle and docsig
-    "missing-module-docstring",
-    "missing-class-docstring",
-    "missing-function-docstring",
-]
 
 [tool.ruff]
 select = [
@@ -243,14 +210,3 @@ docstring-quotes = "double"
 
 [tool.ruff.pydocstyle]
 convention = "google"
-
-
-[tool.tryceratops]
-exclude = [
-    "tests",
-    "docs",
-    ".venv",
-    ".mypy_cache",
-    ".pytest_cache",
-    ".github"
-]
