@@ -1,46 +1,53 @@
-class InvalidGDLError(Exception):
-    pass
+"""Exceptions regarding interpreters."""
 
 
-class MoreThanOneModelError(InvalidGDLError):
-    pass
+class InterpreterError(Exception):
+    """Base class for all exceptions regarding interpreters."""
 
 
-class UnsatError(InvalidGDLError):
-    pass
+class InvalidGDLInterpreterError(InterpreterError):
+    """Base class for all exceptions regarding invalid GDL passed to an interpreter."""
 
 
-class UnsatRolesError(UnsatError):
-    pass
+class MoreThanOneModelInterpreterError(InvalidGDLInterpreterError):
+    """More than one model was found in a context where only one is allowed."""
 
 
-class UnsatInitError(UnsatError):
-    pass
+class UnsatInterpreterError(InvalidGDLInterpreterError):
+    """No model was found in a context where at least one is required."""
 
 
-class UnsatNextError(UnsatError):
-    pass
+class UnsatRolesInterpreterError(UnsatInterpreterError):
+    """Rules for roles are unsatisfiable."""
 
 
-class UnsatSeesError(UnsatError):
-    pass
+class UnsatInitInterpreterError(UnsatInterpreterError):
+    """Rules for init are unsatisfiable."""
 
 
-class UnsatLegalError(UnsatError):
-    pass
+class UnsatNextInterpreterError(UnsatInterpreterError):
+    """Rules for next are unsatisfiable."""
 
 
-class UnsatGoalError(UnsatError):
-    pass
+class UnsatSeesInterpreterError(UnsatInterpreterError):
+    """Rules for sees are unsatisfiable."""
 
 
-class UnexpectedRoleError(InvalidGDLError):
-    pass
+class UnsatLegalInterpreterError(UnsatInterpreterError):
+    """Rules for legal are unsatisfiable."""
 
 
-class MultipleGoalsError(InvalidGDLError):
-    pass
+class UnsatGoalInterpreterError(UnsatInterpreterError):
+    """Rules for goal are unsatisfiable."""
 
 
-class GoalNotIntegerError(InvalidGDLError):
-    pass
+class UnexpectedRoleInterpreterError(InvalidGDLInterpreterError):
+    """Unexpected role found."""
+
+
+class MultipleGoalsInterpreterError(InvalidGDLInterpreterError):
+    """Multiple goals for a role found."""
+
+
+class GoalNotIntegerInterpreterError(InvalidGDLInterpreterError):
+    """Goal is not an integer."""
