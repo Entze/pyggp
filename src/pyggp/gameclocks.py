@@ -1,11 +1,20 @@
 """Game clocks for GGP."""
 import contextlib
+import re
 import time
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Optional, Type
+from typing import Optional, Tuple, Type
 
 from typing_extensions import Self
+
+from pyggp._logging import format_timedelta
+from pyggp.exceptions.gameclock_exceptions import (
+    DelayInvalidFloatGameClockConfigurationError,
+    IncrementInvalidFloatGameClockConfigurationError,
+    MalformedStringGameClockConfigurationError,
+    TotalTimeInvalidFloatGameClockConfigurationError,
+)
 
 
 @dataclass(frozen=True)
@@ -31,85 +40,148 @@ class GameClockConfiguration:
     delay: float = 60.0
     """Delay in seconds.
 
-    This is the time that will be removed from the delta of the move.
+    This is the time that will be removed from the delta before the total time is decremented.
 
     """
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self.total_time} | {self.increment} d{self.delay})"
+        """Represents the game clock configuration.
+
+        Returns:
+            Representation of the game clock configuration.
+
+        """
+        return f"{self.__class__.__name__}({self})"
+
+    def __str__(self) -> str:
+        """String of the game clock configuration.
+
+        Returns:
+            String of the game clock configuration.
+
+        """
+        return f"{self.total_time} | {self.increment} d{self.delay if self.delay != float('inf') else '∞'}"
 
     @classmethod
     def from_str(cls, string: str) -> Self:
-        # TODO: Swap for a proper parser. Very manual parsing
-        split = string.split(" ", 3)
-        total_time_str: Optional[str] = None
-        increment_str: Optional[str] = None
-        delay_str: Optional[str] = None
-        divider_str: Optional[str] = None
-        if len(split) == 1:
-            if not split[0].startswith("d"):
-                total_time_str = split[0]
-            else:
-                delay_str = split[0]
-        elif len(split) == 2:
-            if split[0] != "|":
-                total_time_str, delay_str = split
-            else:
-                divider_str, increment_str = split
-        elif len(split) == 3:
-            total_time_str, divider_str, increment_str = split
-        elif len(split) == 4:
-            total_time_str, divider_str, increment_str, delay_str = split
-        else:
-            raise ValueError(f"Invalid game clock configuration: '{string}'")
+        """Create a game clock configuration from a string."""
+        sanity_check_re = re.compile(r"^(\S+)?(\s*\|\s*\S+)?(\s*d\s*\S+)?$")
+        if not sanity_check_re.match(string):
+            raise MalformedStringGameClockConfigurationError(string=string)
 
-        if divider_str is not None and divider_str != "|":
-            raise ValueError(
-                f"Invalid game clock configuration: '{string}', divider between total time and increment must be '|'."
-            )
-        if delay_str is not None and not delay_str.startswith("d"):
-            raise ValueError(f"Invalid game clock configuration: '{string}', delay '{delay_str}' must start with 'd'.")
+        # Disables SLF001 (Private member accessed). Because the private methods are helpers for this method.
+        _full_strs = GameClockConfiguration._full_spec_from_str(string)  # noqa: SLF001
+        _increment_strs = GameClockConfiguration._increment_only_spec_from_str(string)  # noqa: SLF001
+        _delay_strs = GameClockConfiguration._delay_only_spec_from_str(string)  # noqa: SLF001
+        _bare_strs = GameClockConfiguration._bare_spec_from_str(string)  # noqa: SLF001
+        _bare_delay_strs = GameClockConfiguration._bare_delay_spec_from_str(string)  # noqa: SLF001
+        total_time_str = _full_strs[0] or _increment_strs[0] or _delay_strs[0] or _bare_strs[0] or _bare_delay_strs[0]
+        increment_str = _full_strs[1] or _increment_strs[1] or _bare_strs[1] or _bare_delay_strs[1]
+        delay_str = _full_strs[2] or _delay_strs[2] or _bare_strs[2] or _bare_delay_strs[2]
+
+        if total_time_str is None and delay_str is None:
+            raise MalformedStringGameClockConfigurationError(string=string)
+
+        total_time = 0.0
+        increment = 0.0
+        delay = 0.0
 
         if total_time_str is not None:
+            total_time_str = total_time_str.replace("∞", "inf")
             try:
                 total_time = float(total_time_str)
-            except ValueError as exception:
-                raise ValueError(
-                    f"Invalid game clock configuration: '{string}', could not parse '{total_time_str}' as float."
-                ) from exception
-        else:
-            total_time = 0.0
+            except ValueError:
+                raise TotalTimeInvalidFloatGameClockConfigurationError(string=string) from None
+
         if increment_str is not None:
+            increment_str = increment_str.replace("∞", "inf")
             try:
                 increment = float(increment_str)
-            except ValueError as exception:
-                raise ValueError(
-                    f"Invalid game clock configuration: '{string}', could not parse '{increment_str}' as float"
-                ) from exception
-        else:
-            increment = 0.0
+            except ValueError:
+                raise IncrementInvalidFloatGameClockConfigurationError(string=string) from None
+
         if delay_str is not None:
+            delay_str = delay_str.replace("∞", "inf")
             try:
-                delay = float(delay_str[1:])
-            except ValueError as exception:
-                raise ValueError(
-                    f"Invalid game clock configuration: '{string}', could not parse '{delay_str}' as float"
-                ) from exception
-        else:
-            delay = 0.0
+                delay = float(delay_str)
+            except ValueError:
+                raise DelayInvalidFloatGameClockConfigurationError(string=string) from None
+
         return cls(total_time=total_time, increment=increment, delay=delay)
 
     @classmethod
     def default_startclock_config(cls) -> Self:
-        return cls(60.0, 0.0, 0.0)
+        """Create a game clock configuration with a total time of 60 seconds.
+
+        Returns:
+            A game clock configuration with a total time of 60 seconds.
+
+        """
+        return cls(total_time=60.0, increment=0.0, delay=0.0)
 
     @classmethod
     def default_playclock_config(cls) -> Self:
-        return cls(0.0, 0.0, 60.0)
+        """Create a game clock configuration with a delay of 60 seconds.
+
+        Returns:
+            A game clock configuration with a delay of 60 seconds.
+
+        """
+        return cls(total_time=0.0, increment=0.0, delay=60.0)
 
     @classmethod
     def default_no_timeout_config(cls) -> Self:
-        return cls(0.0, 0.0, float("inf"))
+        """Create a game clock configuration that cannot time out.
+
+        Returns:
+            A game clock configuration that cannot time out.
+
+        """
+        return cls(total_time=0.0, increment=0.0, delay=float("inf"))
+
+    @staticmethod
+    def _full_spec_from_str(string: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        full_spec_re = re.compile(r"^(?P<total_time>\S+)\s*\|\s*(?P<increment>\S+)\s*d\s*(?P<delay>\S+)$")
+        full_spec_match = full_spec_re.match(string)
+        if not full_spec_match:
+            return None, None, None
+        return full_spec_match.group("total_time"), full_spec_match.group("increment"), full_spec_match.group("delay")
+
+    @staticmethod
+    def _increment_only_spec_from_str(string: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        increment_only_spec_re = re.compile(r"^(?P<total_time>\S+)\s*\|\s*(?P<increment>\S+)$")
+        increment_only_spec_match = increment_only_spec_re.match(string)
+
+        if not increment_only_spec_match:
+            return None, None, None
+        return increment_only_spec_match.group("total_time"), increment_only_spec_match.group("increment"), None
+
+    @staticmethod
+    def _delay_only_spec_from_str(string: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        delay_only_spec_re = re.compile(r"^(?P<total_time>\S+)\s*d\s*(?P<delay>\S+)$")
+        delay_only_spec_match = delay_only_spec_re.match(string)
+
+        if not delay_only_spec_match:
+            return None, None, None
+        return delay_only_spec_match.group("total_time"), None, delay_only_spec_match.group("delay")
+
+    @staticmethod
+    def _bare_spec_from_str(string: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        bare_spec_re = re.compile(r"^(?P<total_time>[^d]\S*)$")
+        bare_spec_match = bare_spec_re.match(string)
+
+        if not bare_spec_match:
+            return None, None, None
+        return bare_spec_match.group("total_time"), None, None
+
+    @staticmethod
+    def _bare_delay_spec_from_str(string: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        bare_spec_re = re.compile(r"^d\s*(?P<delay>\S+)$")
+        bare_spec_match = bare_spec_re.match(string)
+
+        if not bare_spec_match:
+            return None, None, None
+        return None, None, bare_spec_match.group("delay")
 
 
 class GameClock(contextlib.AbstractContextManager[int]):
@@ -123,8 +195,6 @@ class GameClock(contextlib.AbstractContextManager[int]):
         >>> game_clock = GameClock(game_clock_config)
         >>> with game_clock as total_time_left_ns:
         ...     time.sleep(0.2)
-        ...     total_time_left_ns
-        100000000
         >>> game_clock.is_expired
         True
 
@@ -146,17 +216,17 @@ class GameClock(contextlib.AbstractContextManager[int]):
         try:
             self._total_time_ns = int(game_clock_config.total_time * 1e9)
         except OverflowError:
-            self._total_time_ns = int(365 * 24 * 60 * 60 * 1e9)
+            self._total_time_ns = int(2**63 - 1)
         self._increment = game_clock_config.increment
         try:
             self._increment_ns = int(game_clock_config.increment * 1e9)
         except OverflowError:
-            self._increment_ns = int(365 * 24 * 60 * 60 * 1e9)
+            self._increment_ns = int(2**63 - 1)
         self._delay = game_clock_config.delay
         try:
             self._delay_ns = int(game_clock_config.delay * 1e9)
         except OverflowError:
-            self._delay_ns = int(365 * 24 * 60 * 60 * 1e9)
+            self._delay_ns = int(2**63 - 1)
         self.__start: Optional[int] = None
         self._last_delta_ns: Optional[int] = None
 
@@ -174,7 +244,10 @@ class GameClock(contextlib.AbstractContextManager[int]):
         return self._total_time_ns
 
     def __exit__(
-        self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[TracebackType]
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
     ) -> None:
         """Stop the game clock."""
         self.stop()
@@ -198,19 +271,7 @@ class GameClock(contextlib.AbstractContextManager[int]):
     def __total_time_repr(self) -> str:
         if self._total_time_is_inf:
             return "∞"
-        if self._total_time_ns > 60_000_000_000:
-            minutes = self._total_time_ns // 60_000_000_000
-            seconds = (self._total_time_ns % 60_000_000_000) // 1_000_000_000
-            return f"{minutes}:{seconds:02}"
-        if self._total_time_ns > 30_000_000_000:
-            return f"{self.total_time:.1f}"
-        if self._total_time_ns > 1_000_000_000:
-            return f"{self.total_time:.2f}"
-        if self._total_time_ns > 100_000_000:
-            return f"{self.total_time:.3f}"
-        if self._total_time_ns == 0:
-            return "0."
-        return f"{self.total_time:.4f}"
+        return format_timedelta(self.total_time)
 
     @property
     def __increment_repr(self) -> str:
@@ -247,10 +308,12 @@ class GameClock(contextlib.AbstractContextManager[int]):
 
     @property
     def last_delta_ns(self) -> Optional[int]:
+        """Last time delta (time elapsed between calling start and stop) in nanoseconds."""
         return self._last_delta_ns
 
     @property
     def last_delta(self) -> Optional[float]:
+        """Last time delta (time elapsed between calling start and stop) in seconds."""
         if self._last_delta_ns is None:
             return None
         return self._last_delta_ns / 1e9
