@@ -1,8 +1,8 @@
 import unittest.mock as mock
 
-import pytest
-
 import pyggp.agents
+import pyggp.agents.base_agents
+import pytest
 from pyggp.commands import load_by_name
 
 

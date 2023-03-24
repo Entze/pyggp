@@ -4,9 +4,19 @@ import time
 from typing import FrozenSet, Mapping, Optional, Sequence
 
 from pyggp.actors import Actor, LocalActor
-from pyggp.agents import Agent
+from pyggp.agents.base_agents import Agent
 from pyggp.gameclocks import GameClockConfiguration
-from pyggp.gdl import Literal, Move, Play, Relation, Role, Ruleset, Sentence, State, Variable
+from pyggp.gdl import (
+    Literal,
+    Move,
+    Play,
+    Relation,
+    Role,
+    Ruleset,
+    Sentence,
+    State,
+    Variable,
+)
 from pyggp.interpreters import Interpreter
 from pyggp.match import Match, MatchConfiguration
 
@@ -37,7 +47,7 @@ class MockAgent(Agent):
     def conclude_match(self, view: State) -> None:
         self.called_conclude_match = True
 
-    def calculate_move(self, move_nr: int, total_time_ns: int, view: State) -> Move:
+    def calculate_move(self, ply: int, total_time_ns: int, view: State) -> Move:
         self.called_calc_move = True
         return self.next_move
 
@@ -79,10 +89,10 @@ class MockTimeoutAgent(MockAgent):
             time.sleep(self.sleep_time)
         super().conclude_match(view)
 
-    def calculate_move(self, move_nr: int, total_time_ns: int, view: State) -> Move:
+    def calculate_move(self, ply: int, total_time_ns: int, view: State) -> Move:
         if self.timeout_calculate_move:
             time.sleep(self.sleep_time)
-        return super().calculate_move(move_nr, total_time_ns, view)
+        return super().calculate_move(ply, total_time_ns, view)
 
 
 class MockRetentionAgent(MockAgent):
@@ -114,11 +124,11 @@ class MockRetentionAgent(MockAgent):
         self.conclusion_view = view
         super().conclude_match(view)
 
-    def calculate_move(self, move_nr: int, total_time_ns: int, view: State) -> Move:
-        self.move_nrs.append(move_nr)
+    def calculate_move(self, ply: int, total_time_ns: int, view: State) -> Move:
+        self.move_nrs.append(ply)
         self.total_times_ns.append(total_time_ns)
         self.views.append(view)
-        return super().calculate_move(move_nr, total_time_ns, view)
+        return super().calculate_move(ply, total_time_ns, view)
 
 
 class MockRuleset1Interpreter(Interpreter):

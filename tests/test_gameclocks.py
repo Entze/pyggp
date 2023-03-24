@@ -3,7 +3,6 @@ from time import sleep
 from unittest import TestCase
 
 import pytest
-
 from pyggp.gameclocks import GameClock, GameClockConfiguration
 
 

@@ -3,9 +3,8 @@ from unittest import TestCase
 
 import pytest
 from common import SLEEP_TIME, MockAgent, MockTimeoutAgent, mock_match
-
 from pyggp.actors import LocalActor
-from pyggp.exceptions.match_exceptions import MatchDNSError
+from pyggp.exceptions.match_exceptions import DidNotStartMatchError
 from pyggp.gameclocks import GameClockConfiguration
 from pyggp.games import nim_ruleset
 from pyggp.gdl import Relation
@@ -95,5 +94,5 @@ class TestMatchInitializeAgents(TestCase):
                 },
             )
             match = Match(match_configuration)
-            with self.assertRaises(MatchDNSError):
+            with self.assertRaises(DidNotStartMatchError):
                 match._initialize_agents()

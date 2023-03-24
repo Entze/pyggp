@@ -13,8 +13,7 @@ from common import (
     mock_ruleset_2,
     mock_ruleset_3,
 )
-
-from pyggp.exceptions.match_exceptions import MatchIllegalMoveError, MatchTimeoutError
+from pyggp.exceptions.match_exceptions import IllegalMoveMatchError, TimeoutMatchError
 from pyggp.gameclocks import GameClockConfiguration
 from pyggp.gdl import Relation, State
 
@@ -103,7 +102,7 @@ def test_raises_on_illegal_move() -> None:
     with pytest.raises(ExceptionGroup) as excinfo:
         match.execute_ply()
     assert len(excinfo.value.exceptions) == 1
-    assert isinstance(excinfo.value.exceptions[0], MatchIllegalMoveError)
+    assert isinstance(excinfo.value.exceptions[0], IllegalMoveMatchError)
     assert len(match.states) == 1
     assert match.states[0] == {Relation.control(Relation("p1"))}
     assert match.utilities == {Relation("p1"): "DNF(Illegal Move)"}
@@ -145,7 +144,7 @@ def test_raises_on_timeout(slack: float, sleep_time: float, delay: float) -> Non
     with pytest.raises(ExceptionGroup) as excinfo:
         match.execute_ply()
     assert len(excinfo.value.exceptions) == 1
-    assert isinstance(excinfo.value.exceptions[0], MatchTimeoutError)
+    assert isinstance(excinfo.value.exceptions[0], TimeoutMatchError)
     assert len(match.states) == 1
     assert match.states[0] == {Relation.control(Relation("p1"))}
     assert match.utilities == {Relation("p1"): "DNF(Timeout)"}
@@ -196,6 +195,6 @@ def test_raises_on_multi_timeout() -> None:
         match.execute_ply()
 
     assert len(excinfo.value.exceptions) == 3
-    assert isinstance(excinfo.value.exceptions[0], MatchTimeoutError)
-    assert isinstance(excinfo.value.exceptions[1], MatchTimeoutError)
-    assert isinstance(excinfo.value.exceptions[2], MatchTimeoutError)
+    assert isinstance(excinfo.value.exceptions[0], TimeoutMatchError)
+    assert isinstance(excinfo.value.exceptions[1], TimeoutMatchError)
+    assert isinstance(excinfo.value.exceptions[2], TimeoutMatchError)

@@ -1,5 +1,4 @@
 import pytest
-
 from pyggp.visualizers import Visualizer
 
 

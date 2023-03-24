@@ -1,7 +1,6 @@
 import logging
 
 import pytest
-
 from pyggp.app import determine_log_level
 
 
