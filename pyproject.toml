@@ -195,7 +195,7 @@ ignore = [
     "G002",
     "FBT002",
 ]
-fixable = ["I", "UP", "D", "COM", "PT"]
+fixable = ["I", "UP", "D", "COM", "PT", "F401"]
 line-length = 120
 target-version = "py38"
 
