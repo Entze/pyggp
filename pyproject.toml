@@ -20,9 +20,6 @@ classifiers = [
     "Typing :: Typed"
 ]
 
-[tool.poetry.scripts]
-pyggp = "pyggp.app:app"
-
 [tool.poetry.dependencies]
 python = ">=3.8,<3.12"
 typing-extensions = ">=4.5.0,<4.6.0"
@@ -144,6 +141,10 @@ warn_unused_configs = true
 warn_unused_ignores = true
 
 
+[tool.pytest.ini_options]
+pythonpath = [".", "src"]
+
+
 [tool.ruff]
 select = [
     "F",
@@ -193,16 +194,19 @@ ignore = [
     "S101",
     "ANN101",
     "ANN102",
+    "ANN401",
     "G002",
     "FBT002",
 ]
-fixable = ["I", "UP", "D", "COM", "PT", "F401"]
+fixable = ["I", "UP", "D", "COM", "PT", "F401", "SIM", "ANN204", "W"]
 line-length = 120
 target-version = "py38"
 
 [tool.ruff.per-file-ignores]
 "__init__.py" = ["F401"]
-"tests/*" = ["D", "SLF", "INP"]
+"src/pyggp/cli/*" = ["ARG001", "B008", "FBT001", "FBT003", "PLR0913"] # typer does not follow these rules
+"tests/*" = ["D", "SLF", "INP", "PLR2004", "FBT001"]
+"noxfile.py" = ["D", "C408"]
 
 [tool.ruff.flake8-quotes]
 inline-quotes = "double"
