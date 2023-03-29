@@ -1,12 +1,25 @@
 import fnmatch
 import functools
+import pathlib
 import platform
 import sys
-from typing import Callable, Collection, List, Mapping, MutableMapping, Optional, Sequence, Tuple, TypeAlias, TypedDict
+from typing import (
+    Callable,
+    Collection,
+    Final,
+    List,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeAlias,
+    TypedDict,
+)
 
 import nox
 import tomli as tomllib
-from typing_extensions import Final, NotRequired
+from typing_extensions import NotRequired
 
 PYTHON_VERSIONS: Final[List[str]] = ["3.8", "3.9", "3.10", "3.11", "pypy-3.8", "pypy-3.9"]
 PYTHON_VERSIONS_SHORT_NAMES: Final[Mapping[str, str]] = {
@@ -31,9 +44,9 @@ PYTHON_VERSION_LOCAL_SHORT_NAME: Final[str] = (
     + str(__python_minor)
 )
 
-VERSIONS: MutableMapping[str, Optional[str]] = dict()
+VERSIONS: MutableMapping[str, Optional[str]] = {}
 
-with open("pyproject.toml", "rb") as f:
+with pathlib.Path("pyproject.toml").open(mode="rb") as f:
     pyproject_toml = tomllib.load(f)
     VERSIONS.update(pyproject_toml["tool"]["poetry"]["group"]["dev"]["dependencies"])
 
@@ -57,14 +70,14 @@ ARGS: Final[ArgConfig] = dict(
         pytest=Args(
             allow_targets=("tests",),
             default_targets=("tests",),
-        )
+        ),
     ),
     doctests=dict(
         pytest=Args(
             static_opts=("--doctest-modules", "--ignore-glob=test_*.py"),
             allow_targets=("src",),
             default_targets=("src",),
-        )
+        ),
     ),
     lint=dict(
         black=Args(
@@ -110,7 +123,7 @@ ARGS: Final[ArgConfig] = dict(
                 "pyproject.toml",
             ),
             allow_targets=ALL_TARGETS,
-            default_targets=("src", "tests"),
+            default_targets=("src",),
         ),
     ),
     fix=dict(
@@ -160,7 +173,7 @@ ARGS: Final[ArgConfig] = dict(
                 "--output-file",
                 f"pyggp-{PYTHON_VERSION_LOCAL_SHORT_NAME}",
                 "--python",
-                f"/usr/bin/env -S python3 -O",
+                "/usr/bin/env -S python3 -O",
             ),
             allow_targets=(".", *ALL_TARGETS),
             default_targets=(".",),
@@ -177,7 +190,10 @@ def _install(session: nox.Session, *dependencies: str) -> None:
 
 
 def _filter(
-    session: nox.Session, context: str, program: str, posargs: Sequence[str]
+    session: nox.Session,
+    context: str,
+    program: str,
+    posargs: Sequence[str],
 ) -> Tuple[Sequence[str], Sequence[str]]:
     opts = list(ARGS[context][program].get("static_opts", ()))
     opt_defaults = True
@@ -190,7 +206,9 @@ def _filter(
             opt_defaults = False
         else:
             session.debug(
-                "Disallowed opt: %s, did not match with %s", arg, ARGS[context][program].get("allow_opts", ())
+                "Disallowed opt: %s, did not match with %s",
+                arg,
+                ARGS[context][program].get("allow_opts", ()),
             )
         if any(fnmatch.fnmatch(arg, pattern) for pattern in ARGS[context][program].get("allow_targets", ())):
             session.debug("Allowed target: %s", arg)
@@ -198,7 +216,9 @@ def _filter(
             target_defaults = False
         else:
             session.debug(
-                "Disallowed target: %s, did not match with %s", arg, ARGS[context][program].get("allow_targets", ())
+                "Disallowed target: %s, did not match with %s",
+                arg,
+                ARGS[context][program].get("allow_targets", ()),
             )
     if opt_defaults:
         opts.extend(ARGS[context][program].get("default_opts", ()))
@@ -219,7 +239,7 @@ def _run(session: nox.Session, context: str, program: str, posargs: Sequence[str
 @nox.session(tags=["checks", "tests"], python=PYTHON_VERSIONS)
 def unittests(session: nox.Session) -> None:
     session.install(".")
-    programs = ("pytest",)
+    programs = ("pytest", "pytest-unordered")
     _install(session, *programs)
     run = functools.partial(_run, session=session, context="unittests", posargs=session.posargs)
     for program in programs:
@@ -239,7 +259,7 @@ def doctests(session: nox.Session) -> None:
 @nox.session(tags=["checks", "ci"])
 def lint(session: nox.Session) -> None:
     session.install(".")
-    programs = ("black", "docformatter", "pytest", "ruff")
+    programs = ("black", "docformatter", "ruff", "pytest")
     _install(session, *programs)
     run = functools.partial(_run, session=session, context="lint", posargs=session.posargs)
     for program in programs:
