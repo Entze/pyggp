@@ -1,6 +1,6 @@
 """Provides all subrelations of GDL."""
 from dataclasses import dataclass, field
-from typing import ClassVar, Optional, Sequence, Union
+from typing import ClassVar, NamedTuple, Optional, Sequence, Union
 
 import clingo.ast
 import lark
@@ -131,6 +131,24 @@ class Primitive:
         """
         return str(self)  # pragma: no cover
 
+    # endregion
+
+    # region Methods
+
+    def unifies(self, other: "Symbol") -> bool:
+        """Check whether the primitive unifies with another symbol.
+
+        Args:
+            other: Primitive to unify with
+
+        Returns:
+            Whether the primitives unify
+
+        """
+        return self == other or isinstance(self, Variable) or isinstance(other, Variable)
+
+    # endregion
+
 
 @dataclass(frozen=True, order=True)
 class Variable(Primitive):
@@ -211,6 +229,19 @@ class Variable(Primitive):
 
     # region Methods
 
+    # Disables ARG002 (Unused method argument). Because overriding a method.
+    def unifies(self, other: "Symbol") -> bool:  # noqa: ARG002
+        """Check whether the variable unifies with another variable.
+
+        Args:
+            other: Symbol to unify with
+
+        Returns:
+            Whether the variable unifies with the primitive
+
+        """
+        return True
+
     def to_clingo_ast(self) -> clingo.ast.AST:
         """Convert to semantically equivalent clingo AST.
 
@@ -289,6 +320,8 @@ class Number(Primitive):
 
     # endregion
 
+    # region Methods
+
 
 @dataclass(frozen=True, order=True)
 class String(Primitive):
@@ -352,10 +385,54 @@ class String(Primitive):
 
     # endregion
 
+    # region Methods
+
+    # endregion
+
 
 @dataclass(frozen=True, order=True)
 class Relation:
     """Representation of a relation."""
+
+    # region Inner Classes
+
+    class Signature(NamedTuple):
+        """Signature of a relation.
+
+        Attributes:
+            name: Name of the relation
+            arity: Arity of the relation
+
+        """
+
+        name: Optional[str]
+        """Name of the relation."""
+        arity: int
+        """Arity of the relation."""
+
+        def __str__(self) -> str:
+            """Return the string representation of the relations' signature.
+
+            Returns:
+                String representation of the relations' signature.
+
+            """
+            if self.name is None:
+                return f"({self.arity})"
+            return f"{self.name}/{self.arity}"
+
+        def __rich__(self) -> str:
+            """Return the rich enhanced string representation of the relations' signature.
+
+            Returns:
+                Rich enhanced string representation of the relations' signature.
+
+            """
+            if self.name is None:
+                return f"[italic]({self.arity})[/italic]"
+            return f"[italic][purple]{self.name}[/purple]/{self.arity}[/italic]"
+
+    # endregion
 
     # region Attributes and Properties
 
@@ -368,13 +445,23 @@ class Relation:
     "Parser starting at the relation rule."
 
     @property
+    def arity(self) -> int:
+        """Arity of the relation."""
+        return len(self.arguments)
+
+    @property
+    def signature(self) -> Signature:
+        """Signature of the relation."""
+        return self.Signature(self.name, self.arity)
+
+    @property
     def infix_str(self) -> str:
         """Infix string representation of the relation."""
         if self.name is None:
-            return f"({', '.join(arg.infix_str for arg in self.arguments)})"
+            return f"({','.join(arg.infix_str for arg in self.arguments)})"
         if not self.arguments:
             return self.name
-        return f"{self.name}({', '.join(arg.infix_str for arg in self.arguments)})"
+        return f"{self.name}({','.join(arg.infix_str for arg in self.arguments)})"
 
     # endregion
 
@@ -510,8 +597,53 @@ class Relation:
     def __rich__(self) -> str:
         """Return the rich enhanced infix string representation of the relation."""
         if self.name is None:
-            return f"({', '.join(subrelation.__rich__() for subrelation in self.arguments)})"
+            return f"({','.join(subrelation.__rich__() for subrelation in self.arguments)})"
         return f"[purple]{self.name}[/purple]({', '.join(subrelation.__rich__() for subrelation in self.arguments)})"
+
+    # endregion
+
+    # region Methods
+
+    def matches_signature(self, name: Optional[str] = None, arity: int = 0) -> bool:
+        """Check if a signature matches the relation.
+
+        Args:
+            name: Name of the relation
+            arity: Arity of the relation
+
+        Returns:
+            True if the signature matches the relation, False otherwise
+
+        Examples:
+            >>> r = Relation.from_str("r(a,b)")
+            >>> r.matches_signature("r", 2)
+            True
+            >>> sig = Relation.Signature(name="s", arity=0)
+            >>> r.matches_signature(*sig)
+            False
+
+        """
+        return self.name == name and self.arity == arity
+
+    def unifies(self, other: "Symbol") -> bool:
+        """Check if two relations unify.
+
+        Args:
+            other: Relation to check against
+
+        Returns:
+            True if the relations unify, False otherwise
+
+        """
+        if isinstance(other, Relation):
+            if self.name != other.name or self.arity != other.arity:
+                return False
+            return all(
+                subrelation.unifies(other_subrelation)
+                for subrelation, other_subrelation in zip(self.arguments, other.arguments)
+            )
+
+        return isinstance(other, Variable)
 
     # endregion
 
@@ -527,7 +659,7 @@ See Also:
 """
 
 
-@dataclass(frozen=True, order=True)
+@dataclass(frozen=True)
 class Subrelation:
     """Representation of a subrelation.
 
@@ -615,7 +747,88 @@ class Subrelation:
         return self.infix_str
 
     def __rich__(self) -> str:
-        """Return the rich enhanced infix string representation of the subrelation."""
+        """Return the rich enhanced infix string representation of the subrelation.
+
+        Returns:
+            Rich enhanced infix string representation of the subrelation.
+
+        """
         return self.symbol.__rich__()
 
+    def __lt__(self, other: Self) -> bool:
+        """Check if a subrelation is less than another subrelation.
+
+        Args:
+            other: Subrelation to compare against
+
+        Returns:
+            True if the subrelation is less than the other subrelation, False otherwise
+
+        """
+        self_rank = _type_ranking[type(self.symbol)]
+        other_rank = _type_ranking[type(other.symbol)]
+        if self_rank != other_rank:
+            return self_rank < other_rank
+        assert isinstance(self, type(other)), (
+            "Assumption: If the ranks are equal, the types must be equal. "
+            f"{type(self).__name__}({self_rank}) != {type(other).__name__}({other_rank})"
+        )
+        assert isinstance(other, type(self)), (
+            "Assumption: If the ranks are equal, the types must be equal. "
+            f"{type(self).__name__}({self_rank}) != {type(other).__name__}({other_rank})"
+        )
+        # Disables mypy operator (Unsupported operand types). Because of the assumption that the types are equal.
+        return self.symbol < other.symbol  # type: ignore[operator]
+
+    def __gt__(self, other: Self) -> bool:
+        """Check if a subrelation is greater than another subrelation.
+
+        Args:
+            other: Subrelation to compare against
+
+        Returns:
+            True if the subrelation is greater than the other subrelation, False otherwise
+
+        """
+        self_rank = _type_ranking[type(self.symbol)]
+        other_rank = _type_ranking[type(other.symbol)]
+        if self_rank != other_rank:
+            return self_rank > other_rank
+        assert isinstance(self, type(other)), (
+            "Assumption: If the ranks are equal, the types must be equal. "
+            f"{type(self).__name__}({self_rank}) != {type(other).__name__}({other_rank})"
+        )
+        assert isinstance(other, type(self)), (
+            "Assumption: If the ranks are equal, the types must be equal. "
+            f"{type(self).__name__}({self_rank}) != {type(other).__name__}({other_rank})"
+        )
+        # Disables mypy operator (Unsupported operand types). Because of the assumption that the types are equal.
+        return self.symbol > other.symbol  # type: ignore[operator]
+
     # endregion
+
+    # region Methods
+
+    def unifies(self, other: Self) -> bool:
+        """Check if two subrelations unify.
+
+        Args:
+            other: Subrelation to check against
+
+        Returns:
+            True if the subrelations unify, False otherwise
+
+        """
+        return self.symbol.unifies(other.symbol)
+
+    # endregion
+
+
+_type_ranking = {
+    Relation: 0,
+    Number: 1,
+    String: 2,
+    Variable: 3,
+    Primitive: 4,
+    Subrelation: 5,
+}
