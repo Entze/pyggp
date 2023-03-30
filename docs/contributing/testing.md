@@ -43,7 +43,8 @@ Consider a function `get_collatz` which has the
 def get_collatz(n: int) -> int:
     """Gets the successor of a number by the collatz operation.
 
-    The collatz operation `f` is defined on a positive integer `n`, permitting two cases:
+    The collatz operation `f` is defined on a positive integer `n`, permitting
+    two cases:
     - n is even: f(n) = n/2
     - n is odd:  f(n) = 3*n+1
 

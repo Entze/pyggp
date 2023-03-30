@@ -197,6 +197,7 @@ ignore = [
     "ANN401",
     "G002",
     "FBT002",
+    "ERA001",
 ]
 fixable = ["I", "UP", "D", "COM", "PT", "F401", "SIM", "ANN204", "W"]
 line-length = 120

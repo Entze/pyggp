@@ -44,15 +44,6 @@ class GameClockConfiguration:
 
     """
 
-    def __repr__(self) -> str:
-        """Represents the game clock configuration.
-
-        Returns:
-            Representation of the game clock configuration.
-
-        """
-        return f"{self.__class__.__name__}({self})"
-
     def __str__(self) -> str:
         """String of the game clock configuration.
 

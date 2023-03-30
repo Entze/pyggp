@@ -3,8 +3,10 @@ from dataclasses import dataclass
 from enum import IntEnum, auto
 from typing import Type
 
+import clingo.ast as clingo_ast
 from typing_extensions import Self
 
+from pyggp._clingo import create_atom, create_literal
 from pyggp.game_description_language.subrelations import Relation
 
 
@@ -21,6 +23,20 @@ class Literal:
         "No sign, corresponds to `atom`."
         NEGATIVE = auto()
         "Negative, corresponds to `not atom`."
+
+        def as_clingo_ast(self) -> clingo_ast.Sign:
+            """Convert to semantically equivalent clingo AST.
+
+            Returns:
+                The clingo AST
+
+            """
+            if self == Literal.Sign.NOSIGN:
+                return clingo_ast.Sign.NoSign
+            if self == Literal.Sign.NEGATIVE:
+                return clingo_ast.Sign.Negation
+            message = f"Assumption: All cases are covered. {self} is not covered."
+            raise AssertionError(message)
 
     # endregion
 
@@ -81,5 +97,18 @@ class Literal:
         if self.sign == Literal.Sign.NOSIGN:
             return self.atom.__rich__()
         return f"[italic]not[/italic] {self.atom.__rich__()}"
+
+    # endregion
+
+    # region Methods
+
+    def as_clingo_ast(self) -> clingo_ast.AST:
+        """Convert to semantically equivalent clingo AST.
+
+        Returns:
+            The clingo AST
+
+        """
+        return create_literal(sign=self.sign.as_clingo_ast(), atom=create_atom(self.atom.as_clingo_ast()))
 
     # endregion

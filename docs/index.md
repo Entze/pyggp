@@ -1,4 +1,4 @@
-# Welcome to pyggp
+# pyggp
 
 pyggp is a Python library equipped to run games defined
 in [Game Description Language](https://en.wikipedia.org/wiki/Game_Description_Language), played by agents.

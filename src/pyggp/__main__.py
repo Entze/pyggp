@@ -4,7 +4,8 @@ import sys
 
 import typer
 
-import pyggp.app as cli
+import pyggp.cli._common
+import pyggp.cli.commands
 from pyggp._logging import log
 
 if __name__ == "__main__":
@@ -20,4 +21,4 @@ if __name__ == "__main__":
             ", ".join(f"{_ma}.{_mo}" for (_ma, _mo) in _SUPPORTED_VERSIONS),
         )
         raise typer.Exit(1)
-    cli.app(prog_name="pyggp")
+    pyggp.cli.commands.app(prog_name="pyggp")

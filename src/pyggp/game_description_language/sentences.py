@@ -2,6 +2,9 @@
 from dataclasses import dataclass, field
 from typing import Sequence
 
+import clingo.ast as clingo_ast
+
+from pyggp._clingo import create_atom, create_literal, create_rule
 from pyggp.game_description_language.literals import Literal
 from pyggp.game_description_language.subrelations import Relation
 
@@ -54,5 +57,21 @@ class Sentence:
             return f"{self.head.__rich__()} :- {', '.join(literal.__rich__() for literal in self.body)}."
         body_str = ",\n\t".join(literal.__rich__() for literal in self.body)
         return f"{self.head.__rich__()} :-\n\t{body_str}."
+
+    # endregion
+
+    # region Methods
+
+    def as_clingo_ast(self) -> clingo_ast.AST:
+        """Convert to semantically equivalent clingo AST.
+
+        Returns:
+            Semantically equivalent clingo AST
+
+        """
+        return create_rule(
+            head=create_literal(atom=create_atom(symbol=self.head.as_clingo_ast())),
+            body=tuple(literal.as_clingo_ast() for literal in self.body),
+        )
 
     # endregion

@@ -1,0 +1,62 @@
+name: "prerelease"
+
+on:
+  push:
+    branches:
+      - "main"
+    tags:
+      - "0.*"
+      - "*.*.*a*"
+      - "*.*.*b*"
+      - "*.*.*rc*"
+
+
+jobs:
+  build:
+    name: "📦 Build (Python ${{ matrix.python-version }}, ${{ matrix.os }})"
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        python-version:
+          - '3.8'
+          - 'pypy-3.8'
+          - '3.9'
+          - 'pypy-3.9'
+          - '3.10'
+          - '3.11'
+        os: [ ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'poetry'
+      - run: pipx install poetry
+      - run: poetry install --with ci --sync
+      - run: poetry run nox --session build
+      - uses: actions/upload-artifact@v3
+        with:
+          name: "zipapp"
+          path: "pyggp-*${{ matrix.python-version }}"
+          if-no-files-found: error
+  sanity_check:
+    name: "🔬 Sanity Check (Python ${{ matrix.python-version }}, ${{ matrix.os }})"
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        python-version: [ '3.11' ]
+        os: [ ubuntu-22.04, ubuntu-20.04, macos-12, macos-11, windows-2022, windows-2019 ]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      # TODO

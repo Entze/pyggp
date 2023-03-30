@@ -3,14 +3,14 @@ from typing import MutableSequence, Optional, Set, Union
 import rich.panel
 import rich.pretty
 import rich.table
-from rich import print  # pylint: disable=redefined-builtin
+from rich import print
 
 from pyggp.gdl import Relation, Signature, State, Subrelation
 from pyggp.match import MatchResult
 
 
 class Visualizer:
-    def __init__(self):
+    def __init__(self) -> None:
         self._states: MutableSequence[Optional[State]] = []
 
     def update_state(self, state: State, move_nr: Optional[int] = None) -> None:
@@ -54,12 +54,9 @@ def _add_relation_to_subtable(
     old_relations: Set[Subrelation],
     shorthand: bool = True,
 ) -> None:
-    for relation in sorted((relations | old_relations)):
+    for relation in sorted(relations | old_relations):
         if shorthand and isinstance(signature, Signature):
-            if signature.arity > 1:
-                display = str(relation.arguments)
-            else:
-                display = str(relation.arguments[0])
+            display = str(relation.arguments) if signature.arity > 1 else str(relation.arguments[0])
         else:
             display = str(relation)
         if relation not in old_relations:
@@ -72,10 +69,7 @@ def _add_relation_to_subtable(
 
             col1 = f"{prefix}{display}"
             col2 = ""
-            if old_relations:
-                cols = (col1, col2)
-            else:
-                cols = (col1,)
+            cols = (col1, col2) if old_relations else (col1,)
         else:
             col1 = ""
             col2 = f"- {display}"
@@ -106,17 +100,11 @@ def _add_mutably_exclusive_relation_to_subtable(
         old_prefix = ""
         old_style = "white"
     if new_relation is not None:
-        if signature.arity > 1:
-            new_relation_str = str(new_relation.arguments)
-        else:
-            new_relation_str = str(new_relation.arguments[0])
+        new_relation_str = str(new_relation.arguments) if signature.arity > 1 else str(new_relation.arguments[0])
     else:
         new_relation_str = ""
     if old_relation is not None:
-        if signature.arity > 1:
-            old_relation_str = str(old_relation.arguments)
-        else:
-            old_relation_str = str(old_relation.arguments[0])
+        old_relation_str = str(old_relation.arguments) if signature.arity > 1 else str(old_relation.arguments[0])
     else:
         old_relation_str = ""
     if old_relation is not None:
@@ -129,7 +117,7 @@ def _add_mutably_exclusive_relation_to_subtable(
 
 
 class SimpleRichVisualizer(Visualizer):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.aborted = False
         self.result = None
@@ -145,7 +133,9 @@ class SimpleRichVisualizer(Visualizer):
         for i in range(self.last_drawn_state + 1, len(self._states) - 1):
             if self._states[i] is not None:
                 self._draw_state(
-                    self._states[i], self._states[i - 1] if i > 0 else self._states[0], len(self._states) - 1
+                    self._states[i],
+                    self._states[i - 1] if i > 0 else self._states[0],
+                    len(self._states) - 1,
                 )
                 self.last_drawn_state = i
         if self._states[-1] is not None and self.last_drawn_state < len(self._states) - 1:
@@ -211,7 +201,11 @@ class SimpleRichVisualizer(Visualizer):
                     _add_relation_to_subtable(subtable, signature, relations, new_relations, old_relations)
                 else:
                     _add_mutably_exclusive_relation_to_subtable(
-                        subtable, signature, relations, new_relations, old_relations
+                        subtable,
+                        signature,
+                        relations,
+                        new_relations,
+                        old_relations,
                     )
 
                 subtables.append(subtable)
@@ -241,7 +235,12 @@ class SimpleRichVisualizer(Visualizer):
             if old_relations:
                 subtable.add_column("-", style="red", justify="left")
             _add_relation_to_subtable(
-                subtable, Signature("True", 0), relations, new_relations, old_relations, shorthand=False
+                subtable,
+                Signature("True", 0),
+                relations,
+                new_relations,
+                old_relations,
+                shorthand=False,
             )
 
             subtables.append(subtable)

@@ -2,12 +2,13 @@
 from dataclasses import dataclass, field
 from typing import ClassVar, NamedTuple, Optional, Sequence, Union
 
-import clingo.ast
+import clingo
+import clingo.ast as clingo_ast
 import lark
 import lark.exceptions
 from typing_extensions import Self
 
-from pyggp._clingo import create_variable
+from pyggp._clingo import create_function, create_symbolic_term, create_variable
 from pyggp.exceptions.subrelation_exceptions import MalformedTreeSubrelationError, ParsingSubrelationError
 
 grammar = r"""
@@ -63,6 +64,39 @@ class Primitive:
     # endregion
 
     # region Constructors
+
+    @classmethod
+    def from_clingo_symbol(cls, symbol: clingo.Symbol) -> Self:
+        """Create primitive from clingo symbol.
+
+        Args:
+            symbol: Symbol to create primitive from
+
+        Returns:
+            Primitive created from symbol
+
+        """
+        if symbol.type == clingo.SymbolType.Function:
+            message = "Cannot create primitive from function symbol"
+            raise TypeError(message)
+        if symbol.type == clingo.SymbolType.Number:
+            number = Number.from_clingo_symbol(symbol)
+            assert isinstance(
+                number,
+                Primitive,
+            ), "Assumption: Subclass did not violate the liskov substitution principle"
+            # Disable mypy. Because number is a Number, but mypy wants a Primitive (its baseclass).
+            return number  # type: ignore[return-value]
+        if symbol.type == clingo.SymbolType.String:
+            string = String.from_clingo_symbol(symbol)
+            assert isinstance(
+                string,
+                Primitive,
+            ), "Assumption: Subclass did not violate the liskov substitution principle"
+            # Disable mypy. Because number is a Number, but mypy wants a Primitive (its baseclass).
+            return string  # type: ignore[return-value]
+        message = f"Assumption: There are only 3 types of clingo symbols. Unknown symbol type: {symbol.type}"
+        raise AssertionError(message)
 
     @classmethod
     def from_tree(cls, tree: lark.Tree[lark.Token]) -> Self:
@@ -147,6 +181,24 @@ class Primitive:
         """
         return self == other or isinstance(self, Variable) or isinstance(other, Variable)
 
+    def as_clingo_symbol(self) -> clingo.Symbol:
+        """Convert to semantically equivalent clingo symbol.
+
+        Returns:
+            Semantically equivalent clingo symbol
+
+        """
+        raise NotImplementedError
+
+    def as_clingo_ast(self) -> clingo_ast.AST:
+        """Convert to semantically equivalent clingo AST.
+
+        Returns:
+            Semantically equivalent clingo ast
+
+        """
+        return create_symbolic_term(self.as_clingo_symbol())
+
     # endregion
 
 
@@ -171,6 +223,21 @@ class Variable(Primitive):
     # endregion
 
     # region Constructors
+
+    @classmethod
+    # Disable ARG003 (Unused class method argument). Because it overrides the base class method.
+    def from_clingo_symbol(cls, symbol: clingo.Symbol) -> Self:  # noqa: ARG003
+        """Variables cannot be created from clingo symbols, always raises an error.
+
+        Args:
+            symbol: Symbol to create variable from
+
+        Raises:
+            ValueError: Always
+
+        """
+        message = "Variables cannot be created from clingo symbols."
+        raise TypeError(message)
 
     @classmethod
     def from_tree(cls, tree: lark.Tree[lark.Token]) -> Self:
@@ -242,7 +309,16 @@ class Variable(Primitive):
         """
         return True
 
-    def to_clingo_ast(self) -> clingo.ast.AST:
+    def as_clingo_symbol(self) -> clingo.Symbol:
+        """Cannot convert variable to clingo symbol.
+
+        Raises:
+            ValueError: Always
+
+        """
+        raise ValueError
+
+    def as_clingo_ast(self) -> clingo_ast.AST:
         """Convert to semantically equivalent clingo AST.
 
         Converts the variable to a clingo AST variable. The name of the variable is changed in case of wildcard.
@@ -275,6 +351,25 @@ class Number(Primitive):
     # endregion
 
     # region Constructors
+
+    @classmethod
+    def from_clingo_symbol(cls, symbol: clingo.Symbol) -> Self:
+        """Create number from clingo symbol.
+
+        Args:
+            symbol: Symbol to create number from
+
+        Returns:
+            Corresponding number
+
+        Raises:
+            TypeError: Symbol is not a number
+
+        """
+        if symbol.type != clingo.SymbolType.Number:
+            message = "Symbol is not a number"
+            raise TypeError(message)
+        return cls(symbol.number)
 
     @classmethod
     def from_tree(cls, tree: lark.Tree[lark.Token]) -> Self:
@@ -322,6 +417,17 @@ class Number(Primitive):
 
     # region Methods
 
+    def as_clingo_symbol(self) -> clingo.Symbol:
+        """Convert to semantically equivalent clingo symbol.
+
+        Returns:
+            Semantically equivalent clingo symbol
+
+        """
+        return clingo.Number(self.number)
+
+    # endregion
+
 
 @dataclass(frozen=True, order=True)
 class String(Primitive):
@@ -340,6 +446,25 @@ class String(Primitive):
     # endregion
 
     # region Constructors
+
+    @classmethod
+    def from_clingo_symbol(cls, symbol: clingo.Symbol) -> Self:
+        """Create string from clingo symbol.
+
+        Args:
+            symbol: Symbol to create string from
+
+        Returns:
+            Corresponding string
+
+        Raises:
+            TypeError: Symbol is not a string
+
+        """
+        if symbol.type != clingo.SymbolType.String:
+            message = "Symbol is not a string"
+            raise TypeError(message)
+        return cls(symbol.string)
 
     @classmethod
     def from_tree(cls, tree: lark.Tree[lark.Token]) -> Self:
@@ -386,6 +511,15 @@ class String(Primitive):
     # endregion
 
     # region Methods
+
+    def as_clingo_symbol(self) -> clingo.Symbol:
+        """Convert to semantically equivalent clingo symbol.
+
+        Returns:
+            Semantically equivalent clingo symbol
+
+        """
+        return clingo.String(self.string)
 
     # endregion
 
@@ -492,6 +626,25 @@ class Relation:
 
         """
         return cls.from_symbols(None, *arguments)
+
+    @classmethod
+    def from_clingo_symbol(cls, symbol: clingo.Symbol) -> Self:
+        """Create a relation from a clingo symbol.
+
+        Args:
+            symbol: Symbol to transform
+
+        Returns:
+            Corresponding relation
+
+        Raises:
+            TypeError: Symbol is not a function
+
+        """
+        if symbol.type != clingo.SymbolType.Function:
+            message = "Symbol is not a function"
+            raise TypeError(message)
+        return cls(name=symbol.name, arguments=tuple(Subrelation.from_clingo_symbol(arg) for arg in symbol.arguments))
 
     @classmethod
     def from_tree(cls, tree: lark.Tree[lark.Token]) -> Self:
@@ -645,6 +798,27 @@ class Relation:
 
         return isinstance(other, Variable)
 
+    def as_clingo_symbol(self) -> clingo.Symbol:
+        """Convert to semantically equivalent clingo symbol.
+
+        Returns:
+            Semantically equivalent clingo symbol representation of the relation
+
+        """
+        return clingo.Function(self.name or "", tuple(subrelation.as_clingo_symbol() for subrelation in self.arguments))
+
+    def as_clingo_ast(self) -> clingo_ast.AST:
+        """Convert to semantically equivalent clingo AST.
+
+        Returns:
+            Semantically equivalent clingo AST representation of the relation
+
+        """
+        return create_function(
+            name=self.name or "",
+            arguments=tuple(subrelation.as_clingo_ast() for subrelation in self.arguments),
+        )
+
     # endregion
 
 
@@ -685,9 +859,47 @@ class Subrelation:
         """
         return self.symbol.infix_str
 
+    @property
+    def is_relation(self) -> bool:
+        """Whether the subrelation is a relation."""
+        return isinstance(self.symbol, Relation)
+
+    @property
+    def is_number(self) -> bool:
+        """Whether the subrelation is a number."""
+        return isinstance(self.symbol, Number)
+
+    @property
+    def is_string(self) -> bool:
+        """Whether the subrelation is a string."""
+        return isinstance(self.symbol, String)
+
+    @property
+    def is_variable(self) -> bool:
+        """Whether the subrelation is a variable."""
+        return isinstance(self.symbol, Variable)
+
     # endregion
 
     # region Constructors
+
+    @classmethod
+    def from_clingo_symbol(cls, symbol: clingo.Symbol) -> Self:
+        """Create a subrelation from a clingo symbol.
+
+        Args:
+            symbol: Symbol to transform
+
+        Returns:
+            Corresponding subrelation
+
+        """
+        if symbol.type == clingo.SymbolType.Function:
+            return cls(Relation.from_clingo_symbol(symbol))
+        assert (
+            symbol.type == clingo.SymbolType.Number or symbol.type == clingo.SymbolType.String
+        ), f"Assumption: There are only 3 symbol types. Unknown symbol type {symbol.type}."
+        return cls(Primitive.from_clingo_symbol(symbol))
 
     @classmethod
     def from_tree(cls, tree: lark.Tree[lark.Token]) -> Self:
@@ -820,6 +1032,37 @@ class Subrelation:
 
         """
         return self.symbol.unifies(other.symbol)
+
+    def matches_signature(self, name: Optional[str] = None, arity: int = 0) -> bool:
+        """Check if the subrelation is a relation with the given name and arity.
+
+        Args:
+            name: Name of the relation
+            arity: Arity of the relation
+
+        Returns:
+            True if the subrelation is a relation with the given name and arity, False otherwise
+
+        """
+        return isinstance(self.symbol, Relation) and self.symbol.matches_signature(name, arity)
+
+    def as_clingo_symbol(self) -> clingo.Symbol:
+        """Convert to semantically equivalent clingo symbol.
+
+        Returns:
+            Semantically equivalent clingo symbol
+
+        """
+        return self.symbol.as_clingo_symbol()
+
+    def as_clingo_ast(self) -> clingo.ast.AST:
+        """Convert to semantically equivalent clingo ast.
+
+        Returns:
+            Semantically equivalent clingo ast
+
+        """
+        return self.symbol.as_clingo_ast()
 
     # endregion
 

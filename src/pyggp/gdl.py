@@ -4,6 +4,7 @@
 This includes the necessary classes and functions for representing GDL programs.
 
 """
+import re
 from dataclasses import dataclass, field
 from enum import IntEnum, auto
 from typing import (
@@ -24,68 +25,13 @@ from typing import (
 import clingo.ast
 import rich.console as rich_console
 import rich.syntax as rich_syntax
-from typing_extensions import Self, TypeAlias
+from typing_extensions import Self, TypeAlias, assert_never
+
+from pyggp.exceptions.subrelation_exceptions import ParsingSubrelationError
+from pyggp.game_description_language.subrelations import Variable
 
 _pos = clingo.ast.Position("<string>", 0, 0)
 _loc = clingo.ast.Location(_pos, _pos)
-
-
-@dataclass(frozen=True, order=True)
-class Variable:
-    """Representation of a variable."""
-
-    # region Attributes and Properties
-    name: str
-    "Name of the variable."
-
-    @property
-    def infix_str(self) -> str:
-        """Infix string representation of the variable."""
-        return self.name
-
-    @property
-    def is_wildcard(self) -> bool:
-        """Whether the variable is a wildcard variable."""
-        return self.name.startswith("_")
-
-    # endregion
-
-    # region Magic Methods
-
-    def __str__(self) -> str:
-        """Return the infix string representation of the variable.
-
-        Returns:
-            The infix string representation of the variable.
-
-        See Also:
-            :attr:`infix_str`
-
-        """
-        return self.infix_str
-
-    def __repr__(self) -> str:
-        return str(self)
-
-    # endregion
-
-    # region Methods
-
-    def to_clingo_ast(self) -> clingo.ast.AST:
-        """Convert to semantically equivalent clingo AST.
-
-        Converts the variable to a clingo AST variable. The name of the variable is changed in case of wildcard.
-
-        Returns:
-            The clingo AST variable.
-
-        """
-        if self.is_wildcard:
-            return clingo.ast.Variable(_loc, "_")
-        return clingo.ast.Variable(_loc, self.name)
-
-    # end region
-
 
 PrimitiveSubrelation: TypeAlias = Union[int, str, Variable]
 """Type alias for subrelations, that are not self-referential.
@@ -299,13 +245,10 @@ class Relation:
             elif isinstance(argument, str):
                 arguments.append(clingo.ast.SymbolicTerm(_loc, clingo.String(argument)))
             elif isinstance(argument, (Relation, Variable)):
-                arguments.append(argument.to_clingo_ast())
+                arguments.append(argument.as_clingo_ast())
             else:
                 raise TypeError(f"Invalid argument type: {type(argument).__name__}")
-        if self.name is None:
-            name = ""
-        else:
-            name = self.name
+        name = "" if self.name is None else self.name
         return clingo.ast.Function(_loc, name, arguments, False)
 
     def to_clingo_symbol(self) -> clingo.Symbol:
@@ -333,10 +276,7 @@ class Relation:
                 raise ValueError("Cannot convert relation with variables to clingo symbol.")
             else:
                 raise TypeError(f"Invalid argument type: {type(argument).__name__}")
-        if self.name is None:
-            name = ""
-        else:
-            name = self.name
+        name = "" if self.name is None else self.name
         return clingo.Function(name, arguments)
 
     # endregion
@@ -418,7 +358,7 @@ class Relation:
         return cls(name="true", arguments=(atom,))
 
     @classmethod
-    def next(cls, atom: Self) -> Self:
+    def next(cls, atom: Union[Self, PrimitiveSubrelation]) -> Self:
         """Create a `next` relation.
 
         Returns a relation with the name `next` and the given argument. Next relations are used to represent the next
@@ -605,14 +545,13 @@ class Relation:
             :fun:`Relation.to_infix_str`
 
         """
-
         if isinstance(arg, int):
             return str(arg)
         if isinstance(arg, str):
             return arg
         if isinstance(arg, (Variable, Relation)):
             return arg.infix_str
-        raise TypeError(f"Cannot convert {arg} of type {type(arg).__name__} to infix string.")
+        assert_never(arg)
 
     # endregion
 
@@ -764,26 +703,13 @@ def from_clingo_symbol(symbol: clingo.Symbol) -> Subrelation:
     """Convert a clingo symbol to a semantically equivalent Subrelation.
 
     Args:
-        symbol: The clingo symbol.
+        symbol: clingo symbol.
 
     Returns:
         A Subrelation.
 
-    Examples:
-        >>> from_clingo_symbol(clingo.Number(1))
-        1
-        >>> from_clingo_symbol(clingo.String("s"))
-        's'
-        >>> from_clingo_symbol(clingo.Function("atom"))
-        Relation(name='atom', arguments=())
-        >>> symb = clingo.Function("nested", (clingo.Number(1), clingo.String("two"), clingo.Function("three")))
-        >>> symb
-        Function('nested', [Number(1), String('two'), Function('three', [], True)], True)
-        >>> from_clingo_symbol(symbol)
-        Relation(name='nested', arguments=(1, 'two', Relation(name='three', arguments=())))
-
     Raises:
-        TypeError: The symbol cannot be converted to a Subrelation.
+        TypeError: Symbol cannot be converted to a Subrelation.
 
     """
     if symbol.type == clingo.SymbolType.Number:
@@ -792,15 +718,51 @@ def from_clingo_symbol(symbol: clingo.Symbol) -> Subrelation:
         return symbol.string
     if symbol.type == clingo.SymbolType.Function:
         arguments = tuple(from_clingo_symbol(argument) for argument in symbol.arguments)
-        if symbol.name == "":
-            name = None
-        else:
-            name = symbol.name
+        name = None if symbol.name == "" else symbol.name
         return Relation(name=name, arguments=arguments)
     raise TypeError(f"Cannot convert {symbol} of type {type(symbol).__name__} to a Subrelation.")  # pragma: no cover
 
 
-ConcreteRole: TypeAlias = ConcreteSubrelation
+def to_clingo_symbol(subrelation: ConcreteSubrelation) -> clingo.Symbol:
+    if isinstance(subrelation, int):
+        return clingo.Number(subrelation)
+    if isinstance(subrelation, str):
+        return clingo.String(subrelation)
+    if isinstance(subrelation, Relation):
+        return subrelation.to_clingo_symbol()
+    assert_never(subrelation)
+
+
+def from_str(string: str) -> Subrelation:
+    if string == "":
+        raise ParsingSubrelationError(string)
+    if re.fullmatch(r"^\(\s*\)$", string):
+        return Relation()
+    try:
+        return int(string)
+    except ValueError:
+        pass
+    if (string.startswith("'") and string.endswith("'")) or (string.startswith('"') and string.endswith('"')):
+        return string[1:-1]
+    if (string.startswith("'") != string.endswith("'")) or (string.startswith('"') != string.endswith('"')):
+        raise ParsingSubrelationError(string)
+    name_str, *rest = string.split("(", 1)
+    name = name_str if name_str != "" else None
+    arguments = ()
+    if rest:
+        rest_str = rest[0]
+        if not rest_str.endswith(")"):
+            raise ParsingSubrelationError(string)
+        rest_str = rest_str[:-1]
+        if rest_str == "":
+            arguments = ()
+        elif rest_str.startswith("(") and rest_str.endswith(")"):
+            arguments = (from_str(rest_str),)
+        else:
+            arguments = tuple(from_str(arg_str) for arg_str in re.split(r"\s*,\s*", rest_str))
+
+    return Relation(name, arguments)
+
 
 Role: TypeAlias = Subrelation
 """Role played in a game.
@@ -809,6 +771,21 @@ A role is a subrelation. It is the argument of the `role/1` relation and the fir
 `legal/2` relations.
 
 """
+
+ConcreteRole: TypeAlias = ConcreteSubrelation
+
+
+def get_concrete_role_from_str(role_str: str) -> ConcreteRole:
+    if role_str.startswith("'") and role_str.endswith("'") or role_str.startswith('"') and role_str.endswith('"'):
+        return role_str[1:-1]
+    try:
+        role_int = int(role_str)
+        return role_int
+    except ValueError:
+        pass
+    return Relation(role_str)
+
+
 Move: TypeAlias = Subrelation
 """Move made in a game.
 
@@ -823,11 +800,30 @@ Plays are relations. They are `does/2` relations.
 """
 State: TypeAlias = FrozenSet[Subrelation]
 """State of a game."""
+MutableState: TypeAlias = Set[Subrelation]
 
-PlayRecord: TypeAlias = Mapping[int, FrozenSet[Play]]
-"""Record of plays made in each round."""
-MutablePlayRecord = MutableMapping[int, Set[Play]]
-"""Mutable record of plays made in each round."""
+ConcreteRoleMoveMapping: TypeAlias = Mapping[ConcreteRole, Move]
+MutableConcreteRoleMoveMapping: TypeAlias = MutableMapping[ConcreteRole, Move]
+
+ConcreteRoleMovePairing: TypeAlias = FrozenSet[Tuple[ConcreteRole, Move]]
+MutableConcreteRoleMovePairing: TypeAlias = Set[Tuple[ConcreteRole, Move]]
+
+ConcreteRoleMoveMappingRecord: TypeAlias = Mapping[int, ConcreteRoleMoveMapping]
+MutableConcreteRoleMoveMappingRecord = MutableMapping[int, MutableConcreteRoleMoveMapping]
+
+StateRecord: TypeAlias = Mapping[int, State]
+MutableStateRecord: TypeAlias = MutableMapping[int, MutableState]
+
+ConcreteRoleStateMapping: TypeAlias = Mapping[ConcreteRole, State]
+MutableConcreteRoleStateMapping: TypeAlias = MutableMapping[ConcreteRole, MutableState]
+
+SeesRecord: TypeAlias = Mapping[int, ConcreteRoleStateMapping]
+MutableSeesRecord: TypeAlias = MutableMapping[int, MutableConcreteRoleStateMapping]
+
+Development: TypeAlias = Sequence[Tuple[State, Optional[ConcreteRoleStateMapping], Optional[ConcreteRoleMoveMapping]]]
+MutableDevelopment: TypeAlias = MutableSequence[
+    Tuple[MutableState, Optional[ConcreteRoleStateMapping], Optional[MutableConcreteRoleMoveMapping]]
+]
 
 
 class Sign(IntEnum):
@@ -928,7 +924,6 @@ class Literal:
             TypeError: The sign is of invalid type.
 
         """
-
         if self.sign == Sign.NOSIGN:
             sign = clingo.ast.Sign.NoSign
             comparison = clingo.ast.ComparisonOperator.NotEqual
@@ -986,6 +981,15 @@ class Sentence:
     def __repr__(self) -> str:
         return str(self)
 
+    def __contains__(self, item: Any) -> bool:
+        if isinstance(item, Signature):
+            return self.head.signature == item or any(literal.atom.signature == item for literal in self.body)
+        if isinstance(item, Relation):
+            return self.head == item or any(literal.atom == item for literal in self.body)
+        if isinstance(item, Literal):
+            return self.head == item.atom or item in self.body
+        return False
+
     # endregion
 
     # region Methods
@@ -1035,7 +1039,9 @@ class Sentence:
         return clingo.ast.Rule(
             _loc,
             head=clingo.ast.Literal(
-                _loc, sign=clingo.ast.Sign.NoSign, atom=clingo.ast.SymbolicAtom(self.head.to_clingo_ast())
+                _loc,
+                sign=clingo.ast.Sign.NoSign,
+                atom=clingo.ast.SymbolicAtom(self.head.to_clingo_ast()),
             ),
             body=tuple(literal.to_clingo_ast() for literal in self.body),
         )
@@ -1079,13 +1085,14 @@ class Sentence:
 
 
 _RuleSignatureMutableMapping: TypeAlias = MutableMapping[
-    Tuple[Optional[str], int], MutableMapping[ArgumentsSignature, Set[Sentence]]
+    Tuple[Optional[str], int],
+    MutableMapping[ArgumentsSignature, Set[Sentence]],
 ]
 
 
 @dataclass(frozen=True)
 class Ruleset:
-    """Representation of a ruleset.
+    """Representation of a ruleset_resource.
 
     Rulesets are an ordered collection of sentences. Rulesets are used to represent games in GDL.
 
@@ -1094,7 +1101,7 @@ class Ruleset:
     # region Attributes and Properties
 
     rules: Sequence[Sentence] = field(default_factory=tuple)
-    """Rules of the ruleset.
+    """Rules of the ruleset_resource.
 
     Despite the name, this is not actually a set, as the order of the rules is important.
 
@@ -1223,7 +1230,9 @@ class Ruleset:
     # Disable PyCharms warning about unused locals. These are necessary from rich upstream.
     # noinspection PyUnusedLocal
     def __rich_console__(
-        self, console: rich_console.Console, options: rich_console.ConsoleOptions
+        self,
+        console: rich_console.Console,
+        options: rich_console.ConsoleOptions,
     ) -> rich_console.RenderResult:
         syntax = rich_syntax.Syntax(str(self), "clingo", line_numbers=True)
 

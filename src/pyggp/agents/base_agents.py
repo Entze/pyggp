@@ -1,20 +1,20 @@
+"""Provides the most common basic agents."""
 import abc
 import contextlib
 import random
-from abc import ABC
 from contextlib import AbstractContextManager
 from types import TracebackType
-from typing import Optional, Type
+from typing import Any, Optional, Type
 
 import rich.console
 import rich.prompt
 from rich import print
 
+import pyggp.game_description_language as gdl
 from pyggp._logging import log
-from pyggp.exceptions.agent_exceptions import InterpreterAgentWithoutInterpreterError
+from pyggp.exceptions.agent_exceptions import InterpreterIsNoneInterpreterAgentError, RoleIsNoneInterpreterAgentError
 from pyggp.gameclocks import GameClockConfiguration
-from pyggp.gdl import Move, Relation, Role, Ruleset, State
-from pyggp.interpreters import ClingoInterpreter, Interpreter
+from pyggp.interpreters import ClingoInterpreter, Interpreter, Move, Role, View
 
 
 class Agent(AbstractContextManager[None], abc.ABC):
@@ -25,7 +25,10 @@ class Agent(AbstractContextManager[None], abc.ABC):
         self.set_up()
 
     def __exit__(
-        self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[TracebackType]
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
     ) -> None:
         self.tear_down()
 
@@ -38,7 +41,7 @@ class Agent(AbstractContextManager[None], abc.ABC):
     def prepare_match(
         self,
         role: Role,
-        ruleset: Ruleset,
+        ruleset: gdl.Ruleset,
         startclock_config: GameClockConfiguration,
         playclock_config: GameClockConfiguration,
     ) -> None:
@@ -57,25 +60,25 @@ class Agent(AbstractContextManager[None], abc.ABC):
     def abort_match(self) -> None:
         log.debug("Aborting match for %s", self)
 
-    def conclude_match(self, view: State) -> None:
+    def conclude_match(self, view: View) -> None:
         log.debug("Concluding match for %s, view=%s", self, view)
 
-    def calculate_move(self, move_nr: int, total_time_ns: int, view: State) -> Move:
+    def calculate_move(self, ply: int, total_time_ns: int, view: View) -> Move:
         raise NotImplementedError
 
 
-class InterpreterAgent(Agent, ABC):
-    def __init__(self) -> None:
+class InterpreterAgent(Agent, abc.ABC):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         self._interpreter: Optional[Interpreter] = None
         self._role: Optional[Role] = None
-        self._ruleset: Optional[Ruleset] = None
+        self._ruleset: Optional[gdl.Ruleset] = None
         self._startclock_config: Optional[GameClockConfiguration] = None
         self._playclock_config: Optional[GameClockConfiguration] = None
 
     def prepare_match(
         self,
         role: Role,
-        ruleset: Ruleset,
+        ruleset: gdl.Ruleset,
         startclock_config: GameClockConfiguration,
         playclock_config: GameClockConfiguration,
     ) -> None:
@@ -86,7 +89,7 @@ class InterpreterAgent(Agent, ABC):
         self._playclock_config = playclock_config
         self._interpreter = ClingoInterpreter(ruleset)
 
-    def conclude_match(self, view: State) -> None:
+    def conclude_match(self, view: View) -> None:
         super().conclude_match(view)
         self._interpreter = None
         self._role = None
@@ -96,50 +99,52 @@ class InterpreterAgent(Agent, ABC):
 
 
 class ArbitraryAgent(InterpreterAgent):
-    def calculate_move(self, move_nr: int, total_time_ns: int, view: State) -> Move:
+    def calculate_move(self, ply: int, total_time_ns: int, view: View) -> Move:
         if self._interpreter is None:
-            raise InterpreterAgentWithoutInterpreterError
+            raise InterpreterIsNoneInterpreterAgentError
+        if self._role is None:
+            raise RoleIsNoneInterpreterAgentError
         moves = self._interpreter.get_legal_moves_by_role(view, self._role)
         return random.choice(tuple(moves))
 
 
 class RandomAgent(InterpreterAgent):
-    def calculate_move(self, move_nr: int, total_time_ns: int, view: State) -> Move:
+    def calculate_move(self, ply: int, total_time_ns: int, view: View) -> Move:
         if self._interpreter is None:
-            raise InterpreterAgentWithoutInterpreterError
+            raise InterpreterIsNoneInterpreterAgentError
+        if self._role is None:
+            raise RoleIsNoneInterpreterAgentError
         moves = self._interpreter.get_legal_moves_by_role(view, self._role)
         return random.choice(tuple(moves))
 
 
 class HumanAgent(InterpreterAgent):
-    def calculate_move(self, move_nr: int, total_time_ns: int, view: State) -> Move:
-        log.info("Calculating move %d for %s, view=%s", move_nr, self, view)
+    def calculate_move(self, ply: int, total_time_ns: int, view: View) -> Move:
+        log.info("Calculating move %d for %s, view=%s", ply, self, view)
         if self._interpreter is None:
-            raise InterpreterAgentWithoutInterpreterError
+            raise InterpreterIsNoneInterpreterAgentError
+        if self._role is None:
+            raise RoleIsNoneInterpreterAgentError
         moves = sorted(self._interpreter.get_legal_moves_by_role(view, self._role))
 
         move_idx: Optional[int] = None
         while move_idx is None or not (1 <= move_idx <= len(moves)):
             console = rich.console.Console()
-            ctx = contextlib.nullcontext() if len(moves) <= 10 else console.pager()
+            # Disables mypy. Because console.pager() returns only `object` and does not seem to be typed correctly.
+            ctx: AbstractContextManager[Any] = (
+                console.pager() if len(moves) > 10 else contextlib.nullcontext()  # type: ignore[assignment]
+            )
             with ctx:
                 console.print("Legal moves:")
-                console.print(f"\n".join(f"\t[{n + 1}] {move}" for n, move in enumerate(moves)))
+                console.print("\n".join(f"\t[{n + 1}] {move}" for n, move in enumerate(moves)))
             move_prompt: str = rich.prompt.Prompt.ask("> ", default="1")
-            try:
-                move_idx = int(move_prompt)
-            except ValueError:
-                pass
-            try:
-                if (move_prompt.startswith("'") and move_prompt.endswith("'")) or (
-                    move_prompt.startswith('"') and move_prompt.endswith('"')
-                ):
-                    search = move_prompt[1:-1]
-                else:
-                    search = Relation(move_prompt)
-                move_idx = moves.index(search) + 1
-            except ValueError:
-                pass
+            if move_idx is None:
+                with contextlib.suppress(ValueError):
+                    move_idx = int(move_prompt)
+            if move_idx is None:
+                with contextlib.suppress(ValueError):
+                    search = Move(gdl.Subrelation(gdl.Relation.from_str(move_prompt)))
+                    move_idx = moves.index(search) + 1
             if move_idx is None or not (1 <= move_idx <= len(moves)):
                 print(f"[red]Invalid move [italic purple]{move_prompt}.")
 

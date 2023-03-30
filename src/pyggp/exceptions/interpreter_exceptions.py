@@ -5,6 +5,18 @@ class InterpreterError(Exception):
     """Base class for all exceptions regarding interpreters."""
 
 
+class TimeoutInterpreterError(InterpreterError):
+    """Timed out during solving."""
+
+
+class ModelTimeoutInterpreterError(TimeoutInterpreterError):
+    """Timed out during solving for first model."""
+
+
+class SolveTimeoutInterpreterError(TimeoutInterpreterError):
+    """Timed out during solving for proving completion."""
+
+
 class InvalidGDLInterpreterError(InterpreterError):
     """Base class for all exceptions regarding invalid GDL passed to an interpreter."""
 

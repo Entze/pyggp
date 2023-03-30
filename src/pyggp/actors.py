@@ -7,10 +7,12 @@ third chapter (see http://ggp.stanford.edu/chapters/chapter_03.html).
 
 from typing import Optional
 
+import pyggp.game_description_language as gdl
 from pyggp.agents import Agent
 from pyggp.exceptions.actor_exceptions import ActorPlayclockIsNoneError, ActorTimeoutError
+from pyggp.game_description_language.rulesets import Ruleset
 from pyggp.gameclocks import GameClock, GameClockConfiguration
-from pyggp.gdl import ConcreteRole, Move, Role, Ruleset, State
+from pyggp.interpreters import Move, Role, State, Turn, View
 
 
 class Actor:
@@ -52,8 +54,8 @@ class Actor:
 
     def send_start(
         self,
-        role: ConcreteRole,
-        ruleset: Ruleset,
+        role: Role,
+        ruleset: gdl.Ruleset,
         startclock_config: GameClockConfiguration,
         playclock_config: GameClockConfiguration,
     ) -> None:
@@ -85,7 +87,7 @@ class Actor:
     ) -> None:
         raise NotImplementedError
 
-    def send_play(self, move_nr: int, view: State) -> Move:
+    def send_play(self, move_nr: int, view: View) -> Move:
         """Sends the play message to the agent.
 
         Args:
@@ -111,7 +113,7 @@ class Actor:
         # expired is required before returning the move.
         return move  # noqa: RET504
 
-    def _send_play(self, move_nr: int, view: State) -> Move:
+    def _send_play(self, ply: int, view: View) -> Move:
         raise NotImplementedError
 
     def send_abort(self) -> None:
@@ -128,7 +130,7 @@ class Actor:
     def _send_abort(self) -> None:
         raise NotImplementedError
 
-    def send_stop(self, view: State) -> None:
+    def send_stop(self, view: View) -> None:
         """Sends the stop message to the agent.
 
         Messages the agent that the game has reached a terminal state.
@@ -141,7 +143,7 @@ class Actor:
         self.playclock = None
         self._send_stop(view)
 
-    def _send_stop(self, view: State) -> None:
+    def _send_stop(self, view: View) -> None:
         raise NotImplementedError
 
 
@@ -176,12 +178,12 @@ class LocalActor(Actor):
     ) -> None:
         self.agent.prepare_match(role, ruleset, startclock_config, playclock_config)
 
-    def _send_play(self, move_nr: int, view: State) -> Move:
+    def _send_play(self, ply: int, view: View) -> Move:
         assert self.playclock is not None
-        return self.agent.calculate_move(move_nr, self.playclock.total_time_ns, view)
+        return self.agent.calculate_move(ply, self.playclock.total_time_ns, view)
 
     def _send_abort(self) -> None:
         self.agent.abort_match()
 
-    def _send_stop(self, view: State) -> None:
+    def _send_stop(self, view: View) -> None:
         self.agent.conclude_match(view)

@@ -1,7 +1,7 @@
 """Exceptions regarding nodes."""
 from typing import Optional
 
-from pyggp.gdl import RoleMoveMapping, State
+from pyggp.gdl import ConcreteRoleMoveMapping, State
 
 
 class NodeError(Exception):
@@ -55,8 +55,8 @@ class RoleMoveMappingMismatchNodeError(DevelopmentMismatchNodeError):
     def __init__(
         self,
         /,
-        development_role_move_mapping: Optional[RoleMoveMapping] = None,
-        node_role_move_mapping: Optional[RoleMoveMapping] = None,
+        development_role_move_mapping: Optional[ConcreteRoleMoveMapping] = None,
+        node_role_move_mapping: Optional[ConcreteRoleMoveMapping] = None,
         ply: Optional[int] = None,
     ) -> None:
         """Initializes RoleMoveMappingMismatchNodeError.

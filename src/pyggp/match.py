@@ -1,5 +1,14 @@
 from concurrent.futures import Executor, Future, ThreadPoolExecutor
-from typing import Literal, Mapping, MutableMapping, MutableSequence, NamedTuple, Optional, TypedDict, Union
+from typing import (
+    Literal,
+    Mapping,
+    MutableMapping,
+    MutableSequence,
+    NamedTuple,
+    Optional,
+    TypedDict,
+    Union,
+)
 
 import exceptiongroup
 import rich.progress as rich_progress
@@ -8,18 +17,22 @@ from typing_extensions import TypeAlias
 from pyggp._logging import inflect, log
 from pyggp.actors import Actor
 from pyggp.exceptions.actor_exceptions import ActorIllegalMoveError, ActorTimeoutError
-from pyggp.exceptions.match_exceptions import MatchDNSError, MatchIllegalMoveError, MatchTimeoutError
+from pyggp.exceptions.match_exceptions import (
+    DidNotStartMatchError,
+    IllegalMoveMatchError,
+    TimeoutMatchError,
+)
 from pyggp.gameclocks import GameClock, GameClockConfiguration
-from pyggp.gdl import Move, Relation, Role, Ruleset, State, Subrelation
+from pyggp.gdl import ConcreteRole, Move, Relation, Ruleset, State, Subrelation
 from pyggp.interpreters import Interpreter, get_roles_in_control
 
 
 class MatchConfiguration(TypedDict):  # as in PEP 692
     ruleset: Ruleset
     interpreter: Interpreter
-    role_actor_map: Mapping[Role, Actor]
-    startclock_configs: Mapping[Role, GameClockConfiguration]
-    playclock_configs: Mapping[Role, GameClockConfiguration]
+    role_actor_map: Mapping[ConcreteRole, Actor]
+    role_startclockconfig_map: Mapping[ConcreteRole, GameClockConfiguration]
+    role_playclockconfig_map: Mapping[ConcreteRole, GameClockConfiguration]
 
 
 _DNS: Literal["DNS"] = "DNS"
@@ -42,20 +55,24 @@ class Match:
     def __init__(self, match_configuration: MatchConfiguration, max_wait: float = 60 * 60, slack: float = 2.5) -> None:
         self._ruleset: Ruleset = match_configuration["ruleset"]
         self._interpreter: Interpreter = match_configuration["interpreter"]
-        self._role_actor_map: Mapping[Role, Actor] = match_configuration["role_actor_map"]
-        self._startclock_configs: Mapping[Role, GameClockConfiguration] = match_configuration["startclock_configs"]
-        self._playclock_configs: Mapping[Role, GameClockConfiguration] = match_configuration["playclock_configs"]
+        self._role_actor_map: Mapping[ConcreteRole, Actor] = match_configuration["role_actor_map"]
+        self._startclock_configs: Mapping[ConcreteRole, GameClockConfiguration] = match_configuration[
+            "role_startclockconfig_map"
+        ]
+        self._playclock_configs: Mapping[ConcreteRole, GameClockConfiguration] = match_configuration[
+            "role_playclockconfig_map"
+        ]
         self.utilities: MutableResultsMap = {role: None for role in self._role_actor_map}
-        self.move_nr = 0
+        self.ply = 0
         self.states: MutableSequence[State] = []
         self._max_wait = max_wait
         self._slack = slack
         self._polling_rate = 0.1
 
     def __repr__(self) -> str:
-        move_nr = self.move_nr
+        ply = self.ply
         roles = set(self._role_actor_map.keys())
-        return f"Match(id={hex(id(self))}, {move_nr=}, {roles=})"
+        return f"Match(id={hex(id(self))}, {ply=}, {roles=})"
 
     @property
     def is_finished(self) -> bool:
@@ -73,19 +90,19 @@ class Match:
         self._abort_agents()
 
     def execute_ply(self) -> None:
-        log.debug("Starting to execute ply %d", self.move_nr)
+        log.debug("Starting to execute ply %d", self.ply)
         state = self.states[-1]
         roles_in_control = get_roles_in_control(state)
         views = self._interpreter.get_sees(state)
         actor_movefuture_map: MutableMapping[Actor, Future[Optional[Move]]] = {}
         role_movemap = {role: None for role in roles_in_control}
 
-        raises: MutableSequence[Union[MatchTimeoutError, MatchIllegalMoveError]] = []
+        raises: MutableSequence[Union[TimeoutMatchError, IllegalMoveMatchError]] = []
         with _get_executor(*(self._role_actor_map[role] for role in roles_in_control)) as executor:
             for role in roles_in_control:
                 actor = self._role_actor_map[role]
                 log.debug("Submitting send_play to %s", actor)
-                actor_movefuture_map[actor] = executor.submit(actor.send_play, self.move_nr, views[role])
+                actor_movefuture_map[actor] = executor.submit(actor.send_play, self.ply, views[role])
 
             wait_time = 0.0
             for actor in actor_movefuture_map:
@@ -114,7 +131,8 @@ class Match:
                 for role in roles_in_control:
                     actor = self._role_actor_map[role]
                     task = progress.add_task(
-                        str(role).rjust(role_padding) + f"{'(calculating)': >14}", total=actor.playclock.get_timeout()
+                        str(role).rjust(role_padding) + f"{'(calculating)': >14}",
+                        total=actor.playclock.get_timeout(),
                     )
                     role_task_map[role] = task
 
@@ -142,7 +160,8 @@ class Match:
                                 raise ActorIllegalMoveError
                             role_movemap[role] = move
                             progress.update(
-                                role_task_map[role], description=str(role).rjust(role_padding) + f"{'(done)': >14}"
+                                role_task_map[role],
+                                description=str(role).rjust(role_padding) + f"{'(done)': >14}",
                             )
                             progress.stop_task(role_task_map[role])
                         except TimeoutError:
@@ -150,11 +169,11 @@ class Match:
                         except ActorTimeoutError:
                             log.warning("%s timed out", actor)
                             self.utilities[role] = _DNF_TIMEOUT
-                            raises.append(MatchTimeoutError(self.move_nr, actor, role))
+                            raises.append(TimeoutMatchError(self.ply, actor, role))
                         except ActorIllegalMoveError:
                             log.warning("%s sent an illegal move", actor)
                             self.utilities[role] = _DNF_ILLEGAL_MOVE
-                            raises.append(MatchIllegalMoveError(self.move_nr, actor, role, move))
+                            raises.append(IllegalMoveMatchError(self.ply, actor, role, move))
                         disable = False
                         for role_ in roles_in_control:
                             if role_movemap[role_] is None:
@@ -171,16 +190,16 @@ class Match:
                 actor = self._role_actor_map[role]
                 log.warning("%s timed out", actor)
                 self.utilities[role] = "DNF(Timeout)"
-                raises.append(MatchTimeoutError(self.move_nr, actor, role))
+                raises.append(TimeoutMatchError(self.ply, actor, role))
 
         if raises:
             raise exceptiongroup.ExceptionGroup("Match aborted", raises)
 
-        self.move_nr += 1
+        self.ply += 1
         plays = (Relation.does(role, move) for role, move in role_movemap.items())
         next_state = self._interpreter.get_next_state(state, *plays)
         self.states.append(next_state)
-        log.debug("Finished executing ply %d", self.move_nr - 1)
+        log.debug("Finished executing ply %d", self.ply - 1)
 
     def get_result(self) -> MatchResult:
         return MatchResult(self.utilities)
@@ -195,18 +214,22 @@ class Match:
                 playclock_config = self._playclock_configs[role]
 
                 actor_startfuture_map[actor] = executor.submit(
-                    actor.send_start, role, self._ruleset, startclock_config, playclock_config
+                    actor.send_start,
+                    role,
+                    self._ruleset,
+                    startclock_config,
+                    playclock_config,
                 )
 
             for role, actor in self._role_actor_map.items():
                 try:
                     startclock_config = self._startclock_configs[role]
                     actor_startfuture_map[actor].result(
-                        min(self._max_wait, startclock_config.total_time + startclock_config.delay + self._slack)
+                        min(self._max_wait, startclock_config.total_time + startclock_config.delay + self._slack),
                     )
                 except TimeoutError:
                     self.utilities[role] = "DNS"
-                    dns.append(MatchDNSError(role, actor))
+                    dns.append(DidNotStartMatchError(role, actor))
 
         if dns:
             raise exceptiongroup.ExceptionGroup("Timeout while initializing agents", dns)

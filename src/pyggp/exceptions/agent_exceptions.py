@@ -11,3 +11,7 @@ class InterpreterAgentError(AgentError):
 
 class InterpreterIsNoneInterpreterAgentError(InterpreterAgentError):
     """Accessed interpreter when it was None."""
+
+
+class RoleIsNoneInterpreterAgentError(InterpreterAgentError):
+    """Accessed role when it was None."""

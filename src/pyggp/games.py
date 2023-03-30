@@ -1,7 +1,8 @@
 """Definitions of basic games."""
 from typing import Sequence, Union
 
-from pyggp.gdl import Literal, Relation, Ruleset, Sentence, Subrelation, Variable
+from pyggp.game_description_language.subrelations import Variable
+from pyggp.gdl import Literal, Relation, Ruleset, Sentence, Subrelation
 
 _R = Variable("R")
 _R1 = Variable("R1")
