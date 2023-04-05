@@ -1,250 +1,100 @@
-from typing import MutableSequence, Optional, Set, Union
+"""Visualizers for consecutive states."""
+import abc
+from dataclasses import dataclass, field
+from typing import MutableSequence, Optional
 
-import rich.panel
-import rich.pretty
-import rich.table
 from rich import print
 
-from pyggp.gdl import Relation, Signature, State, Subrelation
-from pyggp.match import MatchResult
+from pyggp.interpreters import State
 
 
-class Visualizer:
-    def __init__(self) -> None:
-        self._states: MutableSequence[Optional[State]] = []
+@dataclass
+class Visualizer(abc.ABC):
+    """Base class for visualizers."""
 
-    def update_state(self, state: State, move_nr: Optional[int] = None) -> None:
-        if move_nr is None:
+    _states: MutableSequence[Optional[State]] = field(default_factory=list, repr=False)
+
+    def update_state(self, state: State, ply: Optional[int] = None) -> None:
+        """Update a state.
+
+        If ply is None, it is assumed to be the next ply.
+
+        Args:
+            state: State to update
+            ply: Ply to update
+
+        """
+        if ply is None:
             self._states.append(state)
             return
-        if move_nr >= len(self._states):
-            self._states.extend([None] * ((move_nr + 1) - len(self._states)))
+        if ply >= len(self._states):
+            self._states.extend([None] * ((ply + 1) - len(self._states)))
 
-        self._states[move_nr] = state
+        self._states[ply] = state
 
-    def update_result(self, result: MatchResult) -> None:
-        raise NotImplementedError
+    # def update_result(self, result: MatchResult) -> None:
+    #    raise NotImplementedError
 
     def update_abort(self) -> None:
+        """Indicate to the visualizer that the match has been aborted."""
         raise NotImplementedError
 
     def draw(self) -> None:
+        """Draw new information."""
         raise NotImplementedError
 
 
+@dataclass
 class NullVisualizer(Visualizer):  # pragma: no cover
-    def update_state(self, state: State, move_nr: Optional[int] = None) -> None:
-        pass
+    """Visualizer that does nothing."""
 
-    def update_result(self, result: MatchResult) -> None:
-        pass
+    def update_state(self, state: State, ply: Optional[int] = None) -> None:
+        """Update a state.
 
-    def update_abort(self) -> None:
-        pass
+        If ply is None, it is assumed to be the next ply.
 
-    def draw(self) -> None:
-        pass
+        Args:
+        state: State to update
+        ply: Ply to update
 
+        """
 
-def _add_relation_to_subtable(
-    subtable: rich.table.Table,
-    signature: Union[Signature, int, str],
-    relations: Set[Subrelation],
-    new_relations: Set[Subrelation],
-    old_relations: Set[Subrelation],
-    shorthand: bool = True,
-) -> None:
-    for relation in sorted(relations | old_relations):
-        if shorthand and isinstance(signature, Signature):
-            display = str(relation.arguments) if signature.arity > 1 else str(relation.arguments[0])
-        else:
-            display = str(relation)
-        if relation not in old_relations:
-            if relation in new_relations:
-                prefix = "+ "
-                style = "green"
-            else:
-                prefix = "  "
-                style = "white"
-
-            col1 = f"{prefix}{display}"
-            col2 = ""
-            cols = (col1, col2) if old_relations else (col1,)
-        else:
-            col1 = ""
-            col2 = f"- {display}"
-            style = "red"
-            cols = (col1, col2)
-        subtable.add_row(*cols, style=style)
-
-
-def _add_mutably_exclusive_relation_to_subtable(
-    subtable: rich.table.Table,
-    signature: Union[Signature, int, str],
-    relations: Set[Subrelation],
-    new_relations: Set[Subrelation],
-    old_relations: Set[Subrelation],
-) -> None:
-    new_relation = next(iter(relations), None)
-    if new_relation in new_relations:
-        new_prefix = "+ "
-        new_style = "green"
-    else:
-        new_prefix = "  "
-        new_style = "white"
-    old_relation = next(iter(old_relations), None)
-    if old_relation is not None:
-        old_prefix = "- "
-        old_style = "red"
-    else:
-        old_prefix = ""
-        old_style = "white"
-    if new_relation is not None:
-        new_relation_str = str(new_relation.arguments) if signature.arity > 1 else str(new_relation.arguments[0])
-    else:
-        new_relation_str = ""
-    if old_relation is not None:
-        old_relation_str = str(old_relation.arguments) if signature.arity > 1 else str(old_relation.arguments[0])
-    else:
-        old_relation_str = ""
-    if old_relation is not None:
-        subtable.add_row(
-            f"[{new_style}]{new_prefix}{new_relation_str}",
-            f"[{old_style}]{old_prefix}{old_relation_str}",
-        )
-    else:
-        subtable.add_row(f"[{new_style}]{new_prefix}{new_relation_str}")
-
-
-class SimpleRichVisualizer(Visualizer):
-    def __init__(self) -> None:
-        super().__init__()
-        self.aborted = False
-        self.result = None
-        self.last_drawn_state = -1
-        self.known_signatures: Set[Signature] = set()
-        self.singleton_signatures: Set[Signature] = set()
-
-    @property
-    def over(self) -> bool:
-        return self.result is not None or self.aborted
-
-    def draw(self) -> None:
-        for i in range(self.last_drawn_state + 1, len(self._states) - 1):
-            if self._states[i] is not None:
-                self._draw_state(
-                    self._states[i],
-                    self._states[i - 1] if i > 0 else self._states[0],
-                    len(self._states) - 1,
-                )
-                self.last_drawn_state = i
-        if self._states[-1] is not None and self.last_drawn_state < len(self._states) - 1:
-            if len(self._states) == 1 and not self.over:
-                self._draw_state(self._states[0], self._states[0], 0)
-                self.last_drawn_state = 0
-            if len(self._states) > 1:
-                self._draw_state(self._states[-1], self._states[-2], len(self._states) - 1)
-                self.last_drawn_state = len(self._states) - 1
-        self.last_drawn_state = len(self._states) - 1
-        if self.over:
-            self._draw_state(self._states[-1], self._states[-1], len(self._states) - 1)
-            self.last_drawn_state = len(self._states) - 1
-            if self.aborted:
-                panel_title = "[bold red]Aborted match[/bold red]"
-            else:
-                panel_title = "[bold green]Finished match[/bold green]"
-            panel = rich.panel.Panel(rich.pretty.Pretty(self.result.utilities), title=panel_title, title_align="center")
-            print(panel)
-
-    def update_result(self, result: MatchResult) -> None:
-        self.result = result
+    # def update_result(self, result: MatchResult) -> None:
+    #    pass
 
     def update_abort(self) -> None:
-        self.aborted = True
+        """Indicate to the visualizer that the match has been aborted."""
 
-    def _draw_state(self, state: State, last_state: Optional[State], move_nr: int) -> None:
-        if last_state is None:
-            last_state = set()
-        signatures_sequence = tuple(
-            relation.signature if isinstance(relation, Relation) else relation for relation in state
-        )
-        signatures_count_map = {signature: signatures_sequence.count(signature) for signature in signatures_sequence}
-        self.known_signatures.update(relation.signature for relation in state)
-        self.singleton_signatures.update(signature for signature, count in signatures_count_map.items() if count <= 1)
-        self.singleton_signatures.difference_update(
-            signature for signature, count in signatures_count_map.items() if count > 1
-        )
+    def draw(self) -> None:
+        """Draw new information."""
 
-        control_signature = Signature("control", 1)
-        self.singleton_signatures.discard(control_signature)
-        self.known_signatures.discard(control_signature)
-        if len(self.singleton_signatures) == 1 and len(self.known_signatures) == 1:
-            self.singleton_signatures.clear()
-        view = rich.table.Table(title=f"State@{move_nr}", expand=False)
-        subtables = []
 
-        for signature in (control_signature, *sorted(self.known_signatures)):
-            if signature not in self.singleton_signatures:
-                view.add_column(signature, justify="center")
-                relations = set(
-                    relation
-                    for relation in state
-                    if (isinstance(relation, Relation) and relation.signature == signature) or (relation == signature)
-                )
-                new_relations = set(relation for relation in state - last_state if relation.signature == signature)
-                old_relations = set(relation for relation in last_state - state if relation.signature == signature)
-                subtable = rich.table.Table(show_header=False, expand=False)
-                subtable.add_column("", style="white", justify="right")
-                if old_relations:
-                    subtable.add_column("-", style="red", justify="left")
-                if len(relations) > 1 or len(old_relations) > 1:
-                    _add_relation_to_subtable(subtable, signature, relations, new_relations, old_relations)
-                else:
-                    _add_mutably_exclusive_relation_to_subtable(
-                        subtable,
-                        signature,
-                        relations,
-                        new_relations,
-                        old_relations,
-                    )
+@dataclass
+class SimpleVisualizer(Visualizer):
+    """Visualizer that dumps states to stdout."""
 
-                subtables.append(subtable)
+    _last_drawn_ply: int = field(default=-1, repr=False)
+    _aborted: bool = field(default=False, repr=False)
 
-        if self.singleton_signatures:
-            view.add_column("True", justify="center")
-            relations = set(
-                relation
-                for relation in state
-                if (isinstance(relation, Relation) and relation.signature in self.singleton_signatures)
-                or relation in self.singleton_signatures
-            )
-            new_relations = set(
-                relation
-                for relation in state - last_state
-                if (isinstance(relation, Relation) and relation.signature in self.singleton_signatures)
-                or relation in self.singleton_signatures
-            )
-            old_relations = set(
-                relation
-                for relation in last_state - state
-                if (isinstance(relation, Relation) and relation.signature in self.singleton_signatures)
-                or relation in self.singleton_signatures
-            )
-            subtable = rich.table.Table(show_header=False, expand=False)
-            subtable.add_column("", style="white", justify="right")
-            if old_relations:
-                subtable.add_column("-", style="red", justify="left")
-            _add_relation_to_subtable(
-                subtable,
-                Signature("True", 0),
-                relations,
-                new_relations,
-                old_relations,
-                shorthand=False,
-            )
+    # def update_result(self, result: MatchResult) -> None:
+    #    pass
 
-            subtables.append(subtable)
+    def update_abort(self) -> None:
+        """Indicate to the visualizer that the match has been aborted."""
+        self._aborted = True
 
-        view.add_row(*subtables)
+    def draw(self) -> None:
+        """Draw new information."""
+        for ply in range(self._last_drawn_ply + 1, len(self._states)):
+            self._draw_ply(ply)
+            self._last_drawn_ply = ply
 
-        print(view)
+        if self._aborted:
+            print("Match aborted")
+
+    def _draw_ply(self, ply: int) -> None:
+        if ply >= len(self._states) or self._states[ply] is None:
+            return
+        state = self._states[ply]
+        assert state is not None
+        print(f"{ply}: ", set(state))
