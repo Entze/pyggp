@@ -1,23 +1,24 @@
 from unittest import mock
 
+import pyggp.game_description_language as gdl
 import pytest
 from pyggp.actors import Actor
-from pyggp.exceptions.actor_exceptions import ActorPlayclockIsNoneError, ActorTimeoutError
-from pyggp.gameclocks import GameClock, GameClockConfiguration
-from pyggp.gdl import ConcreteRole, Ruleset
+from pyggp.exceptions.actor_exceptions import PlayclockIsNoneActorError, TimeoutActorError
+from pyggp.gameclocks import DEFAULT_PLAY_CLOCK_CONFIGURATION, DEFAULT_START_CLOCK_CONFIGURATION, GameClock
+from pyggp.interpreters import Role, State, View
 
 
 def test_send_start_raises_if_the_startclock_expires() -> None:
     actor: Actor = Actor()
     # pylint: disable=protected-access
     actor._send_start = mock.MagicMock()  # type: ignore[assignment]
-    role: ConcreteRole = 0
-    ruleset: Ruleset = Ruleset()
-    startclock_config: GameClockConfiguration = GameClockConfiguration.default_startclock_config()
-    playclock_config: GameClockConfiguration = GameClockConfiguration.default_playclock_config()
+    role: Role = Role(gdl.Subrelation(gdl.Number(0)))
+    ruleset: gdl.Ruleset = gdl.Ruleset()
+    startclock_config: GameClock.Configuration = DEFAULT_START_CLOCK_CONFIGURATION
+    playclock_config: GameClock.Configuration = DEFAULT_PLAY_CLOCK_CONFIGURATION
     with mock.patch("pyggp.gameclocks.GameClock.is_expired", new_callable=mock.PropertyMock) as mock_is_expired:
         mock_is_expired.return_value = True
-        with pytest.raises(ActorTimeoutError):
+        with pytest.raises(TimeoutActorError):
             actor.send_start(
                 role=role,
                 ruleset=ruleset,
@@ -29,16 +30,16 @@ def test_send_start_raises_if_the_startclock_expires() -> None:
 def test_send_play_raises_if_the_playclock_is_none() -> None:
     actor: Actor = Actor()
     actor.playclock = None
-    with pytest.raises(ActorPlayclockIsNoneError):
-        actor.send_play(0, frozenset())
+    with pytest.raises(PlayclockIsNoneActorError):
+        actor.send_play(0, View(State(frozenset())))
 
 
 def test_send_play_raises_if_the_playclock_expired() -> None:
     actor: Actor = Actor()
-    actor.playclock = GameClock(GameClockConfiguration.default_playclock_config())
+    actor.playclock = GameClock.from_configuration(DEFAULT_PLAY_CLOCK_CONFIGURATION)
     # pylint: disable=protected-access
     actor._send_play = mock.MagicMock(return_value=0)  # type: ignore[assignment]
     with mock.patch("pyggp.gameclocks.GameClock.is_expired", new_callable=mock.PropertyMock) as mock_is_expired:
         mock_is_expired.return_value = True
-        with pytest.raises(ActorTimeoutError):
-            actor.send_play(0, frozenset())
+        with pytest.raises(TimeoutActorError):
+            actor.send_play(0, View(State(frozenset())))

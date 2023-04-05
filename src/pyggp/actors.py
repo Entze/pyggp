@@ -4,60 +4,38 @@ Actors are the interface between the game engine and the agents. Their API is in
 third chapter (see http://ggp.stanford.edu/chapters/chapter_03.html).
 
 """
-
+from dataclasses import dataclass
 from typing import Optional
 
 import pyggp.game_description_language as gdl
 from pyggp.agents import Agent
-from pyggp.exceptions.actor_exceptions import ActorPlayclockIsNoneError, ActorTimeoutError
+from pyggp.exceptions.actor_exceptions import AgentIsNoneLocalActorError, PlayclockIsNoneActorError, TimeoutActorError
 from pyggp.game_description_language.rulesets import Ruleset
-from pyggp.gameclocks import GameClock, GameClockConfiguration
-from pyggp.interpreters import Move, Role, State, Turn, View
+from pyggp.gameclocks import GameClock
+from pyggp.interpreters import Move, Role, View
 
 
+@dataclass
 class Actor:
-    """Base class for all actors.
+    """Base class for all actors."""
 
-    Attributes:
-        startclock: Startclock of the actor
-        playclock: Playclock of the actor
-        is_human_actor: Whether the actor is a human actor
+    # region Attributes and Properties
 
-    """
+    startclock: Optional[GameClock] = None
+    "Startclock of the actor."
+    playclock: Optional[GameClock] = None
+    "Playclock of the actor."
+    is_human_actor: bool = False
+    "Whether the actor is a human actor."
 
-    # Disables FBT001 (Boolean positional arg in function definition). Reason: is_human_actor is a value of an Actor
-    # object, not a flag.
-    def __init__(self, is_human_actor: bool = False) -> None:  # noqa: FBT001
-        """Initializes Actor.
-
-        Args:
-            is_human_actor: Whether the actor is a human actor
-
-        """
-        self.startclock: Optional[GameClock] = None
-        self.playclock: Optional[GameClock] = None
-        self.is_human_actor: bool = is_human_actor
-
-    def __repr__(self) -> str:
-        """Gets representation of Actor.
-
-        Returns:
-            Representation of Actor
-
-        """
-        return (
-            f"{self.__class__.__name__}(id={hex(id(self))}, "
-            f"is_human_actor={self.is_human_actor!r}, "
-            f"startclock={self.startclock!r}, "
-            f"playclock={self.playclock!r})"
-        )
+    # endregion
 
     def send_start(
         self,
         role: Role,
         ruleset: gdl.Ruleset,
-        startclock_config: GameClockConfiguration,
-        playclock_config: GameClockConfiguration,
+        startclock_config: GameClock.Configuration,
+        playclock_config: GameClock.Configuration,
     ) -> None:
         """Sends the start message to the agent.
 
@@ -71,27 +49,27 @@ class Actor:
             ActorTimeoutError: startclock expired
 
         """
-        self.startclock = GameClock(startclock_config)
+        self.startclock = GameClock.from_configuration(startclock_config)
         with self.startclock:
-            self.playclock = GameClock(playclock_config)
+            self.playclock = GameClock.from_configuration(playclock_config)
             self._send_start(role, ruleset, startclock_config, playclock_config)
         if self.startclock.is_expired:
-            raise ActorTimeoutError
+            raise TimeoutActorError
 
     def _send_start(
         self,
         role: Role,
         ruleset: Ruleset,
-        startclock_config: GameClockConfiguration,
-        playclock_config: GameClockConfiguration,
+        startclock_config: GameClock.Configuration,
+        playclock_config: GameClock.Configuration,
     ) -> None:
         raise NotImplementedError
 
-    def send_play(self, move_nr: int, view: View) -> Move:
+    def send_play(self, ply: int, view: View) -> Move:
         """Sends the play message to the agent.
 
         Args:
-            move_nr: Number of this move
+            ply: Current ply
             view: Current state of the game as seen by the agent
 
         Returns:
@@ -103,13 +81,13 @@ class Actor:
 
         """
         if self.playclock is None:
-            raise ActorPlayclockIsNoneError
+            raise PlayclockIsNoneActorError
         assert self.playclock is not None
         with self.playclock:
-            move = self._send_play(move_nr, view)
+            move = self._send_play(ply, view)
         if self.playclock.is_expired:
-            raise ActorTimeoutError
-        # Disables RET504 (Unnecessary variable assignment before `return` statement). Reason: Check if playclock is
+            raise TimeoutActorError
+        # Disables RET504 (Unnecessary variable assignment before `return` statement). Because: Check if playclock is
         # expired is required before returning the move.
         return move  # noqa: RET504
 
@@ -147,43 +125,57 @@ class Actor:
         raise NotImplementedError
 
 
+@dataclass
 class LocalActor(Actor):
-    """Actor that communicates with an agent via python method calls.
+    """Actor that communicates with an agent via python method calls."""
 
-    Attributes:
-        agent: Agent that is controlled by this actor
-        is_human_actor: Whether the actor is a human actor
+    # region Attributes and Properties
 
-    """
+    agent: Optional[Agent] = None
+    "Agent that is communicated with."
 
-    # Disables FBT001 (Boolean positional arg in function definition). Reason: is_human_actor is a value of an Actor
-    # object, not a flag.
-    def __init__(self, agent: Agent, is_human_actor: bool = False) -> None:  # noqa: FBT001
-        """Initializes LocalActor.
+    # endregion
 
-        Args:
-            agent: Agent that is controlled by this actor
-            is_human_actor: Whether the actor is a human actor
+    # region Magic Methods
 
-        """
-        super().__init__(is_human_actor=is_human_actor)
-        self.agent: Agent = agent
+    def __post_init__(self) -> None:
+        """Ensure that the agent is not None."""
+        if self.agent is None:
+            raise AgentIsNoneLocalActorError
+
+    # endregion
+
+    # region Methods
 
     def _send_start(
         self,
         role: Role,
         ruleset: Ruleset,
-        startclock_config: GameClockConfiguration,
-        playclock_config: GameClockConfiguration,
+        startclock_config: GameClock.Configuration,
+        playclock_config: GameClock.Configuration,
     ) -> None:
+        if self.agent is None:
+            raise AgentIsNoneLocalActorError
+        assert self.agent is not None
         self.agent.prepare_match(role, ruleset, startclock_config, playclock_config)
 
     def _send_play(self, ply: int, view: View) -> Move:
         assert self.playclock is not None
+        if self.agent is None:
+            raise AgentIsNoneLocalActorError
+        assert self.agent is not None
         return self.agent.calculate_move(ply, self.playclock.total_time_ns, view)
 
     def _send_abort(self) -> None:
+        if self.agent is None:
+            raise AgentIsNoneLocalActorError
+        assert self.agent is not None
         self.agent.abort_match()
 
     def _send_stop(self, view: View) -> None:
+        if self.agent is None:
+            raise AgentIsNoneLocalActorError
+        assert self.agent is not None
         self.agent.conclude_match(view)
+
+    # endregion

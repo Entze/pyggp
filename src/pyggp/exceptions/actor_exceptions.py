@@ -2,14 +2,14 @@
 from typing import Optional
 
 from pyggp._logging import format_timedelta
-from pyggp.gdl import ConcreteRole, Move
+from pyggp.interpreters import Move, Role
 
 
 class ActorError(Exception):
     """Base class for all exceptions regarding actors."""
 
 
-class ActorPlayclockIsNoneError(ActorError):
+class PlayclockIsNoneActorError(ActorError):
     """Accessed playclock when it was None."""
 
     def __init__(self, context: Optional[str] = None) -> None:
@@ -24,7 +24,7 @@ class ActorPlayclockIsNoneError(ActorError):
         super().__init__(message)
 
 
-class ActorTimeoutError(ActorError):
+class TimeoutActorError(ActorError):
     """Gameclock timed out."""
 
     def __init__(self, delta: Optional[float] = None, available_time: Optional[float] = None) -> None:
@@ -43,13 +43,13 @@ class ActorTimeoutError(ActorError):
         super().__init__(message)
 
 
-class ActorIllegalMoveError(ActorError):
+class IllegalMoveActorError(ActorError):
     """Illegal move was played."""
 
     def __init__(
         self,
         move: Optional[Move] = None,
-        role: Optional[ConcreteRole] = None,
+        role: Optional[Role] = None,
         ply: Optional[int] = None,
     ) -> None:
         """Initializes ActorIllegalMoveError.
@@ -65,3 +65,7 @@ class ActorIllegalMoveError(ActorError):
         move_message = f" {move}" if move is not None else ""
         message = f"Illegal move{move_message}{role_message}{ply_message}"
         super().__init__(message)
+
+
+class AgentIsNoneLocalActorError(ActorError):
+    """Agent is None."""
