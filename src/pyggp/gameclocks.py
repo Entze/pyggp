@@ -359,11 +359,17 @@ class GameClock(contextlib.AbstractContextManager[int]):
 
 
 DEFAULT_START_CLOCK_CONFIGURATION: Final[GameClock.Configuration] = GameClock.Configuration(
-    total_time=60.0, increment=0.0, delay=0.0
+    total_time=60.0,
+    increment=0.0,
+    delay=0.0,
 )
 DEFAULT_PLAY_CLOCK_CONFIGURATION: Final[GameClock.Configuration] = GameClock.Configuration(
-    total_time=0.0, increment=0.0, delay=60.0
+    total_time=0.0,
+    increment=0.0,
+    delay=60.0,
 )
 DEFAULT_NO_TIMEOUT_CONFIGURATION: Final[GameClock.Configuration] = GameClock.Configuration(
-    total_time=0.0, increment=0.0, delay=float("inf")
+    total_time=0.0,
+    increment=0.0,
+    delay=float("inf"),
 )
