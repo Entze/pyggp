@@ -23,8 +23,8 @@ from pyggp.interpreters import Move, Role, Turn
                     {
                         (Role(Subrelation(Relation("x"))), Move(Subrelation(Number(1)))),
                         (Role(Subrelation(Relation("y"))), Move(Subrelation(Number(2)))),
-                    }
-                )
+                    },
+                ),
             ),
         ),
     ],

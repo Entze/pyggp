@@ -14,7 +14,7 @@ from pyggp.gameclocks import (
 from pyggp.interpreters import Move, Role, State, View
 
 
-def test_send_start_as_expected() -> None:
+def test_send_start() -> None:
     agent: Agent = Agent()
     agent.prepare_match = mock.MagicMock()  # type: ignore[assignment]
     role: Role = Role(gdl.Subrelation(gdl.Number(0)))
@@ -48,7 +48,7 @@ def test_send_start_raises_on_no_agent() -> None:
         )
 
 
-def test_send_play_as_expected() -> None:
+def test_send_play() -> None:
     agent: Agent = Agent()
     agent.calculate_move = mock.MagicMock(return_value=Move(gdl.Subrelation(gdl.Number(0))))  # type: ignore[assignment]
     ply: int = 0
@@ -73,7 +73,7 @@ def test_send_play_raises_on_no_agent() -> None:
         )
 
 
-def test_send_abort_as_expected() -> None:
+def test_send_abort() -> None:
     agent: Agent = Agent()
     agent.abort_match = mock.MagicMock()  # type: ignore[assignment]
     actor = LocalActor(agent=agent)
@@ -88,7 +88,7 @@ def test_send_abort_raises_on_no_agent() -> None:
         actor.send_abort()
 
 
-def test_send_stop_as_expected() -> None:
+def test_send_stop() -> None:
     agent: Agent = Agent()
     agent.conclude_match = mock.MagicMock()  # type: ignore[assignment]
     actor = LocalActor(agent=agent)
@@ -106,7 +106,7 @@ def test_send_stop_raises_on_no_agent() -> None:
         )
 
 
-def test_dunder_post_init_as_expected() -> None:
+def test_dunder_post_init() -> None:
     agent: Agent = Agent()
     actor = LocalActor(agent=agent)
     assert actor.agent == agent

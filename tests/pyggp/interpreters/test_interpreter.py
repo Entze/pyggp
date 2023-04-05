@@ -11,7 +11,7 @@ from pyggp.interpreters import Interpreter, Role, State, View
         (View(State(frozenset())), frozenset()),
         (
             View(
-                State(frozenset({Subrelation(Relation(name="control", arguments=(Subrelation(Relation(name="x")),)))}))
+                State(frozenset({Subrelation(Relation(name="control", arguments=(Subrelation(Relation(name="x")),)))})),
             ),
             frozenset({Role(Subrelation(Relation("x")))}),
         ),
@@ -24,9 +24,9 @@ from pyggp.interpreters import Interpreter, Role, State, View
                             Subrelation(Relation(name="control", arguments=(Subrelation(Relation(name="y")),))),
                             Subrelation(Relation(name="unrelated")),
                             Subrelation(String("unrelated")),
-                        }
-                    )
-                )
+                        },
+                    ),
+                ),
             ),
             frozenset({Role(Subrelation(Relation("x"))), Role(Subrelation(Relation("y")))}),
         ),

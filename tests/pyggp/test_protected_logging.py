@@ -13,7 +13,7 @@ from pyggp._logging import format_timedelta, inflect
         ("cat", 2, "2 cats"),
     ],
 )
-def test_inflect_as_expected(noun: str, count: int, expected: str) -> None:
+def test_inflect(noun: str, count: int, expected: str) -> None:
     assert inflect(noun, count) == expected
 
 
@@ -36,5 +36,5 @@ def test_inflect_as_expected(noun: str, count: int, expected: str) -> None:
         (datetime.timedelta(seconds=0.000001), "0.0010ms"),
     ],
 )
-def test_format_timedelta_as_expected(delta: Union[float, int, datetime.timedelta], expected: str) -> None:
+def test_format_timedelta(delta: Union[float, int, datetime.timedelta], expected: str) -> None:
     assert format_timedelta(delta) == expected

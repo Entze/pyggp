@@ -1,4 +1,3 @@
-import time
 from unittest import mock
 
 import clingo
@@ -8,7 +7,6 @@ from pyggp.exceptions.interpreter_exceptions import (
     ModelTimeoutInterpreterError,
     MoreThanOneModelInterpreterError,
     SolveTimeoutInterpreterError,
-    TimeoutInterpreterError,
 )
 from pyggp.interpreters import ClingoInterpreter
 
@@ -45,10 +43,9 @@ def test_protected_get_model_timeout() -> None:
     ctl = clingo.Control()
     ctl.configuration.solve.models = 2
 
-    with mock.patch("clingo.solving.SolveHandle.wait", return_value=False):
-        with pytest.raises(ModelTimeoutInterpreterError):
-            model = interpreter._get_model(ctl)
-            actual = tuple(model)
+    with mock.patch("clingo.solving.SolveHandle.wait", return_value=False), pytest.raises(ModelTimeoutInterpreterError):
+        model = interpreter._get_model(ctl)
+        actual = tuple(model)
 
 
 def test_protected_get_model_unsat() -> None:

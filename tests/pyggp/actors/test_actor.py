@@ -8,7 +8,7 @@ from pyggp.gameclocks import DEFAULT_PLAY_CLOCK_CONFIGURATION, DEFAULT_START_CLO
 from pyggp.interpreters import Role, State, View
 
 
-def test_send_start_raises_if_the_startclock_expires() -> None:
+def test_send_start_raises_on_expired_startclock() -> None:
     actor: Actor = Actor()
     # pylint: disable=protected-access
     actor._send_start = mock.MagicMock()  # type: ignore[assignment]
@@ -27,14 +27,14 @@ def test_send_start_raises_if_the_startclock_expires() -> None:
             )
 
 
-def test_send_play_raises_if_the_playclock_is_none() -> None:
+def test_send_play_raises_on_playclock_is_none() -> None:
     actor: Actor = Actor()
     actor.playclock = None
     with pytest.raises(PlayclockIsNoneActorError):
         actor.send_play(0, View(State(frozenset())))
 
 
-def test_send_play_raises_if_the_playclock_expired() -> None:
+def test_send_play_raises_on_expired_playclock() -> None:
     actor: Actor = Actor()
     actor.playclock = GameClock.from_configuration(DEFAULT_PLAY_CLOCK_CONFIGURATION)
     # pylint: disable=protected-access
