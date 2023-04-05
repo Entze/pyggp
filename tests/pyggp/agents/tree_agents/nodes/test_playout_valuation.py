@@ -17,6 +17,6 @@ from pyggp.agents.tree_agents.valuations import PlayoutValuation
         ),
     ],
 )
-def test_backpropagate_as_expected(this: PlayoutValuation, other: PlayoutValuation, expected: PlayoutValuation) -> None:
+def test_backpropagate(this: PlayoutValuation, other: PlayoutValuation, expected: PlayoutValuation) -> None:
     actual = this.backpropagate(other)
     assert actual == expected

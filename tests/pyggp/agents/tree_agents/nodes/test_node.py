@@ -12,7 +12,7 @@ from pyggp.agents.tree_agents.nodes import Node
         (Node(parent=Node(), children={frozenset(): Node()}), 1),
     ],
 )
-def test_depth_as_expected(node: Node, expected: int) -> None:
+def test_depth(node: Node, expected: int) -> None:
     actual = node.depth
     assert actual == expected
 
@@ -27,7 +27,7 @@ def test_depth_as_expected(node: Node, expected: int) -> None:
         (Node(parent=Node(), children={frozenset(): Node()}), 1),
     ],
 )
-def test_height_as_expected(node: Node, expected: int) -> None:
+def test_height(node: Node, expected: int) -> None:
     actual = node.height
     assert actual == expected
 
