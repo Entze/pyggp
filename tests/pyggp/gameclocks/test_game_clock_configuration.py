@@ -8,7 +8,7 @@ from pyggp.exceptions.gameclock_exceptions import (
     MalformedStringGameClockConfigurationError,
     TotalTimeInvalidFloatGameClockConfigurationError,
 )
-from pyggp.gameclocks import GameClockConfiguration
+from pyggp.gameclocks import GameClock
 
 
 @pytest.mark.parametrize(
@@ -31,8 +31,8 @@ from pyggp.gameclocks import GameClockConfiguration
     ],
 )
 def test_from_str(string: str, expected_total_time: float, expected_increment: float, expected_delay: float) -> None:
-    actual = GameClockConfiguration.from_str(string)
-    expected = GameClockConfiguration(
+    actual = GameClock.Configuration.from_str(string)
+    expected = GameClock.Configuration(
         total_time=expected_total_time,
         increment=expected_increment,
         delay=expected_delay,
@@ -54,4 +54,22 @@ def test_from_str(string: str, expected_total_time: float, expected_increment: f
 )
 def test_from_str_raises(string: str, expected: Type[GameClockConfigurationError]) -> None:
     with pytest.raises(expected):
-        GameClockConfiguration.from_str(string)
+        GameClock.Configuration.from_str(string)
+
+
+@pytest.mark.parametrize(
+    ("total_time", "increment", "delay", "expected"),
+    [
+        (60.0, 10.0, 5.0, "60.0 | 10.0 d5.0"),
+        (60.0, 10.0, 0.0, "60.0 | 10.0 d0.0"),
+        (60.0, 0.0, 5.0, "60.0 | 0.0 d5.0"),
+        (0.0, 10.0, 5.0, "0.0 | 10.0 d5.0"),
+        (60.0, 10.0, float("inf"), "60.0 | 10.0 d∞"),
+        (60.0, float("inf"), 5.0, "60.0 | ∞ d5.0"),
+        (float("inf"), 10.0, 5.0, "∞ | 10.0 d5.0"),
+    ],
+)
+def test_dunder_str(total_time: float, increment: float, delay: float, expected: str) -> None:
+    configuration = GameClock.Configuration(total_time, increment, delay)
+    actual = str(configuration)
+    assert actual == expected
