@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Generic, Iterable, Iterator, TypeVar
+from typing import Any, Generic, Iterable, Iterator, TypeVar
 
 T = TypeVar("T")
 
@@ -10,8 +10,8 @@ class Returner(Generic[T]):
 
     _iterable: Iterator[T] = field(init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self._iterable = iter(self.to_return)
 
-    def __call__(self, *args, **kwargs) -> T:
+    def __call__(self, *args: Any, **kwargs: Any) -> T:  # noqa: ARG002
         return next(self._iterable)
