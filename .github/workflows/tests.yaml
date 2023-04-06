@@ -39,7 +39,8 @@ jobs:
         with:
           path: .nox
           key: ${{ runner.os }}-python${{ matrix.python-version }}-nox-${{ hashFiles('**/noxfile.py') }}
-      - run: poetry run nox -R --sessions unittests-${{ matrix.python-version }} doctests
+      - run: poetry run nox -R --sessions unittests-${{ matrix.python-version }}
+      - run: poetry run nox -R --sessions doctests-${{ matrix.python-version }}
   coverage:
     name: "📊 Coverage (Python ${{ matrix.python-version }}, ${{ matrix.os }})"
     needs: nox
