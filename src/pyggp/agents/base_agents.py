@@ -102,6 +102,7 @@ class Agent(abc.ABC):
         # Disables coverage. Because this not really testable.
         log.debug("Concluding match for %s, view=%s", self, view)  # pragma: no cover
 
+    @abc.abstractmethod
     def calculate_move(self, ply: int, total_time_ns: int, view: View) -> Move:
         """Calculates the next move.
 
