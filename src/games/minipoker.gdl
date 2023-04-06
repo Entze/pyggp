@@ -1,0 +1,44 @@
+role(bluffer).
+role(caller).
+role(random).
+init(control(random)).
+colour(red).
+colour(black).
+next(dealt) :- does(random, deal(_C)).
+next(dealt) :- true(dealt).
+next(dealt(C)) :- colour(C), does(random, deal(C)).
+next(dealt(C)) :- colour(C), true(dealt(C)).
+next(control(bluffer)) :- does(random, deal(_C)).
+next(resigned(bluffer)) :- does(bluffer, resign).
+next(resigned(bluffer)) :- true(resigned(bluffer)).
+next(held(bluffer)) :- does(bluffer, hold).
+next(held(bluffer)) :- true(held(bluffer)).
+next(control(caller)) :- does(bluffer, hold).
+next(resigned(caller)) :- does(caller, resign).
+next(resigned(caller)) :- true(resigned(caller)).
+next(called(caller)) :- does(caller, call).
+next(called(caller)) :- true(called(caller)).
+sees(random, X) :- true(X).
+sees(Everyone, control(R)) :- role(Everyone), role(R), true(control(R)).
+sees(Everyone, dealt) :- role(Everyone), true(dealt).
+sees(Everyone, resigned(R)) :- role(Everyone), role(R), true(resigned(R)).
+sees(Everyone, held(R)) :- role(Everyone), role(R), true(held(R)).
+sees(Everyone, called(R)) :- role(Everyone), role(R), true(called(R)).
+sees(Everyone, dealt(C)) :- role(Everyone), colour(C), true(dealt(C)), true(called(caller)).
+sees(bluffer, dealt(C)) :- colour(C), true(dealt(C)).
+legal(random, deal(C)) :- colour(C).
+legal(bluffer, resign) :- true(dealt(red)).
+legal(bluffer, hold).
+legal(caller, resign).
+legal(caller, call).
+goal(bluffer, -10) :- true(resigned(bluffer)).
+goal(caller, 10) :- true(resigned(bluffer)).
+goal(bluffer, 4) :- true(resigned(caller)).
+goal(caller, -4) :- true(resigned(caller)).
+goal(bluffer, 16) :- true(dealt(black)), true(held(bluffer)), true(called(caller)).
+goal(caller, -16) :- true(dealt(black)), true(held(bluffer)), true(called(caller)).
+goal(bluffer, -20) :- true(dealt(red)), true(held(bluffer)), true(called(caller)).
+goal(caller, 20) :- true(dealt(red)), true(held(bluffer)), true(called(caller)).
+terminal :- true(resigned(bluffer)).
+terminal :- true(resigned(caller)).
+terminal :- true(held(bluffer)), true(called(caller)).

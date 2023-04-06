@@ -1,0 +1,17 @@
+role(left).
+role(right).
+init(control(left)).
+init(control(right)).
+choice(rock).
+choice(paper).
+choice(scissors).
+beats(rock, scissors).
+beats(paper, rock).
+beats(scissors, paper).
+next(chose(R, C)) :- role(R), choice(C), does(R, C).
+next(chose(R, C)) :- role(R), choice(C), true(chose(R, C)).
+legal(R, C) :- role(R), choice(C).
+goal(R1, 0) :- role(R1), role(R2), choice(C1), choice(C2), distinct(R1, R2), distinct(C1, C2), true(chose(R1, C1)), true(chose(R2, C2)), not beats(C1, C2).
+goal(R1, 50) :- role(R1), role(R2), choice(C), distinct(R1, R2), true(chose(R1, C)), true(chose(R2, C)).
+goal(R1, 100) :- role(R1), role(R2), choice(C1), choice(C2), distinct(R1, R2), distinct(C1, C2), true(chose(R1, C1)), true(chose(R2, C2)), beats(C1, C2).
+terminal :- role(R1), role(R2), distinct(R1, R2), true(chose(R1, _C1)), true(chose(R2, _C2)).
