@@ -17,7 +17,7 @@ from pyggp.exceptions.gameclock_exceptions import (
 
 
 @dataclass
-class GameClock(contextlib.AbstractContextManager[int]):
+class GameClock:
     """A game clock that can be used to track the time remaining for a player.
 
     The game clock is a context manager that can be used to track the time remaining for a player. Use the with

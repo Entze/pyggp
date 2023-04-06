@@ -4,7 +4,9 @@ Defines the heuristic types and default heuristics.
 
 """
 import collections
-from typing import Callable, Mapping, Optional, TypeAlias
+from typing import Callable, Mapping, Optional
+
+from typing_extensions import TypeAlias
 
 from pyggp.interpreters import Role, State
 

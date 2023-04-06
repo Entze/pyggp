@@ -17,7 +17,7 @@ from pyggp.gameclocks import GameClock
 from pyggp.interpreters import ClingoInterpreter, Interpreter, Move, Role, View
 
 
-class Agent(AbstractContextManager[None], abc.ABC):
+class Agent(abc.ABC):
     """Base class for all agents."""
 
     # region Magic Methods
