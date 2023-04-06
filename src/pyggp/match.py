@@ -1,7 +1,8 @@
 """Abstract representation of a match."""
+
 import concurrent.futures as concurrent_futures
 from dataclasses import dataclass, field
-from typing import Any, Final, Literal, Mapping, MutableMapping, MutableSequence, Sequence, Union
+from typing import TYPE_CHECKING, Any, Final, Literal, Mapping, MutableMapping, MutableSequence, Sequence, Union
 
 import exceptiongroup
 import rich.progress as rich_progress
@@ -22,6 +23,14 @@ _DNF_TIMEOUT: Final[Literal["DNF(Timeout)"]] = "DNF(Timeout)"
 _DNF_ILLEGAL_MOVE: Final[Literal["DNF(Illegal Move)"]] = "DNF(Illegal Move)"
 
 _DISQUALIFICATIONS: Final[Sequence[Disqualification]] = (_DNS_TIMEOUT, _DNF_TIMEOUT, _DNF_ILLEGAL_MOVE)
+
+if TYPE_CHECKING:  # See https://github.com/python/typing/discussions/835#discussioncomment-1193041
+    # To be fixed once 3.8 is no longer supported.
+    Future_None = concurrent_futures.Future[None]
+    Future_Any = concurrent_futures.Future[Any]
+else:
+    Future_None = concurrent_futures.Future
+    Future_Any = concurrent_futures.Future
 
 
 @dataclass
@@ -59,7 +68,7 @@ class Match:
             polling_interval: Interval to poll for updates in seconds
 
         """
-        role_future_map: MutableMapping[Role, concurrent_futures.Future[None]] = {}
+        role_future_map: MutableMapping[Role, Future_None] = {}
         role_taskid_map: MutableMapping[Role, rich_progress.TaskID] = {}
         monitor_startclock = GameClock(total_time_ns=0, increment_ns=0, delay_ns=0)
         exceptions: MutableSequence[MatchError] = []
@@ -90,7 +99,7 @@ class Match:
     def _start_init(
         self,
         *,
-        role_future_map: MutableMapping[Role, concurrent_futures.Future[None]],
+        role_future_map: MutableMapping[Role, Future_None],
         executor: concurrent_futures.ThreadPoolExecutor,
         role_taskid_map: MutableMapping[Role, rich_progress.TaskID],
         progress: rich_progress.Progress,
@@ -112,7 +121,7 @@ class Match:
         *,
         monitor_startclock: GameClock,
         role_taskid_map: Mapping[Role, rich_progress.TaskID],
-        role_future_map: Mapping[Role, concurrent_futures.Future[None]],
+        role_future_map: Mapping[Role, Future_None],
         progress: rich_progress.Progress,
         exceptions: MutableSequence[MatchError],
         polling_interval: float = 0.1,
@@ -149,7 +158,7 @@ class Match:
     def _start_collect(
         self,
         *,
-        role_future_map: Mapping[Role, concurrent_futures.Future[None]],
+        role_future_map: Mapping[Role, Future_None],
         exceptions: MutableSequence[MatchError],
     ) -> None:
         for role, actor in self.role_actor_map.items():
@@ -167,7 +176,7 @@ class Match:
         self,
         role: Role,
         executor: concurrent_futures.ThreadPoolExecutor,
-    ) -> concurrent_futures.Future[None]:
+    ) -> Future_None:
         actor = self.role_actor_map[role]
         startclock_configuration = self.role_startclock_configuration_map[role]
         playclock_configuration = self.role_playclock_configuration_map[role]
@@ -184,7 +193,7 @@ class Match:
     # Because: This is a private method.
     def _monitor(  # noqa: PLR0913
         task_id: rich_progress.TaskID,
-        future: concurrent_futures.Future[Any],
+        future: Future_Any,
         progress: rich_progress.Progress,
         monitor_clock: GameClock,
         polling_interval: float = 0.1,
