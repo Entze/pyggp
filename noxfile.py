@@ -13,13 +13,12 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
-    TypeAlias,
     TypedDict,
 )
 
 import nox
 import tomli as tomllib
-from typing_extensions import NotRequired
+from typing_extensions import NotRequired, TypeAlias
 
 PYTHON_VERSIONS: Final[List[str]] = ["3.8", "3.9", "3.10", "3.11", "pypy-3.8", "pypy-3.9"]
 PYTHON_VERSIONS_SHORT_NAMES: Final[Mapping[str, str]] = {
@@ -239,8 +238,9 @@ def _run(session: nox.Session, context: str, program: str, posargs: Sequence[str
 @nox.session(tags=["checks", "tests"], python=PYTHON_VERSIONS)
 def unittests(session: nox.Session) -> None:
     session.install(".")
-    programs = ("pytest", "pytest-unordered")
-    _install(session, *programs)
+    dependencies = ("pytest", "pytest-unordered")
+    programs = ("pytest",)
+    _install(session, *dependencies)
     run = functools.partial(_run, session=session, context="unittests", posargs=session.posargs)
     for program in programs:
         run(program=program)
@@ -249,8 +249,9 @@ def unittests(session: nox.Session) -> None:
 @nox.session(tags=["checks", "tests"])
 def doctests(session: nox.Session) -> None:
     session.install(".")
+    dependencies = ("pytest",)
     programs = ("pytest",)
-    _install(session, *programs)
+    _install(session, *dependencies)
     run = functools.partial(_run, session=session, context="doctests", posargs=session.posargs)
     for program in programs:
         run(program=program)
@@ -259,8 +260,9 @@ def doctests(session: nox.Session) -> None:
 @nox.session(tags=["checks", "ci"])
 def lint(session: nox.Session) -> None:
     session.install(".")
+    dependencies = ("black", "docformatter", "pytest", "ruff")
     programs = ("black", "docformatter", "ruff", "pytest")
-    _install(session, *programs)
+    _install(session, *dependencies)
     run = functools.partial(_run, session=session, context="lint", posargs=session.posargs)
     for program in programs:
         run(program=program)
@@ -269,8 +271,9 @@ def lint(session: nox.Session) -> None:
 @nox.session(tags=["checks", "ci"])
 def typecheck(session: nox.Session) -> None:
     session.install(".")
+    dependencies = ("mypy", "pytest")
     programs = ("mypy",)
-    _install(session, *programs, "pytest")
+    _install(session, *dependencies)
     run = functools.partial(_run, session=session, context="typecheck", posargs=session.posargs)
     for program in programs:
         run(program=program)
@@ -279,8 +282,9 @@ def typecheck(session: nox.Session) -> None:
 @nox.session
 def fix(session: nox.Session) -> None:
     session.install(".")
-    programs = ("black", "docformatter", "ruff")
-    _install(session, *programs)
+    dependencies = ("black", "docformatter", "ruff")
+    programs = ("black", "docformatter", "ruff", "black")
+    _install(session, *dependencies)
     run: Callable[[str], None] = functools.partial(_run, session=session, context="fix", posargs=session.posargs)
     for program in programs:
         run(program=program)
@@ -289,7 +293,8 @@ def fix(session: nox.Session) -> None:
 @nox.session
 def coverage(session: nox.Session) -> None:
     session.install(".")
-    _install(session, "coverage", "pytest")
+    dependencies = ("coverage", "pytest")
+    _install(session, *dependencies)
 
     pytest_opts, pytest_targets = _filter(session, "coverage", "pytest", session.posargs)
     _run(
