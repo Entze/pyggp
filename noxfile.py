@@ -246,7 +246,7 @@ def unittests(session: nox.Session) -> None:
         run(program=program)
 
 
-@nox.session(tags=["checks", "tests"])
+@nox.session(tags=["checks", "tests"], python=PYTHON_VERSIONS)
 def doctests(session: nox.Session) -> None:
     session.install(".")
     dependencies = ("pytest",)
