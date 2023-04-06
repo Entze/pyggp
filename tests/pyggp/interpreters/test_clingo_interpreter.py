@@ -43,9 +43,9 @@ def test_protected_get_model_timeout() -> None:
     ctl = clingo.Control()
     ctl.configuration.solve.models = 2
 
+    model = interpreter._get_model(ctl)
     with mock.patch("clingo.solving.SolveHandle.wait", return_value=False), pytest.raises(ModelTimeoutInterpreterError):
-        model = interpreter._get_model(ctl)
-        actual = tuple(model)
+        tuple(model)
 
 
 def test_protected_get_model_unsat() -> None:
@@ -55,9 +55,9 @@ def test_protected_get_model_unsat() -> None:
     ctl.configuration.solve.models = 2
     ctl.add("base", [], "a :- not a.")
 
+    model = interpreter._get_model(ctl)
     with pytest.raises(ClingoInterpreter.Unsat):
-        model = interpreter._get_model(ctl)
-        actual = tuple(model)
+        tuple(model)
 
 
 def test_protected_get_model_multiple() -> None:
@@ -67,9 +67,9 @@ def test_protected_get_model_multiple() -> None:
     ctl.configuration.solve.models = 2
     ctl.add("base", [], "a :- not b. b :- not a.")
 
+    model = interpreter._get_model(ctl)
     with pytest.raises(MoreThanOneModelInterpreterError):
-        model = interpreter._get_model(ctl)
-        actual = tuple(model)
+        tuple(model)
 
 
 def test_protected_get_model_multiple_timeout() -> None:
@@ -80,6 +80,6 @@ def test_protected_get_model_multiple_timeout() -> None:
     ctl.add("base", [], "a :- not b. b :- not a.")
 
     with mock.patch("clingo.solving.SolveHandle.wait", side_effect=Returner((True, False))):
+        model = interpreter._get_model(ctl)
         with pytest.raises(SolveTimeoutInterpreterError):
-            model = interpreter._get_model(ctl)
-            actual = tuple(model)
+            tuple(model)

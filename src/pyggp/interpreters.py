@@ -3,6 +3,7 @@ import collections
 import time
 from dataclasses import dataclass, field
 from typing import (
+    Final,
     FrozenSet,
     Iterator,
     Mapping,
@@ -53,6 +54,8 @@ Plays are of the form does(Subrelation(Role), Subrelation(Move)).
 
 Move = NewType("Move", gdl.Subrelation)
 """Moves are relations, numbers, or strings."""
+
+RANDOM: Final[Role] = Role(gdl.Subrelation(gdl.Relation("random")))
 
 
 @dataclass(frozen=True)
@@ -591,10 +594,12 @@ class ClingoInterpreter(Interpreter):
         Args:
             record: Record of the game
 
-        Returns:
+        Yields:
             All possible developments for the given record
 
         """
+        assert record
+        yield Development(())  # TODO: Implement
 
     def _get_model(self, ctl: clingo.Control) -> Iterator[clingo.Symbol]:
         total_wait_time = 0.0
