@@ -14,9 +14,10 @@ from pyggp.gameclocks import (
 from pyggp.interpreters import Move, Role, State, View
 
 
+@mock.patch.object(Agent, "__abstractmethods__", set())
 def test_send_start() -> None:
-    agent: Agent = Agent()
-    agent.prepare_match = mock.MagicMock()  # type: ignore[assignment]
+    agent: Agent = mock.MagicMock()
+    agent.prepare_match = mock.MagicMock()
     role: Role = Role(gdl.Subrelation(gdl.Number(0)))
     ruleset: gdl.Ruleset = gdl.Ruleset()
     startclock_config: GameClock.Configuration = DEFAULT_START_CLOCK_CONFIGURATION
@@ -37,7 +38,8 @@ def test_send_start() -> None:
 
 
 def test_send_start_raises_on_no_agent() -> None:
-    actor = LocalActor(agent=mock.MagicMock())
+    agent = mock.MagicMock()
+    actor = LocalActor(agent=agent)
     actor.agent = None
     with pytest.raises(AgentIsNoneLocalActorError):
         actor.send_start(
@@ -49,8 +51,8 @@ def test_send_start_raises_on_no_agent() -> None:
 
 
 def test_send_play() -> None:
-    agent: Agent = Agent()
-    agent.calculate_move = mock.MagicMock(return_value=Move(gdl.Subrelation(gdl.Number(0))))  # type: ignore[assignment]
+    agent: Agent = mock.MagicMock()
+    agent.calculate_move = mock.MagicMock(return_value=Move(gdl.Subrelation(gdl.Number(0))))
     ply: int = 0
     view: View = View(State(frozenset()))
     actor = LocalActor(agent=agent)
@@ -64,7 +66,9 @@ def test_send_play() -> None:
 
 
 def test_send_play_raises_on_no_agent() -> None:
-    actor = LocalActor(playclock=mock.MagicMock(), agent=mock.MagicMock())
+    agent: Agent = mock.MagicMock()
+    playclock: GameClock = mock.MagicMock()
+    actor = LocalActor(playclock=playclock, agent=agent)
     actor.agent = None
     with pytest.raises(AgentIsNoneLocalActorError):
         actor.send_play(
@@ -74,23 +78,24 @@ def test_send_play_raises_on_no_agent() -> None:
 
 
 def test_send_abort() -> None:
-    agent: Agent = Agent()
-    agent.abort_match = mock.MagicMock()  # type: ignore[assignment]
+    agent: Agent = mock.MagicMock()
+    agent.abort_match = mock.MagicMock()
     actor = LocalActor(agent=agent)
     actor.send_abort()
     agent.abort_match.assert_called_once_with()
 
 
 def test_send_abort_raises_on_no_agent() -> None:
-    actor = LocalActor(agent=mock.MagicMock())
+    agent = mock.MagicMock()
+    actor = LocalActor(agent=agent)
     actor.agent = None
     with pytest.raises(AgentIsNoneLocalActorError):
         actor.send_abort()
 
 
 def test_send_stop() -> None:
-    agent: Agent = Agent()
-    agent.conclude_match = mock.MagicMock()  # type: ignore[assignment]
+    agent: Agent = mock.MagicMock()
+    agent.conclude_match = mock.MagicMock()
     actor = LocalActor(agent=agent)
     view: View = View(State(frozenset()))
     actor.send_stop(view)
@@ -98,7 +103,8 @@ def test_send_stop() -> None:
 
 
 def test_send_stop_raises_on_no_agent() -> None:
-    actor = LocalActor(agent=mock.MagicMock())
+    agent: Agent = mock.MagicMock()
+    actor = LocalActor(agent=agent)
     actor.agent = None
     with pytest.raises(AgentIsNoneLocalActorError):
         actor.send_stop(
@@ -107,7 +113,7 @@ def test_send_stop_raises_on_no_agent() -> None:
 
 
 def test_dunder_post_init() -> None:
-    agent: Agent = Agent()
+    agent: Agent = mock.MagicMock()
     actor = LocalActor(agent=agent)
     assert actor.agent == agent
 
