@@ -1,7 +1,6 @@
 from unittest import mock
 
 import pytest
-from common import Returner
 from pyggp.gameclocks import GameClock
 
 
@@ -11,7 +10,7 @@ def test_in_with_stmt() -> None:
     assert game_clock.last_delta_ns is None
     assert game_clock.last_delta is None
     assert game_clock.is_expired is False
-    with mock.patch("time.monotonic_ns", side_effect=Returner((0, 50))), game_clock as total_time_ns:
+    with mock.patch("time.monotonic_ns", side_effect=(0, 50)), game_clock as total_time_ns:
         assert total_time_ns == 100
     assert game_clock.total_time_ns == 50
     assert game_clock.last_delta_ns == 50
@@ -26,7 +25,7 @@ def test_in_with_stmt_with_inf_increment() -> None:
     assert game_clock.last_delta_ns is None
     assert game_clock.last_delta is None
     assert game_clock.is_expired is False
-    with mock.patch("time.monotonic_ns", side_effect=Returner((0, 50))), game_clock as total_time_ns:
+    with mock.patch("time.monotonic_ns", side_effect=(0, 50)), game_clock as total_time_ns:
         assert total_time_ns == 100
     assert game_clock.total_time_ns == 50
     assert game_clock.can_timeout is False
@@ -41,7 +40,7 @@ def test_in_with_stmt_timeout() -> None:
     assert game_clock.last_delta_ns is None
     assert game_clock.last_delta is None
     assert game_clock.is_expired is False
-    with mock.patch("time.monotonic_ns", side_effect=Returner((0, 150))), game_clock as total_time_ns:
+    with mock.patch("time.monotonic_ns", side_effect=(0, 150)), game_clock as total_time_ns:
         assert total_time_ns == 100
     assert game_clock.total_time_ns == -50
     assert game_clock.last_delta_ns == 150

@@ -2,7 +2,6 @@ from unittest import mock
 
 import clingo
 import pytest
-from common import Returner
 from pyggp.exceptions.interpreter_exceptions import (
     ModelTimeoutInterpreterError,
     MoreThanOneModelInterpreterError,
@@ -79,7 +78,7 @@ def test_protected_get_model_multiple_timeout() -> None:
     ctl.configuration.solve.models = 2
     ctl.add("base", [], "a :- not b. b :- not a.")
 
-    with mock.patch("clingo.solving.SolveHandle.wait", side_effect=Returner((True, False))):
+    with mock.patch("clingo.solving.SolveHandle.wait", side_effect=(True, False)):
         model = interpreter._get_model(ctl)
         with pytest.raises(SolveTimeoutInterpreterError):
             tuple(model)
