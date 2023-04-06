@@ -34,7 +34,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'
-      - run: poetry install --with ci --sync
+      - run: poetry install --with ci
       - uses: actions/cache@v3
         with:
           path: .nox
@@ -60,7 +60,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'
-      - run: poetry install --with ci --sync
+      - run: poetry install --with ci
       - uses: actions/cache@v3
         with:
           path: .nox
