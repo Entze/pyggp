@@ -1,6 +1,4 @@
-import lark
 import pytest
-from pyggp.exceptions.subrelation_exceptions import MalformedTreeSubrelationError
 from pyggp.game_description_language.subrelations import Number
 
 
@@ -14,18 +12,6 @@ from pyggp.game_description_language.subrelations import Number
 def test_infix_str(number: Number, expected: str) -> None:
     actual = number.infix_str
     assert actual == expected
-
-
-@pytest.mark.parametrize(
-    "tree",
-    [
-        lark.Tree(data="malformed", children=[]),
-        lark.Tree(data="number", children=[lark.Tree(data="malformed", children=[])]),
-    ],
-)
-def test_from_tree_invalid_tree(tree: lark.Tree[lark.Token]) -> None:
-    with pytest.raises(MalformedTreeSubrelationError):
-        Number.from_tree(tree)
 
 
 @pytest.mark.parametrize(

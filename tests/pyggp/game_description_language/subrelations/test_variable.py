@@ -1,6 +1,4 @@
-import lark
 import pytest
-from pyggp.exceptions.subrelation_exceptions import MalformedTreeSubrelationError
 from pyggp.game_description_language.subrelations import Variable
 
 
@@ -49,20 +47,3 @@ def test_dunder_rich(variable: Variable) -> None:
     actual = variable.__rich__()
     assert isinstance(actual, str)
     assert variable.infix_str in actual
-
-
-@pytest.mark.parametrize(
-    "tree",
-    [
-        lark.Tree(data="malformed", children=[]),
-        lark.Tree(data="variable", children=[lark.Token(type="malformed", value="")]),
-        lark.Tree(
-            data="variable",
-            children=[lark.Tree(data="wildcard", children=[lark.Token(type="malformed", value="")])],
-        ),
-        lark.Tree(data="variable", children=[lark.Tree(data="malformed", children=[])]),
-    ],
-)
-def test_from_tree_invalid_tree(tree: lark.Tree[lark.Token]) -> None:
-    with pytest.raises(MalformedTreeSubrelationError):
-        Variable.from_tree(tree)

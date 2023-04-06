@@ -1,47 +1,12 @@
 """Provides all subrelations of GDL."""
 from dataclasses import dataclass, field
-from typing import ClassVar, NamedTuple, Optional, Sequence, Union
+from typing import NamedTuple, Optional, Sequence, Union
 
 import clingo
 import clingo.ast as clingo_ast
-import lark
-import lark.exceptions
 from typing_extensions import Self
 
 from pyggp._clingo import create_function, create_symbolic_term, create_variable
-from pyggp.exceptions.subrelation_exceptions import MalformedTreeSubrelationError, ParsingSubrelationError
-
-grammar = r"""
-    subrelation: relation | primitive
-    relation: empty_tuple
-        | tuple
-        | atom
-        | atom "(" ")"
-        | atom tuple
-    empty_tuple: "(" ")"
-    tuple: "(" _seperated{subrelation, ","} ")"
-    atom: ATOMID
-    primitive: number | string | variable
-    number: INT | SIGNED_INT
-    string: ESCAPED_STRING
-    variable: wildcard
-        | named_variable
-    named_variable: UCID
-
-    wildcard: anonymous_wildcard | named_wildcard
-    anonymous_wildcard.1: "_"
-    named_wildcard.1: "_"+ UCID
-
-    LCID: LCASE_LETTER ("_" | LETTER | DIGIT)*
-    UCID: UCASE_LETTER ("_" | LETTER | DIGIT)*
-    ATOMID: ("_" | LCASE_LETTER) ("_" | LETTER | DIGIT)*
-
-    _seperated{x, sep}: x (sep x)*
-
-    %import common (INT, SIGNED_INT, ESCAPED_STRING, CNAME, UCASE_LETTER, LCASE_LETTER, LETTER, DIGIT, WS)
-    %ignore WS
-
-    """
 
 
 @dataclass(frozen=True, order=True)
@@ -53,8 +18,6 @@ class Primitive:
     """
 
     # region Attributes and Properties
-
-    parser: ClassVar[lark.Lark] = lark.Lark(grammar=grammar, start="primitive")
 
     @property
     def infix_str(self) -> str:
@@ -97,58 +60,6 @@ class Primitive:
             return string  # type: ignore[return-value]
         message = f"Assumption: There are only 3 types of clingo symbols. Unknown symbol type: {symbol.type}"
         raise AssertionError(message)
-
-    @classmethod
-    def from_tree(cls, tree: lark.Tree[lark.Token]) -> Self:
-        """Create primitive from lark tree.
-
-        Args:
-            tree: Tree to transform
-
-        Returns:
-            Corresponding primitive
-
-        Raises:
-            MalformedTreeSubrelationError: Tree is malformed
-
-        """
-        if tree.data != "primitive":
-            raise MalformedTreeSubrelationError
-        if not isinstance(tree.children[0], lark.Tree):
-            raise MalformedTreeSubrelationError
-        if tree.children[0].data == "number":
-            number = Number.from_tree(tree.children[0])
-            assert isinstance(number, cls), "Assumption: Subclass did not violate the liskov substitution principle."
-            return number
-        if tree.children[0].data == "string":
-            string = String.from_tree(tree.children[0])
-            assert isinstance(string, cls), "Assumption: Subclass did not violate the liskov substitution principle."
-            return string
-        if tree.children[0].data == "variable":
-            variable = Variable.from_tree(tree.children[0])
-            assert isinstance(variable, cls), "Assumption: Subclass did not violate the liskov substitution principle."
-            return variable
-        raise MalformedTreeSubrelationError
-
-    @classmethod
-    def from_str(cls, string: str) -> Self:
-        """Create primitive from string.
-
-        Args:
-            string: String to create primitive from
-
-        Returns:
-            Primitive created from string
-
-        Raises:
-            ParsingSubrelationError: String could not be parsed
-
-        """
-        try:
-            tree = cls.parser.parse(string)
-        except (lark.exceptions.ParseError, lark.exceptions.LexError) as error:
-            raise ParsingSubrelationError(string) from error
-        return cls.from_tree(tree)
 
     # endregion
 
@@ -238,31 +149,6 @@ class Variable(Primitive):
         """
         message = "Variables cannot be created from clingo symbols."
         raise TypeError(message)
-
-    @classmethod
-    def from_tree(cls, tree: lark.Tree[lark.Token]) -> Self:
-        """Create variable from lark tree.
-
-        Args:
-            tree: Tree to transform
-
-        """
-        if tree.data != "variable":
-            raise MalformedTreeSubrelationError
-        if not isinstance(tree.children[0], lark.Tree):
-            raise MalformedTreeSubrelationError
-        if tree.children[0].data == "named_variable":
-            name = tree.children[0].children[0]
-            return cls(str(name))
-        if tree.children[0].data == "wildcard":
-            if not isinstance(tree.children[0].children[0], lark.Tree):
-                raise MalformedTreeSubrelationError
-            if tree.children[0].children[0].data == "anonymous_wildcard":
-                return cls("_")
-            if tree.children[0].children[0].data == "named_wildcard":
-                name = tree.children[0].children[0].children[0]
-                return cls(f"_{name}")
-        raise MalformedTreeSubrelationError
 
     # endregion
 
@@ -371,26 +257,6 @@ class Number(Primitive):
             raise TypeError(message)
         return cls(symbol.number)
 
-    @classmethod
-    def from_tree(cls, tree: lark.Tree[lark.Token]) -> Self:
-        """Create number from lark tree.
-
-        Args:
-            tree: Tree to transform
-
-        Returns:
-            Corresponding number
-
-        Raises:
-            MalformedTreeSubrelationError: Tree is malformed
-
-        """
-        if tree.data != "number":
-            raise MalformedTreeSubrelationError
-        if not isinstance(tree.children[0], lark.Token):
-            raise MalformedTreeSubrelationError
-        return cls(int(tree.children[0]))
-
     # endregion
 
     # region Magic Methods
@@ -465,26 +331,6 @@ class String(Primitive):
             message = "Symbol is not a string"
             raise TypeError(message)
         return cls(symbol.string)
-
-    @classmethod
-    def from_tree(cls, tree: lark.Tree[lark.Token]) -> Self:
-        """Create string from lark tree.
-
-        Args:
-            tree: Tree to transform
-
-        Returns:
-            Corresponding string
-
-        Raises:
-            MalformedTreeSubrelationError: Tree is malformed
-
-        """
-        if tree.data != "string":
-            raise MalformedTreeSubrelationError
-        if not isinstance(tree.children[0], lark.Token):
-            raise MalformedTreeSubrelationError
-        return cls(str(tree.children[0][1:-1]))
 
     # endregion
 
@@ -575,9 +421,6 @@ class Relation:
     arguments: Sequence["Subrelation"] = field(default_factory=tuple)
     "Arguments of the relation."
 
-    parser: ClassVar[lark.Lark] = lark.Lark(grammar=grammar, start="relation")
-    "Parser starting at the relation rule."
-
     @property
     def arity(self) -> int:
         """Arity of the relation."""
@@ -646,94 +489,6 @@ class Relation:
             raise TypeError(message)
         return cls(name=symbol.name, arguments=tuple(Subrelation.from_clingo_symbol(arg) for arg in symbol.arguments))
 
-    @classmethod
-    def from_tree(cls, tree: lark.Tree[lark.Token]) -> Self:
-        """Create a relation from a tree.
-
-        Args:
-            tree: Tree to transform
-
-        Returns:
-            Corresponding relation
-
-        Raises:
-            MalformedTreeSubrelationError: Tree is malformed
-
-        """
-        if tree.data != "relation":
-            raise MalformedTreeSubrelationError
-        if not isinstance(tree.children[0], lark.Tree):
-            raise MalformedTreeSubrelationError
-        if tree.children[0].data == "empty_tuple":
-            return cls()
-        if tree.children[0].data == "tuple":
-            return cls._from_tree_tuple(tree.children[0])
-        # Disables PLR2004 (Magic value used in comparison). Because the tree may only have 1 or 2 children.
-        if not (0 < len(tree.children) < 3):  # noqa: PLR2004
-            raise MalformedTreeSubrelationError
-        # Disables PLR2004 (Magic value used in comparison). Because 1 can only be accessed if the tree has at least 2
-        # children.
-        tuple_child = tree.children[1] if len(tree.children) == 2 else None  # noqa: PLR2004
-        if tree.children[0].data != "atom" or (
-            tuple_child is not None and (not isinstance(tuple_child, lark.Tree) or tuple_child.data != "tuple")
-        ):
-            raise MalformedTreeSubrelationError
-        if tuple_child is None:
-            return cls._from_tree_atom(tree)
-
-        return cls._from_tree_relation(tree, tuple_child.children)
-
-    @classmethod
-    def _from_tree_tuple(cls, tree: lark.Tree[lark.Token]) -> Self:
-        children = tree.children
-        if any(not isinstance(child, lark.Tree) for child in children):
-            raise MalformedTreeSubrelationError
-        return cls(
-            name=None,
-            arguments=tuple(Subrelation.from_tree(child) for child in children if isinstance(child, lark.Tree)),
-        )
-
-    @classmethod
-    def _from_tree_atom(cls, tree: lark.Tree[lark.Token]) -> Self:
-        if not isinstance(tree.children[0], lark.Tree):
-            raise MalformedTreeSubrelationError  # pragma: no cover (cannot happen unless called directly)
-        return cls(name=str(tree.children[0].children[0]))
-
-    @classmethod
-    def _from_tree_relation(
-        cls,
-        tree: lark.Tree[lark.Token],
-        children: Sequence[Union[lark.Token, lark.Tree[lark.Token]]],
-    ) -> Self:
-        if not isinstance(tree.children[0], lark.Tree):
-            raise MalformedTreeSubrelationError  # pragma: no cover (cannot happen unless called directly)
-        if any(not isinstance(child, lark.Tree) for child in children):
-            raise MalformedTreeSubrelationError
-        return cls(
-            name=str(tree.children[0].children[0]),
-            arguments=tuple(Subrelation.from_tree(child) for child in children if isinstance(child, lark.Tree)),
-        )
-
-    @classmethod
-    def from_str(cls, string: str) -> Self:
-        """Parse a relation from a string.
-
-        Args:
-            string: String to parse
-
-        Returns:
-            Corresponding relation
-
-        Raises:
-            ParsingSubrelationError: String cannot be parsed
-
-        """
-        try:
-            tree = cls.parser.parse(string)
-        except (lark.exceptions.ParseError, lark.exceptions.LexError) as error:
-            raise ParsingSubrelationError(string) from error
-        return cls.from_tree(tree)
-
     # endregion
 
     # region Magic Methods
@@ -768,7 +523,7 @@ class Relation:
             True if the signature matches the relation, False otherwise
 
         Examples:
-            >>> r = Relation.from_str("r(a,b)")
+            >>> r = Relation("r", (Subrelation(Number(1)), Subrelation(Number(2))))
             >>> r.matches_signature("r", 2)
             True
             >>> sig = Relation.Signature(name="s", arity=0)
@@ -846,9 +601,6 @@ class Subrelation:
     symbol: Symbol = field(default_factory=Relation)
     "Symbol of the subrelation."
 
-    parser: ClassVar[lark.Lark] = lark.Lark(grammar=grammar, start="subrelation")
-    "Parser starting at the subrelation rule."
-
     @property
     def infix_str(self) -> str:
         """Return the infix string representation of the subrelation.
@@ -900,50 +652,6 @@ class Subrelation:
             symbol.type == clingo.SymbolType.Number or symbol.type == clingo.SymbolType.String
         ), f"Assumption: There are only 3 symbol types. Unknown symbol type {symbol.type}."
         return cls(Primitive.from_clingo_symbol(symbol))
-
-    @classmethod
-    def from_tree(cls, tree: lark.Tree[lark.Token]) -> Self:
-        """Create a subrelation from a lark tree.
-
-        Args:
-            tree: Tree to transform
-
-        Returns:
-            Corresponding subrelation
-
-        Raises:
-            MalformedTreeSubrelationError: Tree is malformed
-
-        """
-        if tree.data != "subrelation":
-            raise MalformedTreeSubrelationError
-        if not isinstance(tree.children[0], lark.Tree):
-            raise MalformedTreeSubrelationError
-        if tree.children[0].data == "primitive":
-            return cls(Primitive.from_tree(tree.children[0]))
-        if tree.children[0].data == "relation":
-            return cls(Relation.from_tree(tree.children[0]))
-        raise MalformedTreeSubrelationError
-
-    @classmethod
-    def from_str(cls, string: str) -> Self:
-        """Parse a subrelation from a string.
-
-        Args:
-            string: String to parse
-
-        Returns:
-            Corresponding subrelation
-
-        Raises:
-            ParsingSubrelationError: String cannot be parsed
-
-        """
-        try:
-            tree = cls.parser.parse(string)
-        except (lark.exceptions.ParseError, lark.exceptions.LexError) as error:
-            raise ParsingSubrelationError(string) from error
-        return cls.from_tree(tree)
 
     # endregion
 
