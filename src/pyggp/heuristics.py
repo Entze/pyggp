@@ -6,14 +6,14 @@ Defines the heuristic types and default heuristics.
 import collections
 from typing import Callable, Mapping, Optional, TypeAlias
 
-from pyggp.gdl import ConcreteRole, State
+from pyggp.interpreters import Role, State
 
-Heuristic: TypeAlias = Callable[[State], Mapping[ConcreteRole, float]]
+Heuristic: TypeAlias = Callable[[State], Mapping[Role, float]]
 """Heuristics map a state to a float for each role."""
 
 
 def get_default_goal_heuristic(
-    *roles: ConcreteRole,
+    *roles: Role,
     lowest_possible_goal: Optional[int] = None,
     highest_possible_goal: Optional[int] = None,
 ) -> Heuristic:
@@ -32,7 +32,7 @@ def get_default_goal_heuristic(
     upper_bound = float(highest_possible_goal or "inf")
 
     # Disables ARG001 (Unused function argument). Because it has to match the Heuristic type.
-    def default_goal_heuristic(state: State) -> Mapping[ConcreteRole, float]:  # noqa: ARG001
+    def default_goal_heuristic(state: State) -> Mapping[Role, float]:  # noqa: ARG001
         return collections.defaultdict(
             lambda: upper_bound,
             {role: lower_bound for role in roles},
@@ -41,7 +41,7 @@ def get_default_goal_heuristic(
     return default_goal_heuristic
 
 
-def get_default_win_heuristic(*roles: ConcreteRole) -> Heuristic:
+def get_default_win_heuristic(*roles: Role) -> Heuristic:
     """Gets a default heuristic that returns -inf for all provided roles and 0 per default.
 
     Args:
@@ -53,7 +53,7 @@ def get_default_win_heuristic(*roles: ConcreteRole) -> Heuristic:
     """
 
     # Disables ARG001 (Unused function argument). Because it has to match the Heuristic type.
-    def default_win_heuristic(state: State) -> Mapping[ConcreteRole, float]:  # noqa: ARG001
+    def default_win_heuristic(state: State) -> Mapping[Role, float]:  # noqa: ARG001
         return collections.defaultdict(float, {role: float("-inf") for role in roles})
 
     return default_win_heuristic
