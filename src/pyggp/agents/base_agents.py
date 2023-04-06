@@ -281,7 +281,10 @@ class HumanAgent(InterpreterAgent):
                     move_idx = int(move_prompt)
             if move_idx is None:
                 with contextlib.suppress(ValueError):
-                    search = Move(gdl.Subrelation(gdl.Relation.from_str(move_prompt)))
+                    tree = gdl.subrelation_parser.parse(move_prompt)
+                    transformation = gdl.transformer.transform(tree)
+                    assert isinstance(transformation, gdl.Subrelation)
+                    search = Move(transformation)
                     move_idx = moves.index(search) + 1
             if move_idx is None or not (1 <= move_idx <= len(moves)):
                 print(f"[red]Invalid move [italic purple]{move_prompt}.")
