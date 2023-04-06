@@ -22,8 +22,8 @@ def test_send_start_raises_on_expired_startclock() -> None:
             actor.send_start(
                 role=role,
                 ruleset=ruleset,
-                startclock_config=startclock_config,
-                playclock_config=playclock_config,
+                startclock_configuration=startclock_config,
+                playclock_configuration=playclock_config,
             )
 
 

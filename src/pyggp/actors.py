@@ -34,27 +34,31 @@ class Actor:
         self,
         role: Role,
         ruleset: gdl.Ruleset,
-        startclock_config: GameClock.Configuration,
-        playclock_config: GameClock.Configuration,
+        startclock_configuration: GameClock.Configuration,
+        playclock_configuration: GameClock.Configuration,
     ) -> None:
         """Sends the start message to the agent.
 
         Args:
             role: Role of the agent
             ruleset: Ruleset of the match
-            startclock_config: Configuration of startclock
-            playclock_config: Configuration of playclock
+            startclock_configuration: Configuration of startclock
+            playclock_configuration: Configuration of playclock
 
         Raises:
             ActorTimeoutError: startclock expired
 
         """
-        self.startclock = GameClock.from_configuration(startclock_config)
+        self.startclock = GameClock.from_configuration(startclock_configuration)
         with self.startclock:
-            self.playclock = GameClock.from_configuration(playclock_config)
-            self._send_start(role, ruleset, startclock_config, playclock_config)
+            self.playclock = GameClock.from_configuration(playclock_configuration)
+            self._send_start(role, ruleset, startclock_configuration, playclock_configuration)
         if self.startclock.is_expired:
-            raise TimeoutActorError
+            raise TimeoutActorError(
+                available_time=startclock_configuration.total_time + startclock_configuration.delay,
+                delta=self.startclock.last_delta,
+                role=role,
+            )
 
     def _send_start(
         self,

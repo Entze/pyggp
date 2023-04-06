@@ -27,19 +27,27 @@ class PlayclockIsNoneActorError(ActorError):
 class TimeoutActorError(ActorError):
     """Gameclock timed out."""
 
-    def __init__(self, delta: Optional[float] = None, available_time: Optional[float] = None) -> None:
+    def __init__(
+        self,
+        *,
+        available_time: Optional[float] = None,
+        delta: Optional[float] = None,
+        role: Optional[Role] = None,
+    ) -> None:
         """Initializes ActorTimeoutError.
 
         Args:
             delta: Seconds elapsed
             available_time: Seconds that were available
+            role: Role of the actor that timed out
 
         """
-        delta_message = f" procedure finished after {format_timedelta(delta)}" if delta is not None else ""
         available_time_message = (
             f" exceeding the available time of {format_timedelta(available_time)}" if available_time is not None else ""
         )
-        message = f"Timeout{delta_message}{available_time_message}"
+        delta_message = f" procedure finished after {format_timedelta(delta)}" if delta is not None else ""
+        role_message = f" by role {role}" if role is not None else ""
+        message = f"Timeout{role_message}{delta_message}{available_time_message}"
         super().__init__(message)
 
 

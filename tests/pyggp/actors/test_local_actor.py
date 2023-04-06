@@ -25,8 +25,8 @@ def test_send_start() -> None:
     actor.send_start(
         role=role,
         ruleset=ruleset,
-        startclock_config=startclock_config,
-        playclock_config=playclock_config,
+        startclock_configuration=startclock_config,
+        playclock_configuration=playclock_config,
     )
     agent.prepare_match.assert_called_once_with(
         role,
@@ -43,8 +43,8 @@ def test_send_start_raises_on_no_agent() -> None:
         actor.send_start(
             role=mock.MagicMock(),
             ruleset=mock.MagicMock(),
-            startclock_config=mock.MagicMock(),
-            playclock_config=mock.MagicMock(),
+            startclock_configuration=mock.MagicMock(),
+            playclock_configuration=mock.MagicMock(),
         )
 
 
