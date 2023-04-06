@@ -2,13 +2,10 @@ import importlib
 import logging
 from typing import Callable, Collection, Iterable, Iterator, Optional, Tuple, Type, TypeVar
 
+import pyggp.game_description_language as gdl
 from pyggp.agents import Agent, ArbitraryAgent, HumanAgent, RandomAgent
 from pyggp.exceptions.cli_exceptions import AgentNotFoundCLIError, RolesMismatchCLIError, RulesetNotFoundCLIError
-from pyggp.games import minipoker_ruleset as minipoker
-from pyggp.games import nim_ruleset as nim
-from pyggp.games import rock_paper_scissors_ruleset as rock_paper_scissors
-from pyggp.games import tic_tac_toe_ruleset as tic_tac_toe
-from pyggp.gdl import ConcreteRole, Ruleset
+from pyggp.interpreters import Role
 
 _INFO_VERBOSITY = 0
 _WARNING_VERBOSITY = -1
@@ -77,16 +74,7 @@ def parse_registry(
         yield key, value
 
 
-def load_ruleset(ruleset_resource: str) -> Ruleset:
-    rrl = ruleset_resource.lower()
-    if rrl == "nim":
-        return nim
-    if rrl == "tic-tac-toe":
-        return tic_tac_toe
-    if rrl == "rock-paper-scissors":
-        return rock_paper_scissors
-    if rrl == "minipoker":
-        return minipoker
+def load_ruleset(ruleset_resource: str) -> gdl.Ruleset:
     raise RulesetNotFoundCLIError(ruleset_resource) from None
 
 
@@ -95,6 +83,13 @@ _BUILTIN_AGENTS = {
     "random": RandomAgent,
     "arbitrary": ArbitraryAgent,
 }
+
+
+def get_role_from_str(string: str) -> Role:
+    tree = gdl.subrelation_parser.parse(string)
+    transformation = gdl.transformer.transform(tree)
+    assert isinstance(transformation, gdl.Subrelation)
+    return Role(transformation)
 
 
 def get_agentname_from_str(string: str) -> str:
@@ -120,6 +115,6 @@ def load_agent_by_name(name: str) -> Type[Agent]:
     return agent_type
 
 
-def check_roles(required_roles: Collection[ConcreteRole], received_roles: Collection[ConcreteRole]) -> None:
+def check_roles(required_roles: Collection[Role], received_roles: Collection[Role]) -> None:
     if set(required_roles) != set(received_roles):
         raise RolesMismatchCLIError(required_roles, received_roles)

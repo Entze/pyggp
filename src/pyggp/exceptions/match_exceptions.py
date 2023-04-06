@@ -2,7 +2,7 @@
 from typing import Optional
 
 from pyggp.actors import Actor
-from pyggp.gdl import Move, Role
+from pyggp.interpreters import Move, Role
 
 
 class MatchError(Exception):
@@ -16,7 +16,7 @@ class AbortedMatchError(MatchError):
 class DidNotStartMatchError(AbortedMatchError):
     """Match did not start."""
 
-    def __init__(self, /, actor: Optional[Role], role: Optional[Role] = None) -> None:
+    def __init__(self, *, actor: Optional[Actor], role: Optional[Role] = None) -> None:
         """Initializes DidNotStartMatchError.
 
         Args:
@@ -35,7 +35,7 @@ class DidNotFinishMatchError(AbortedMatchError):
 
     def __init__(
         self,
-        /,
+        *,
         actor: Optional[Actor] = None,
         ply: Optional[int] = None,
         reason: Optional[str] = None,
@@ -63,7 +63,7 @@ class TimeoutMatchError(DidNotFinishMatchError):
 
     def __init__(
         self,
-        /,
+        *,
         actor: Optional[Actor] = None,
         ply: Optional[int] = None,
         role: Optional[Role] = None,
@@ -84,7 +84,7 @@ class IllegalMoveMatchError(DidNotFinishMatchError):
 
     def __init__(
         self,
-        /,
+        *,
         actor: Optional[Actor] = None,
         move: Optional[Move] = None,
         ply: Optional[int] = None,

@@ -1,4 +1,5 @@
 import contextlib
+from dataclasses import dataclass
 from typing import (
     Mapping,
     Sequence,
@@ -7,37 +8,49 @@ from typing import (
 
 import exceptiongroup
 from exceptiongroup import ExceptionGroup
-from typing_extensions import TypedDict
 
+import pyggp.game_description_language as gdl
 from pyggp._logging import log
 from pyggp.actors import LocalActor
 from pyggp.agents import Agent, HumanAgent
-from pyggp.cli._common import check_roles, get_agentname_from_str, load_agent_by_name, load_ruleset, parse_registry
-from pyggp.exceptions.match_exceptions import DidNotFinishMatchError, DidNotStartMatchError
-from pyggp.gameclocks import GameClockConfiguration
-from pyggp.gdl import ConcreteRole, Relation, Ruleset, get_concrete_role_from_str
-from pyggp.interpreters import ClingoInterpreter, Interpreter
-from pyggp.match import Match, MatchConfiguration
-from pyggp.visualizers import SimpleRichVisualizer, Visualizer
+from pyggp.cli._common import (
+    check_roles,
+    get_agentname_from_str,
+    get_role_from_str,
+    load_agent_by_name,
+    load_ruleset,
+    parse_registry,
+)
+from pyggp.exceptions.match_exceptions import DidNotStartMatchError
+from pyggp.gameclocks import (
+    DEFAULT_NO_TIMEOUT_CONFIGURATION,
+    DEFAULT_PLAY_CLOCK_CONFIGURATION,
+    DEFAULT_START_CLOCK_CONFIGURATION,
+    GameClock,
+)
+from pyggp.interpreters import RANDOM, ClingoInterpreter, Interpreter, Role
+from pyggp.match import Match
+from pyggp.visualizers import SimpleVisualizer, Visualizer
 
 
-class MatchParams(TypedDict):
-    ruleset: Ruleset
+@dataclass(frozen=True)
+class MatchCommandParams:
+    ruleset: gdl.Ruleset
     interpreter: Interpreter
-    role_agentname_map: Mapping[ConcreteRole, str]
+    role_agentname_map: Mapping[Role, str]
     agentname_agenttype_map: Mapping[str, Type[Agent]]
-    role_startclockconfig_map: Mapping[ConcreteRole, GameClockConfiguration]
-    role_playclockconfig_map: Mapping[ConcreteRole, GameClockConfiguration]
+    role_startclockconfig_map: Mapping[Role, GameClock.Configuration]
+    role_playclockconfig_map: Mapping[Role, GameClock.Configuration]
     visualizer: Visualizer
 
 
-def handle_match_args(
+def handle_match_command_args(
     *,
     ruleset_str: str,
     role_agentname_registry: Sequence[str],
     role_startclockconfig_registry: Sequence[str],
     role_playclockconfig_registry: Sequence[str],
-) -> MatchParams:
+) -> MatchCommandParams:
     log.debug("Fetching ruleset")
     ruleset = load_ruleset(ruleset_str)
 
@@ -48,14 +61,14 @@ def handle_match_args(
     log.debug("Mapping roles to agent names")
     role_agentname_map = {role: "Human" for role in roles}
 
-    if Relation.random() in roles:
-        role_agentname_map[Relation.random()] = "Random"
+    if RANDOM in roles:
+        role_agentname_map[RANDOM] = "Random"
 
     role_agentname_map.update(
         parse_registry(
             registry=role_agentname_registry,
             default_value="Human",
-            str_to_key=get_concrete_role_from_str,
+            str_to_key=get_role_from_str,
             str_to_value=get_agentname_from_str,
         ),
     )
@@ -65,34 +78,34 @@ def handle_match_args(
     agentname_agenttype_map = {agentname: load_agent_by_name(agentname) for agentname in role_agentname_map.values()}
 
     log.debug("Mapping clock configs to roles")
-    role_startclockconfig_map = {role: GameClockConfiguration.default_startclock_config() for role in roles}
-    role_playclockconfig_map = {role: GameClockConfiguration.default_playclock_config() for role in roles}
+    role_startclockconfig_map = {role: DEFAULT_START_CLOCK_CONFIGURATION for role in roles}
+    role_playclockconfig_map = {role: DEFAULT_PLAY_CLOCK_CONFIGURATION for role in roles}
     for role, agentname in role_agentname_map.items():
-        if agentname == "Human" or role == Relation.random():
-            role_startclockconfig_map[role] = GameClockConfiguration.default_no_timeout_config()
-            role_playclockconfig_map[role] = GameClockConfiguration.default_no_timeout_config()
+        if agentname == "Human" or role == RANDOM:
+            role_startclockconfig_map[role] = DEFAULT_NO_TIMEOUT_CONFIGURATION
+            role_playclockconfig_map[role] = DEFAULT_NO_TIMEOUT_CONFIGURATION
 
     role_playclockconfig_map.update(
         parse_registry(
             role_startclockconfig_registry,
-            default_value=GameClockConfiguration.default_playclock_config(),
-            str_to_key=get_concrete_role_from_str,
-            str_to_value=GameClockConfiguration.from_str,
+            default_value=DEFAULT_PLAY_CLOCK_CONFIGURATION,
+            str_to_key=get_role_from_str,
+            str_to_value=GameClock.Configuration.from_str,
         ),
     )
     role_startclockconfig_map.update(
         parse_registry(
             role_playclockconfig_registry,
-            default_value=GameClockConfiguration.default_startclock_config(),
-            str_to_key=get_concrete_role_from_str,
-            str_to_value=GameClockConfiguration.from_str,
+            default_value=DEFAULT_START_CLOCK_CONFIGURATION,
+            str_to_key=get_role_from_str,
+            str_to_value=GameClock.Configuration.from_str,
         ),
     )
 
     log.debug("Instantiating visualizer")
-    visualizer = SimpleRichVisualizer()
+    visualizer = SimpleVisualizer()
 
-    return MatchParams(
+    return MatchCommandParams(
         ruleset=ruleset,
         interpreter=interpreter,
         role_agentname_map=role_agentname_map,
@@ -123,54 +136,54 @@ def run_match(
             DidNotStartMatchError: _match_error_handler,  # type: ignore[dict-item]
         },
     ):
-        match.start_match()
+        match.start()
         visualizer.update_state(match.states[0], 0)
         aborted = False
 
     if aborted:
         visualizer.update_abort()
 
-    while not match.is_finished and not aborted:
-        visualizer.draw()
-        aborted = True
-        # Disables PyCharms PyTypeChecker. Because exceptiongroup seems not to be typed correctly.
-        # noinspection PyTypeChecker
-        with exceptiongroup.catch(
-            {
-                # Disables mypy dict-item. Because exceptiongroup seems not to be typed correctly.
-                DidNotFinishMatchError: _match_error_handler,  # type: ignore[dict-item]
-            },
-        ):
-            match.execute_ply()
-            aborted = False
-
-        if not aborted:
-            visualizer.update_state(match.states[-1])
-            visualizer.draw()
-        else:
-            visualizer.update_abort()
-
-    if not aborted:
-        log.debug("Concluded %s", match)
-        match.conclude_match()
-    else:
-        log.debug("Aborted %s", match)
-        match.abort_match()
-
-    for move_nr, state in enumerate(match.states):
-        visualizer.update_state(state, move_nr)
-
-    visualizer.update_result(match.get_result())
-    visualizer.draw()
+    # while not match.is_finished and not aborted:
+    #     visualizer.draw()
+    #     aborted = True
+    #     # Disables PyCharms PyTypeChecker. Because exceptiongroup seems not to be typed correctly.
+    #     # noinspection PyTypeChecker
+    #     with exceptiongroup.catch(
+    #         {
+    #             # Disables mypy dict-item. Because exceptiongroup seems not to be typed correctly.
+    #             DidNotFinishMatchError: _match_error_handler,  # type: ignore[dict-item]
+    #         },
+    #     ):
+    #         match.execute_ply()
+    #         aborted = False
+    #
+    #     if not aborted:
+    #         visualizer.update_state(match.states[-1])
+    #         visualizer.draw()
+    #     else:
+    #         visualizer.update_abort()
+    #
+    # if not aborted:
+    #     log.debug("Concluded %s", match)
+    #     match.conclude_match()
+    # else:
+    #     log.debug("Aborted %s", match)
+    #     match.abort_match()
+    #
+    # for move_nr, state in enumerate(match.states):
+    #     visualizer.update_state(state, move_nr)
+    #
+    # visualizer.update_result(match.get_result())
+    # visualizer.draw()
 
 
 def run_local_match(
-    ruleset: Ruleset,
+    ruleset: gdl.Ruleset,
     interpreter: Interpreter,
     agentname_agenttype_map: Mapping[str, Type[Agent]],
-    role_agentname_map: Mapping[ConcreteRole, str],
-    role_startclockconfig_map: Mapping[ConcreteRole, GameClockConfiguration],
-    role_playclockconfig_map: Mapping[ConcreteRole, GameClockConfiguration],
+    role_agentname_map: Mapping[Role, str],
+    role_startclockconfig_map: Mapping[Role, GameClock.Configuration],
+    role_playclockconfig_map: Mapping[Role, GameClock.Configuration],
     visualizer: Visualizer,
 ) -> None:
     log.debug("Started orchestrating match")
@@ -200,14 +213,13 @@ def run_local_match(
             actors.append(actor)
             role_actor_map[role] = actor
 
-        match_configuration = MatchConfiguration(
+        match = Match(
             ruleset=ruleset,
             interpreter=interpreter,
             role_actor_map=role_actor_map,
-            role_startclockconfig_map=role_startclockconfig_map,
-            role_playclockconfig_map=role_playclockconfig_map,
+            role_startclock_configuration_map=role_startclockconfig_map,
+            role_playclock_configuration_map=role_playclockconfig_map,
         )
-        match = Match(match_configuration)
         run_match(match, visualizer)
 
     log.info("Finished orchestrating %s", match)

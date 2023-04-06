@@ -1,7 +1,7 @@
 """Exceptions regarding the command line interface."""
 from typing import Iterable, Optional
 
-from pyggp.gdl import ConcreteRole
+from pyggp.interpreters import Role
 
 
 class CLIError(Exception):
@@ -29,8 +29,8 @@ class RolesMismatchCLIError(CLIError):
 
     def __init__(
         self,
-        ruleset_roles: Optional[Iterable[ConcreteRole]] = None,
-        registry_roles: Optional[Iterable[ConcreteRole]] = None,
+        ruleset_roles: Optional[Iterable[Role]] = None,
+        registry_roles: Optional[Iterable[Role]] = None,
     ) -> None:
         """Initializes RolesMismatchCLIError.
 

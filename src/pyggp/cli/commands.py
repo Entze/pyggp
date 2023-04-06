@@ -10,7 +10,7 @@ from pyggp.cli._common import (
 )
 from pyggp.cli._main import version_callback
 from pyggp.cli._match import (
-    handle_match_args,
+    handle_match_command_args,
     run_local_match,
 )
 
@@ -63,7 +63,7 @@ def match(
     assert startclock is not None, "Assumption: Typer guarantees startclock is at least the emtpy list"
     assert playclock is not None, "Assumption: Typer guarantees playclock is at least the emtpy list"
 
-    match_params = handle_match_args(
+    match_params = handle_match_command_args(
         ruleset_str=ruleset,
         role_agentname_registry=registry,
         role_startclockconfig_registry=startclock,
@@ -73,5 +73,11 @@ def match(
     log.debug("Parameters: %s", match_params)
 
     run_local_match(
-        **match_params,
+        ruleset=match_params.ruleset,
+        interpreter=match_params.interpreter,
+        agentname_agenttype_map=match_params.agentname_agenttype_map,
+        role_agentname_map=match_params.role_agentname_map,
+        role_startclockconfig_map=match_params.role_startclockconfig_map,
+        role_playclockconfig_map=match_params.role_playclockconfig_map,
+        visualizer=match_params.visualizer,
     )
