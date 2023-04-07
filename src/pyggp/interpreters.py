@@ -1,13 +1,16 @@
 """Interpreters for GDL rulesets."""
 import collections
+import functools
 import time
 from dataclasses import dataclass, field
 from typing import (
+    Callable,
     Final,
     FrozenSet,
     Iterator,
     Mapping,
     MutableMapping,
+    MutableSequence,
     NamedTuple,
     NewType,
     Optional,
@@ -23,6 +26,7 @@ import clingox.backend as clingox_backend
 from typing_extensions import Self
 
 import pyggp.game_description_language as gdl
+from pyggp._logging import log
 from pyggp.exceptions.interpreter_exceptions import (
     ModelTimeoutInterpreterError,
     MoreThanOneModelInterpreterError,
@@ -120,6 +124,15 @@ class Turn(Mapping[Role, Move]):
         for role, _ in self._role_move_pairs:
             yield role
 
+    def as_plays(self) -> FrozenSet[Play]:
+        """Return the plays of the turn.
+
+        Returns:
+            Plays of the turn
+
+        """
+        return frozenset(Play(gdl.Relation("does", arguments=(role, move))) for role, move in self._role_move_pairs)
+
 
 class Record(NamedTuple):
     """Record (possibly partial) of a game."""
@@ -153,7 +166,7 @@ class Interpreter:
 
     """
 
-    ruleset: gdl.Ruleset = field(default_factory=gdl.Ruleset)
+    ruleset: gdl.Ruleset = field(default_factory=gdl.Ruleset, repr=False)
     """The ruleset to interpret."""
 
     @property
@@ -373,8 +386,8 @@ class ClingoInterpreter(Interpreter):
         goal_rules: Sequence[clingo_ast.AST] = field(default_factory=tuple)
         terminal_rules: Sequence[clingo_ast.AST] = field(default_factory=tuple)
 
-        static_rules: Sequence[clingo_ast.AST] = field(init=False)
-        dynamic_rules: Sequence[clingo_ast.AST] = field(init=False)
+        static_rules: Sequence[clingo_ast.AST] = field(default_factory=tuple, init=False)
+        dynamic_rules: Sequence[clingo_ast.AST] = field(default_factory=tuple, init=False)
 
         @classmethod
         def from_ruleset(cls, ruleset: gdl.Ruleset) -> Self:
@@ -392,11 +405,43 @@ class ClingoInterpreter(Interpreter):
         """Raised when the query is unsatisfiable."""
 
     # endregion
+
+    # region Attributes and Properties
+
     model_timeout: float = 8.0
     """Timeout for the model query in seconds."""
     solve_timeout: float = 10.0
     """Timeout for all model queries in seconds."""
-    _rules: _ClingoASTRules = field(default_factory=_ClingoASTRules)
+    _rules: _ClingoASTRules = field(default_factory=_ClingoASTRules, repr=False)
+
+    # endregion
+
+    # region Constructors
+
+    @classmethod
+    def from_ruleset(cls, ruleset: gdl.Ruleset, *, model_timeout: float = 8.0, solve_timeout: float = 10.0) -> Self:
+        """Create a ClingoInterpreter from a ruleset.
+
+        Args:
+            ruleset: Ruleset to create the interpreter from
+            model_timeout: Timeout for the model query in seconds (default: 8.0)
+            solve_timeout: Timeout for total solve call in seconds (default: 10.0)
+
+        Returns:
+            ClingoInterpreter
+
+        """
+        return cls(
+            ruleset=ruleset,
+            model_timeout=model_timeout,
+            solve_timeout=solve_timeout,
+            # Disables SLF001 ( Private member accessed). Because this its own inner class.
+            _rules=ClingoInterpreter._ClingoASTRules.from_ruleset(ruleset),  # noqa: SLF001
+        )
+
+    # endregion
+
+    # region Methods
 
     def get_roles(self) -> FrozenSet[Role]:
         """Return the roles in the game.
@@ -410,7 +455,7 @@ class ClingoInterpreter(Interpreter):
             UnsatRolesInterpreterError: The role sentences are unsatisfiable
 
         """
-        ctl = ClingoInterpreter.get_ctl(rules=self._rules.roles_rules)
+        ctl = ClingoInterpreter.get_ctl(rules=self._rules.roles_rules, context="get_roles")
         try:
             model = self._get_model(ctl)
             roles = frozenset(
@@ -432,7 +477,7 @@ class ClingoInterpreter(Interpreter):
             UnsatInitInterpreterError: The init sentences are unsatisfiable
 
         """
-        ctl = ClingoInterpreter.get_ctl(rules=self._rules.init_rules)
+        ctl = ClingoInterpreter.get_ctl(rules=self._rules.init_rules, context="get_init_state")
         model = self._get_model(ctl)
         try:
             state = State(
@@ -460,7 +505,12 @@ class ClingoInterpreter(Interpreter):
             UnsatNextInterpreterError: The next sentences are unsatisfiable
 
         """
-        ctl = ClingoInterpreter.get_ctl(state=current, plays=plays, rules=self._rules.next_rules)
+        ctl = ClingoInterpreter.get_ctl(
+            state=current,
+            plays=plays,
+            rules=self._rules.next_rules,
+            context="get_next_state",
+        )
         model = self._get_model(ctl)
         try:
             state = State(
@@ -492,7 +542,9 @@ class ClingoInterpreter(Interpreter):
             :meth:`get_sees_by_role`
 
         """
-        ctl = ClingoInterpreter.get_ctl(state=current, rules=self._rules.sees_rules)
+        if not self.has_incomplete_information:
+            return {role: View(current) for role in self.get_roles()}
+        ctl = ClingoInterpreter.get_ctl(state=current, rules=self._rules.sees_rules, context="get_sees")
         model = self._get_model(ctl)
         try:
             symbols = tuple(model)
@@ -523,7 +575,7 @@ class ClingoInterpreter(Interpreter):
             :meth:`is_legal`
 
         """
-        ctl = ClingoInterpreter.get_ctl(state=current, rules=self._rules.legal_rules)
+        ctl = ClingoInterpreter.get_ctl(state=current, rules=self._rules.legal_rules, context="get_legal_moves")
         model = self._get_model(ctl)
         try:
             symbols = tuple(model)
@@ -554,7 +606,7 @@ class ClingoInterpreter(Interpreter):
             :meth:`get_goal_by_role`
 
         """
-        ctl = ClingoInterpreter.get_ctl(state=current, rules=self._rules.goal_rules)
+        ctl = ClingoInterpreter.get_ctl(state=current, rules=self._rules.goal_rules, context="get_goals")
         model = self._get_model(ctl)
         try:
             symbols = tuple(model)
@@ -579,11 +631,12 @@ class ClingoInterpreter(Interpreter):
             True if the given state is terminal, False otherwise
 
         """
-        ctl = ClingoInterpreter.get_ctl(state=current, rules=self._rules.terminal_rules)
+        ctl = ClingoInterpreter.get_ctl(state=current, rules=self._rules.terminal_rules, context="is_terminal")
         with clingox_backend.SymbolicBackend(ctl.backend()) as backend:
             backend.add_rule(neg_body=(clingo.Function("terminal", []),))
+        model = self._get_model(ctl)
         try:
-            self._get_model(ctl)
+            next(model, None)
         except ClingoInterpreter.Unsat:
             return False
         return True
@@ -629,11 +682,41 @@ class ClingoInterpreter(Interpreter):
             if model is not None:
                 raise MoreThanOneModelInterpreterError
 
+    # endregion
+
+    # region Static Methods
+
+    @staticmethod
+    def _get_log(context: Optional[str] = None) -> Callable[[clingo.MessageCode, str], None]:
+        # Disables SLF001 ( Private member accessed). Because this its own static method.
+        logger = functools.partial(ClingoInterpreter._log, context=context)  # noqa: SLF001
+        assert callable(logger)
+        # noinspection PyTypeChecker
+        return logger
+
+    @staticmethod
+    def _log(message_code: clingo.MessageCode, message: str, context: Optional[str] = None) -> None:
+        if message_code in (
+            clingo.MessageCode.OperationUndefined,
+            clingo.MessageCode.RuntimeError,
+            clingo.MessageCode.VariableUnbounded,
+        ):
+            log.error("%s%s", f"{context}: " if context is not None else "", message)
+        elif message_code in (
+            clingo.MessageCode.AtomUndefined,
+            clingo.MessageCode.GlobalVariable,
+            clingo.MessageCode.Other,
+        ):
+            log.warning("%s%s", f"{context}: " if context is not None else "", message)
+        else:
+            log.debug("%s%s", f"{context}: " if context is not None else "", message)
+
     @staticmethod
     def get_ctl(
         state: Union[State, View, None] = None,
         plays: Sequence[Play] = (),
         rules: Sequence[clingo_ast.AST] = (),
+        context: Optional[str] = None,
     ) -> clingo.Control:
         """Return a clingo control object with the given state, plays and rules.
 
@@ -643,32 +726,43 @@ class ClingoInterpreter(Interpreter):
             state: State or view to be added to the control object
             plays: Plays to be added to the control object
             rules: Rules to be added to the control object
+            context: Context in which the control object is used
 
         Returns:
             A clingo control object with the given state, plays and rules
 
         """
-        ctl = clingo.Control()
+        # Disables SLF001 ( Private member accessed). Because this its own static method.
+        ctl = clingo.Control(logger=ClingoInterpreter._get_log(context=context))  # noqa: SLF001
         # Disables mypy. Because clingo does not define types for configuration options.
         ctl.configuration.solve.models = 2  # type: ignore[union-attr]
-        if state is not None and state:
-            with clingox_backend.SymbolicBackend(ctl.backend()) as backend:
-                for subrelation in state:
-                    head = clingo.Function("true", arguments=(subrelation.as_clingo_symbol(),))
-                    backend.add_rule(head=(head,))
 
-        if plays:
-            with clingox_backend.SymbolicBackend(ctl.backend()) as backend:
-                for play in plays:
-                    head = play.as_clingo_symbol()
-                    backend.add_rule(head=(head,))
+        asp_rules: MutableSequence[str] = []
 
         if rules:
             with clingo_ast.ProgramBuilder(ctl) as builder:
                 for rule in rules:
                     builder.add(rule)
+                    asp_rules.append(str(rule))
+
+        with clingox_backend.SymbolicBackend(ctl.backend()) as backend:
+            if state is not None and state:
+                for subrelation in state:
+                    head = clingo.Function("true", arguments=(subrelation.as_clingo_symbol(),))
+                    backend.add_rule(head=(head,))
+                    asp_rules.append(f"{head}.")
+
+            if plays:
+                for play in plays:
+                    head = play.as_clingo_symbol()
+                    backend.add_rule(head=(head,))
+                    asp_rules.append(f"{head}.")
+
+        log.debug("Created control object with the following rules: %s", " ".join(asp_rules))
 
         return ctl
+
+    # endregion
 
 
 #
