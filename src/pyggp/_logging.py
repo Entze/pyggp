@@ -56,7 +56,8 @@ _ONE_HUNDRED_MILLISECONDS_IN_S: Final[float] = 0.1
 _ONE_MILLISECOND_IN_S: Final[float] = 0.001
 
 
-def format_timedelta(delta: Union[float, int, datetime.timedelta]) -> str:
+# Disables PLR0911 (too many return statements). Because: This is a function with many exceptional cases.
+def format_timedelta(delta: Union[float, int, datetime.timedelta]) -> str:  # noqa: PLR0911
     """Format a timedelta as a human-readable string.
 
     Args:
@@ -82,6 +83,8 @@ def format_timedelta(delta: Union[float, int, datetime.timedelta]) -> str:
         '2:31:13'
 
     """
+    if delta == float("inf"):
+        return "∞s"
     if isinstance(delta, (float, int)):
         delta = datetime.timedelta(seconds=delta)
     assert isinstance(delta, datetime.timedelta)
