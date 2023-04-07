@@ -11,7 +11,7 @@ import rich.prompt
 from rich import print
 
 import pyggp.game_description_language as gdl
-from pyggp._logging import format_timedelta, log
+from pyggp._logging import log
 from pyggp.exceptions.agent_exceptions import InterpreterIsNoneInterpreterAgentError, RoleIsNoneInterpreterAgentError
 from pyggp.gameclocks import GameClock
 from pyggp.interpreters import ClingoInterpreter, Interpreter, Move, Role, View
@@ -238,7 +238,8 @@ class RandomAgent(InterpreterAgent):
 class HumanAgent(InterpreterAgent):
     """Agent that asks the user for a move."""
 
-    def calculate_move(self, ply: int, total_time_ns: int, view: View) -> Move:
+    # Disables ARG002 (Unused method argument). Because: Implements abstract method.
+    def calculate_move(self, ply: int, total_time_ns: int, view: View) -> Move:  # noqa: ARG002
         """Calculates the next move.
 
         Args:
@@ -250,13 +251,6 @@ class HumanAgent(InterpreterAgent):
             Move
 
         """
-        log.info(
-            "Calculating move %d for %s, view=%s, total_time=%s",
-            ply,
-            self,
-            view,
-            format_timedelta(total_time_ns / 1e9),
-        )
         if self._interpreter is None:
             raise InterpreterIsNoneInterpreterAgentError
         if self._role is None:
@@ -276,7 +270,7 @@ class HumanAgent(InterpreterAgent):
             with ctx:
                 console.print("Legal moves:")
                 console.print("\n".join(f"\t[{n + 1}] {move}" for n, move in enumerate(moves)))
-            move_prompt: str = rich.prompt.Prompt.ask("> ", default="1")
+            move_prompt: str = rich.prompt.Prompt.ask(f"> (1-{len(moves)})", default="1", show_default=False)
             if move_idx is None:
                 with contextlib.suppress(ValueError):
                     move_idx = int(move_prompt)
