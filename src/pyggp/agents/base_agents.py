@@ -162,7 +162,7 @@ class InterpreterAgent(Agent, abc.ABC):
         self._ruleset = ruleset
         self._startclock_config = startclock_config
         self._playclock_config = playclock_config
-        self._interpreter = ClingoInterpreter(ruleset)
+        self._interpreter = ClingoInterpreter.from_ruleset(ruleset)
 
     def conclude_match(self, view: View) -> None:
         """Concludes the current match.
