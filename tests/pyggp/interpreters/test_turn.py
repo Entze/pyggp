@@ -1,8 +1,8 @@
-from typing import Mapping
+from typing import FrozenSet, Mapping
 
 import pytest
 from pyggp.game_description_language import Number, Relation, Subrelation
-from pyggp.interpreters import Move, Role, Turn
+from pyggp.interpreters import Move, Play, Role, Turn
 
 
 @pytest.mark.parametrize(
@@ -86,4 +86,28 @@ def test_dunder_len(turn: Turn, expected: int) -> None:
 )
 def test_dunder_iter(turn: Turn, expected: tuple) -> None:
     actual = tuple(turn)
+    assert actual == expected
+
+
+@pytest.mark.parametrize(
+    ("turn", "expected"),
+    [
+        (Turn(frozenset()), frozenset()),
+        (
+            Turn(frozenset({(Role(Subrelation(Relation("x"))), Move(Subrelation(Relation("move"))))})),
+            frozenset(
+                {
+                    Play(
+                        Relation(
+                            "does",
+                            arguments=(Role(Subrelation(Relation("x"))), Move(Subrelation(Relation("move")))),
+                        ),
+                    ),
+                },
+            ),
+        ),
+    ],
+)
+def test_as_plays(turn: Turn, expected: FrozenSet[Play]) -> None:
+    actual = turn.as_plays()
     assert actual == expected
