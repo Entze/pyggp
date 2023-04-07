@@ -97,4 +97,9 @@ class SimpleVisualizer(Visualizer):
             return
         state = self._states[ply]
         assert state is not None
-        print(f"{ply}: ", set(state))
+        print(f"{ply}: {'{'} ", end="")
+        for n, symbol in enumerate(sorted(state)):
+            print(symbol, end="")
+            if n < len(state) - 1:
+                print(", ", end="")
+        print(" }")
