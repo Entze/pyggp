@@ -1,6 +1,9 @@
 import importlib
 import logging
-from typing import Callable, Collection, Iterable, Iterator, Optional, Tuple, Type, TypeVar
+import pathlib
+from typing import Callable, Collection, Iterable, Iterator, Optional, Sequence, Tuple, Type, TypeVar
+
+import rich.progress as rich_progress
 
 import pyggp.game_description_language as gdl
 from pyggp.agents import Agent, ArbitraryAgent, HumanAgent, RandomAgent
@@ -74,8 +77,20 @@ def parse_registry(
         yield key, value
 
 
-def load_ruleset(ruleset_resource: str) -> gdl.Ruleset:
-    raise RulesetNotFoundCLIError(ruleset_resource) from None
+def load_ruleset(files: Sequence[pathlib.Path]) -> gdl.Ruleset:
+    rules_strs = []
+    for file in rich_progress.track(files, description="Loading files", transient=True):
+        if not file.exists() or not file.is_file():
+            raise RulesetNotFoundCLIError(file)
+        try:
+            rules_strs.append(file.read_text())
+        except OSError as read_error:
+            raise RulesetNotFoundCLIError(file) from read_error
+    rules_str = "\n".join(rules_strs)
+    tree = gdl.ruleset_parser.parse(rules_str)
+    ruleset = gdl.transformer.transform(tree)
+    assert isinstance(ruleset, gdl.Ruleset)
+    return ruleset
 
 
 _BUILTIN_AGENTS = {

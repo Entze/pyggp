@@ -1,4 +1,5 @@
 import contextlib
+import pathlib
 from dataclasses import dataclass
 from typing import (
     Mapping,
@@ -21,7 +22,7 @@ from pyggp.cli._common import (
     load_ruleset,
     parse_registry,
 )
-from pyggp.exceptions.match_exceptions import DidNotStartMatchError
+from pyggp.exceptions.match_exceptions import DidNotFinishMatchError, DidNotStartMatchError
 from pyggp.gameclocks import (
     DEFAULT_NO_TIMEOUT_CONFIGURATION,
     DEFAULT_PLAY_CLOCK_CONFIGURATION,
@@ -46,16 +47,16 @@ class MatchCommandParams:
 
 def handle_match_command_args(
     *,
-    ruleset_str: str,
+    files: Sequence[pathlib.Path],
     role_agentname_registry: Sequence[str],
     role_startclockconfig_registry: Sequence[str],
     role_playclockconfig_registry: Sequence[str],
 ) -> MatchCommandParams:
     log.debug("Fetching ruleset")
-    ruleset = load_ruleset(ruleset_str)
+    ruleset = load_ruleset(files)
 
     log.debug("Instantiating interpreter")
-    interpreter = ClingoInterpreter(ruleset=ruleset)
+    interpreter = ClingoInterpreter.from_ruleset(ruleset=ruleset)
     roles = interpreter.get_roles()
 
     log.debug("Mapping roles to agent names")
@@ -126,7 +127,7 @@ def run_match(
     match: Match,
     visualizer: Visualizer,
 ) -> None:
-    log.info("Starting %s", match)
+    log.debug("Starting %s", match)
     aborted = True
     # Disables PyCharms PyTypeChecker. Because exceptiongroup seems not to be typed correctly.
     # noinspection PyTypeChecker
@@ -143,25 +144,25 @@ def run_match(
     if aborted:
         visualizer.update_abort()
 
-    # while not match.is_finished and not aborted:
-    #     visualizer.draw()
-    #     aborted = True
-    #     # Disables PyCharms PyTypeChecker. Because exceptiongroup seems not to be typed correctly.
-    #     # noinspection PyTypeChecker
-    #     with exceptiongroup.catch(
-    #         {
-    #             # Disables mypy dict-item. Because exceptiongroup seems not to be typed correctly.
-    #             DidNotFinishMatchError: _match_error_handler,  # type: ignore[dict-item]
-    #         },
-    #     ):
-    #         match.execute_ply()
-    #         aborted = False
-    #
-    #     if not aborted:
-    #         visualizer.update_state(match.states[-1])
-    #         visualizer.draw()
-    #     else:
-    #         visualizer.update_abort()
+    while not match.is_finished and not aborted:
+        visualizer.draw()
+        aborted = True
+        # Disables PyCharms PyTypeChecker. Because exceptiongroup seems not to be typed correctly.
+        # noinspection PyTypeChecker
+        with exceptiongroup.catch(
+            {
+                # Disables mypy dict-item. Because exceptiongroup seems not to be typed correctly.
+                DidNotFinishMatchError: _match_error_handler,  # type: ignore[dict-item]
+            },
+        ):
+            match.execute_ply()
+            aborted = False
+
+        if not aborted:
+            visualizer.update_state(match.states[-1])
+            visualizer.draw()
+        else:
+            visualizer.update_abort()
     #
     # if not aborted:
     #     log.debug("Concluded %s", match)
@@ -174,7 +175,7 @@ def run_match(
     #     visualizer.update_state(state, move_nr)
     #
     # visualizer.update_result(match.get_result())
-    # visualizer.draw()
+    visualizer.draw()
 
 
 def run_local_match(
@@ -222,4 +223,4 @@ def run_local_match(
         )
         run_match(match, visualizer)
 
-    log.info("Finished orchestrating %s", match)
+    log.debug("Finished orchestrating %s", match)

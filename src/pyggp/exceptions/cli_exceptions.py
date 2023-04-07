@@ -1,4 +1,5 @@
 """Exceptions regarding the command line interface."""
+import pathlib
 from typing import Iterable, Optional
 
 from pyggp.interpreters import Role
@@ -11,7 +12,7 @@ class CLIError(Exception):
 class RulesetNotFoundCLIError(CLIError):
     """Raised when a ruleset_resource is not found."""
 
-    def __init__(self, ruleset_resource: Optional[str] = None) -> None:
+    def __init__(self, ruleset_resource: Optional[pathlib.Path] = None) -> None:
         """Initializes RulesetNotFoundCLIError.
 
         Args:

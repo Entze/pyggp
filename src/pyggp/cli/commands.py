@@ -1,6 +1,7 @@
 """Defines the CLI commands."""
 import logging
-from typing import List, Optional
+import pathlib
+from typing import List
 
 import typer
 
@@ -37,10 +38,10 @@ def main(
 
 @app.command()
 def match(
-    ruleset: str = typer.Argument(..., show_default=False),
-    registry: Optional[List[str]] = typer.Argument(None, metavar="[ROLE=AGENT]...", show_default=False),
-    startclock: Optional[List[str]] = typer.Option(None, show_default=False),
-    playclock: Optional[List[str]] = typer.Option(None, show_default=False),
+    registry: List[str] = typer.Argument(None, metavar="[ROLE=AGENT]...", show_default=False),
+    files: List[pathlib.Path] = typer.Option(..., "--ruleset", "--file", "-f", show_default=False),
+    startclock: List[str] = typer.Option(None, show_default=False),
+    playclock: List[str] = typer.Option(None, show_default=False),
     verbose: int = typer.Option(0, "--verbose", "-v", count=True, show_default=False),
     quiet: int = typer.Option(0, "--quiet", "-q", count=True, show_default=False),
 ) -> None:
@@ -51,20 +52,16 @@ def match(
     if __debug__:
         log.setLevel(logging.DEBUG)
     log.debug(
-        "Arguments: log_level=%s, ruleset=%s, registry=%s, startclock=%s, playclock=%s",
+        "Arguments: log_level=%s, files=%s, registry=%s, startclock=%s, playclock=%s",
         logging.getLevelName(log_level),
-        ruleset,
+        files,
         registry,
         startclock,
         playclock,
     )
-    assert ruleset is not None, "Assumption: Type of ruleset_resource is str"
-    assert registry is not None, "Assumption: Typer guarantees registry is at least the emtpy list"
-    assert startclock is not None, "Assumption: Typer guarantees startclock is at least the emtpy list"
-    assert playclock is not None, "Assumption: Typer guarantees playclock is at least the emtpy list"
 
     match_params = handle_match_command_args(
-        ruleset_str=ruleset,
+        files=files,
         role_agentname_registry=registry,
         role_startclockconfig_registry=startclock,
         role_playclockconfig_registry=playclock,
