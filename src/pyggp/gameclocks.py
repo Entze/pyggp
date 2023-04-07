@@ -353,6 +353,8 @@ class GameClock:
             The timeout in seconds
 
         """
+        if not self.can_timeout:
+            return float("inf")
         return max(0.0, self.total_time + self.delay + slack)
 
     # endregion
