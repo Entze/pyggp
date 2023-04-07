@@ -23,6 +23,7 @@ def test_inflect(noun: str, count: int, expected: str) -> None:
         (datetime.timedelta(seconds=0), "0s"),
         (0, "0s"),
         (0.0, "0s"),
+        (float("inf"), "∞s"),
         (datetime.timedelta(seconds=0.1), "0.10s"),
         (datetime.timedelta(seconds=20), "20.00s"),
         (datetime.timedelta(seconds=60), "60.00s"),
