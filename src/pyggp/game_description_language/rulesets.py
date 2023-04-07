@@ -52,19 +52,19 @@ class Ruleset:
 
     rules: Sequence[Sentence] = field(default_factory=tuple)
     "Rules of the ruleset in the original order."
-    role_rules: Sequence[Sentence] = field(default_factory=tuple)
+    role_rules: Sequence[Sentence] = field(default_factory=tuple, repr=False)
     "Subsequence of `rules` that are role rules."
-    init_rules: Sequence[Sentence] = field(default_factory=tuple)
+    init_rules: Sequence[Sentence] = field(default_factory=tuple, repr=False)
     "Subsequence of `rules` that are init rules."
-    next_rules: Sequence[Sentence] = field(default_factory=tuple)
+    next_rules: Sequence[Sentence] = field(default_factory=tuple, repr=False)
     "Subsequence of `rules` that are next rules."
-    sees_rules: Sequence[Sentence] = field(default_factory=tuple)
+    sees_rules: Sequence[Sentence] = field(default_factory=tuple, repr=False)
     "Subsequence of `rules` that are sees rules."
-    legal_rules: Sequence[Sentence] = field(default_factory=tuple)
+    legal_rules: Sequence[Sentence] = field(default_factory=tuple, repr=False)
     "Subsequence of `rules` that are legal rules."
-    goal_rules: Sequence[Sentence] = field(default_factory=tuple)
+    goal_rules: Sequence[Sentence] = field(default_factory=tuple, repr=False)
     "Subsequence of `rules` that are goal rules."
-    terminal_rules: Sequence[Sentence] = field(default_factory=tuple)
+    terminal_rules: Sequence[Sentence] = field(default_factory=tuple, repr=False)
     "Subsequence of `rules` that are terminal rules."
 
     @property

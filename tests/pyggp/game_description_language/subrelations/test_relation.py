@@ -1,5 +1,7 @@
 from typing import Optional
 
+import clingo.ast as clingo_ast
+import pyggp._clingo as clingo_helper
 import pytest
 from pyggp.game_description_language.subrelations import Number, Relation, String, Subrelation, Variable
 
@@ -180,4 +182,16 @@ def test_signature(relation: Relation, expected: Relation.Signature) -> None:
 )
 def test_unifies(relation1: Relation, relation2: Relation, expected: bool) -> None:
     actual = relation1.unifies(relation2)
+    assert actual == expected
+
+
+@pytest.mark.parametrize(
+    ("relation", "expected"),
+    [
+        (Relation(), clingo_helper.create_function()),
+        (Relation("a"), clingo_helper.create_function("a")),
+    ],
+)
+def test_as_clingo_ast(relation: Relation, expected: clingo_ast.AST) -> None:
+    actual = relation.as_clingo_ast()
     assert actual == expected

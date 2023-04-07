@@ -506,6 +506,8 @@ class Relation:
         """Return the rich enhanced infix string representation of the relation."""
         if self.name is None:
             return f"({','.join(subrelation.__rich__() for subrelation in self.arguments)})"
+        if not self.arguments:
+            return f"[dark_orange]{self.name}[/dark_orange]"
         return f"[purple]{self.name}[/purple]({', '.join(subrelation.__rich__() for subrelation in self.arguments)})"
 
     # endregion

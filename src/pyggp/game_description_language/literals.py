@@ -6,7 +6,7 @@ from typing import Type
 import clingo.ast as clingo_ast
 from typing_extensions import Self
 
-from pyggp._clingo import create_atom, create_literal
+import pyggp._clingo as clingo_helper
 from pyggp.game_description_language.subrelations import Relation
 
 
@@ -55,6 +55,11 @@ class Literal:
             The infix string representation
 
         """
+        if self.atom.name is not None and self.atom.name.startswith("__comp_"):
+            if self.atom.name == "__comp_not_equal" and len(self.atom.arguments) > 1:
+                return self._infix_str__comp_not_equal()
+            message = f"Assumption: All __comp_ atoms are covered. {self.atom.name} is not covered."
+            raise AssertionError(message)
         if self.sign == Literal.Sign.NOSIGN:
             return self.atom.infix_str
         return f"not {self.atom.infix_str}"
@@ -109,6 +114,35 @@ class Literal:
             The clingo AST
 
         """
-        return create_literal(sign=self.sign.as_clingo_ast(), atom=create_atom(self.atom.as_clingo_ast()))
+        if self.atom.name is not None and self.atom.name.startswith("__comp_"):
+            if self.atom.name == "__comp_not_equal" and len(self.atom.arguments) > 1:
+                return clingo_helper.create_literal(
+                    atom=self._as_clingo_ast__comp_not_equal(),
+                    sign=clingo_ast.Sign.NoSign,
+                )
+            message = f"Assumption: All __comp_ atoms are covered. {self.atom.name} is not covered."
+            raise AssertionError(message)
+
+        return clingo_helper.create_literal(
+            sign=self.sign.as_clingo_ast(),
+            atom=clingo_helper.create_atom(self.atom.as_clingo_ast()),
+        )
+
+    def _infix_str__comp_not_equal(self) -> str:
+        operator = " != "
+        if self.sign == Literal.Sign.NEGATIVE:
+            operator = " = "
+        return operator.join(argument.infix_str for argument in self.atom.arguments)
+
+    def _as_clingo_ast__comp_not_equal(self) -> clingo_ast.AST:
+        operator = clingo_ast.ComparisonOperator.NotEqual
+        if self.sign == Literal.Sign.NEGATIVE:
+            operator = clingo_ast.ComparisonOperator.Equal
+        term = self.atom.arguments[0].as_clingo_ast()
+        guards = tuple(
+            clingo_helper.create_guard(comparison=operator, term=argument.as_clingo_ast())
+            for argument in self.atom.arguments[1:]
+        )
+        return clingo_helper.create_comparison(term=term, guards=guards)
 
     # endregion
