@@ -26,13 +26,15 @@ from pyggp.game_description_language.subrelations import (
 
 infix_grammar = r"""
     ruleset: (sentence)*
-    sentence: head ":-"? "."                          -> fact
+    sentence: head ":-"? "."      -> fact
             | head ":-" body "."  -> rule
     ?head: relation
     body: _seperated{literal, ","}
     literal: sign? term
-    ?term: relation
     sign: "not"  -> not
+    ?term: relation | comparison
+    ?comparison.1: not_equal
+    not_equal: "distinct" "(" arguments ")"
     relation: name ("(" ")")?         -> atom
             | name "(" arguments ")"  -> function
             | "(" ")"                 -> empty_tuple
@@ -60,9 +62,9 @@ infix_grammar = r"""
 
 GDL = Union[Relation, String, Number, Variable, Subrelation, Literal, Ruleset]
 
-parser = lark.Lark(grammar=infix_grammar, start="ruleset")
+parser = lark.Lark(grammar=infix_grammar, start="ruleset", parser="lalr")
 ruleset_parser = parser
-subrelation_parser = lark.Lark(grammar=infix_grammar, start="subrelation")
+subrelation_parser = lark.Lark(grammar=infix_grammar, start="subrelation", parser="lalr")
 
 
 class TreeToGDLTransformer(lark.Transformer[lark.Token, GDL]):
@@ -91,6 +93,10 @@ class TreeToGDLTransformer(lark.Transformer[lark.Token, GDL]):
         # Disables mypy. Because: False positive
         (relation,) = children  # type: ignore[misc]
         return Literal(relation)
+
+    def not_equal(self, children: Sequence[Iterable[Subrelation]]) -> Relation:  # noqa: D102
+        (arguments,) = children
+        return Relation("__comp_not_equal", tuple(arguments))
 
     def tuple_(self, children: Sequence[Iterable[Subrelation]]) -> Relation:  # noqa: D102
         (arguments,) = children

@@ -229,3 +229,23 @@ def test_ruleset(parse: str, expected: Ruleset) -> None:
     parsed = parser.parse(parse)
     actual = TreeToGDLTransformer().transform(parsed)
     assert actual == expected
+
+
+@pytest.mark.parametrize(
+    ("parse", "expected"),
+    [
+        ("distinct(a, b)", Relation("__comp_not_equal", (Subrelation(Relation("a")), Subrelation(Relation("b"))))),
+        (
+            "distinct(a, b, c)",
+            Relation(
+                "__comp_not_equal",
+                (Subrelation(Relation("a")), Subrelation(Relation("b")), Subrelation(Relation("c"))),
+            ),
+        ),
+    ],
+)
+def test_comparison(parse: str, expected: Relation) -> None:
+    parser = lark.Lark(grammar=infix_grammar, start="comparison")
+    parsed = parser.parse(parse)
+    actual = TreeToGDLTransformer().transform(parsed)
+    assert actual == expected
