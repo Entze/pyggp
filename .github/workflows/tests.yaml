@@ -14,6 +14,7 @@ jobs:
     name: "🧪 Nox Tests (Python ${{ matrix.python-version }}, ${{ matrix.os }})"
     timeout-minutes: 10
     strategy:
+      fail-fast: false
       matrix:
         python-version:
           - '3.8'
