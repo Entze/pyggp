@@ -1,6 +1,7 @@
 """Abstract representation of a match."""
 import abc
 import concurrent.futures as concurrent_futures
+import contextlib
 from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
@@ -14,6 +15,7 @@ from typing import (
     MutableMapping,
     MutableSequence,
     Sequence,
+    Tuple,
     TypedDict,
     TypeVar,
     Union,
@@ -30,6 +32,7 @@ from pyggp.exceptions.actor_exceptions import ActorError, PlayclockIsNoneActorEr
 from pyggp.exceptions.match_exceptions import (
     DidNotFinishMatchError,
     DidNotStartMatchError,
+    IllegalMoveMatchError,
     MatchError,
     TimeoutMatchError,
 )
@@ -69,10 +72,11 @@ class _SignalProcessor(Generic[R, S, A], abc.ABC):
     role_future_map: MutableMapping[Role, concurrent_futures.Future[R]] = field(default_factory=dict)
     role_response_map: MutableMapping[Role, R] = field(default_factory=dict)
     role_interrupted_map: MutableMapping[Role, bool] = field(default_factory=dict)
+    role_exception_map: MutableMapping[Role, ActorError] = field(default_factory=dict)
     role_taskid_map: MutableMapping[Role, rich_progress.TaskID] = field(default_factory=dict)
     role_utility_map: MutableMapping[Role, Union[int, Disqualification, None]] = field(default_factory=dict)
     polling_interval: float = field(default=0.1)
-    total_time: float = field(init=False, default=5.0)
+    total_time: float = field(init=False, default=1.0)
     monitor_clock: GameClock = field(init=False)
     exceptions: MutableSequence[MatchError] = field(default_factory=list, init=False)
     signal_name: ClassVar[str] = "Signal"
@@ -111,7 +115,7 @@ class _SignalProcessor(Generic[R, S, A], abc.ABC):
             task_id = self.progress.add_task(f"{role} ({self.signal_name})", total=display_total)
             self.role_taskid_map[role] = task_id
 
-        self.total_time = max(5.0, max(role_timeout_map.values(), default=0.0) + self.polling_interval)
+        self.total_time = max(self.total_time, max(role_timeout_map.values(), default=0.0) + self.polling_interval)
         log.debug(
             "Waiting for a response to [italic]%s[/italic] for a maximum of [green]%s[/green]",
             self.signal_name,
@@ -157,8 +161,7 @@ class _SignalProcessor(Generic[R, S, A], abc.ABC):
                     pass
                 except ActorError as inner_exception:
                     self.role_interrupted_map[role] = True
-                    exception = self._get_exception(role, inner_exception)
-                    self.exceptions.append(exception)
+                    self.role_exception_map[role] = inner_exception
 
                 if responded:
                     # Disable mypy. Because: Response may be None, but it is not Optional.
@@ -179,23 +182,32 @@ class _SignalProcessor(Generic[R, S, A], abc.ABC):
 
     def collect(self) -> None:
         for role in self.roles:
-            if self.is_still_running(role):
-                self.role_interrupted_map[role] = True
-                role_timeout = self._get_timeout(role)
-                inner_exception = TimeoutActorError(available_time=role_timeout, delta=self.total_time, role=role)
+            if role not in self.role_response_map:
+                inner_exception: ActorError
+                if not self.role_interrupted_map.get(role, False):
+                    future = self.role_future_map[role]
+                    future.cancel()
+                    self.role_interrupted_map[role] = True
+                    role_timeout = self._get_timeout(role)
+                    inner_exception = TimeoutActorError(available_time=role_timeout, delta=self.total_time, role=role)
+                else:
+                    inner_exception = self.role_exception_map[role]
+
                 exception = self._get_exception(role, inner_exception)
                 self.exceptions.append(exception)
                 self.role_utility_map[role] = self._get_disqualification_utility(role, exception)
             else:
                 response = self.role_response_map[role]
-                self.role_utility_map[role] = self._get_utility(role, response)
+                overwrite, utility = self._get_utility(role, response)
+                if overwrite:
+                    self.role_utility_map[role] = utility
 
     @abc.abstractmethod
     def _get_disqualification_utility(self, role: Role, exception: MatchError) -> Union[int, Disqualification, None]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _get_utility(self, role: Role, response: R) -> Union[int, Disqualification, None]:
+    def _get_utility(self, role: Role, response: R) -> Tuple[bool, Union[int, Disqualification, None]]:
         raise NotImplementedError
 
     def process(self) -> A:
@@ -273,8 +285,8 @@ class _StartProcessor(_SignalProcessor[None, "_StartProcessor.StartArgs", None])
         # Disables ARG002 (Unused method argument). Because method overrides abstract method.
         role: Role,  # noqa: ARG002
         response: None,  # noqa: ARG002
-    ) -> Union[int, Disqualification, None]:
-        return None
+    ) -> Tuple[bool, Union[int, Disqualification, None]]:
+        return False, None
 
     def _aggregate_responses(self) -> None:
         return None
@@ -323,14 +335,90 @@ class _PlayProcessor(_SignalProcessor[Move, "_PlayProcessor.PlayArgs", Turn]):
     ) -> Union[int, Disqualification, None]:
         return _DNF_TIMEOUT
 
-    def _get_utility(self, role: Role, response: Move) -> Union[int, Disqualification, None]:
+    def _get_utility(self, role: Role, response: Move) -> Tuple[bool, Union[int, Disqualification, None]]:
         is_legal = self.interpreter.is_legal(current=self.state, role=role, move=response)
         if not is_legal:
-            return _DNF_ILLEGAL_MOVE
-        return None
+            actor = self.role_actor_map[role]
+            ply = self.ply
+            exception = IllegalMoveMatchError(actor=actor, move=response, ply=ply, role=role)
+            self.exceptions.append(exception)
+            return True, _DNF_ILLEGAL_MOVE
+        return False, None
 
     def _aggregate_responses(self) -> Turn:
         return Turn.from_mapping(self.role_response_map)
+
+
+@dataclass
+class _StopProcessor(_SignalProcessor[None, S, None], Generic[S], abc.ABC):
+    # Disables ARG002 (Unused method argument). Because method overrides abstract method.
+    def _get_timeout(self, role: Role) -> float:  # noqa: ARG002
+        return float("inf")
+
+    # Disables coverage. Because this method cannot be called.
+    # Disables ARG002 (Unused method argument). Because method overrides abstract method.
+    def _get_exception(self, role: Role, inner_exception: ActorError) -> MatchError:  # pragma: no cover # noqa: ARG002
+        message = "Should not be called."
+        raise AssertionError(message)
+
+    # Disables coverage. Because this method cannot be called.
+    def _get_disqualification_utility(
+        self,
+        # Disables ARG002 (Unused method argument). Because method overrides abstract method.
+        role: Role,  # noqa: ARG002
+        exception: MatchError,  # noqa: ARG002
+    ) -> None:  # pragma: no cover
+        message = "Should not be called."
+        raise AssertionError(message)
+
+    # Disables coverage. Because this method cannot be called.
+    def _get_utility(
+        self,
+        # Disables ARG002 (Unused method argument). Because method overrides abstract method.
+        role: Role,  # noqa: ARG002
+        response: None,  # noqa: ARG002
+    ) -> Tuple[bool, Union[int, Disqualification, None]]:  # pragma: no cover
+        message = "Should not be called."
+        raise AssertionError(message)
+
+    def _aggregate_responses(self) -> None:  # pragma: no cover
+        message = "Should not be called."
+        raise AssertionError(message)
+
+
+@dataclass
+class _ConcludeProcessor(_StopProcessor["_ConcludeProcessor.ConcludeArgs"]):
+    state: State = field(default_factory=lambda: State(frozenset()))
+    interpreter: Interpreter = field(default_factory=ClingoInterpreter)
+
+    signal_name: ClassVar[str] = "conclude"
+
+    class ConcludeArgs(TypedDict):
+        actor: Actor
+        view: View
+
+    def _get_signal_args(self, role: Role) -> ConcludeArgs:
+        actor = self.role_actor_map[role]
+        view = self.interpreter.get_sees_by_role(current=self.state, role=role)
+        return _ConcludeProcessor.ConcludeArgs(actor=actor, view=view)
+
+    def _signal(self, *, actor: Actor, view: View) -> concurrent_futures.Future[None]:
+        return self.executor.submit(actor.send_stop, view=view)
+
+    def collect(self) -> None:
+        self.role_utility_map.update(self.interpreter.get_goals(current=self.state))
+
+
+@dataclass
+class _AbortProcessor(_StopProcessor[Mapping[str, Actor]]):
+    signal_name: ClassVar[str] = "abort"
+
+    def _get_signal_args(self, role: Role) -> Mapping[str, Actor]:
+        actor = self.role_actor_map[role]
+        return {"actor": actor}
+
+    def _signal(self, *, actor: Actor) -> concurrent_futures.Future[None]:
+        return self.executor.submit(actor.send_abort)
 
 
 @dataclass
@@ -360,7 +448,7 @@ class Match:
     @property
     def is_finished(self) -> bool:
         """Whether the match is finished."""
-        return bool(self.utilities) or self.interpreter.is_terminal(self.states[-1])
+        return bool(self.utilities) or (bool(self.states) and self.interpreter.is_terminal(self.states[-1]))
 
     # endregion
 
@@ -373,10 +461,10 @@ class Match:
             polling_interval: Interval to poll for updates in seconds
 
         """
-        with concurrent_futures.ThreadPoolExecutor() as executor, rich_progress.Progress(
-            transient=True,
-            auto_refresh=False,
-        ) as progress:
+        with contextlib.ExitStack() as exit_stack:
+            executor = concurrent_futures.ThreadPoolExecutor()
+            exit_stack.callback(executor.shutdown, wait=False, cancel_futures=True)
+            progress = exit_stack.enter_context(rich_progress.Progress(transient=True, auto_refresh=False))
             processor = _StartProcessor(
                 executor=executor,
                 progress=progress,
@@ -390,6 +478,7 @@ class Match:
             processor.init()
             processor.monitor()
             processor.collect()
+            self.utilities = processor.role_utility_map
             processor.process()
         initial_state = self.interpreter.get_init_state()
         self.states = [initial_state]
@@ -401,13 +490,18 @@ class Match:
         """Execute the next ply."""
         current_state = self.states[-1]
         ply = len(self.states) - 1
-        roles_in_control = self.interpreter.get_roles_in_control(current_state)
+        roles_in_control = Interpreter.get_roles_in_control(current_state)
         humans_in_control = any(self.role_actor_map[role].is_human_actor for role in roles_in_control)
-        with concurrent_futures.ThreadPoolExecutor() as executor, rich_progress.Progress(
-            transient=True,
-            auto_refresh=False,
-            disable=humans_in_control,
-        ) as progress:
+        with contextlib.ExitStack() as exit_stack:
+            executor = concurrent_futures.ThreadPoolExecutor()
+            exit_stack.callback(executor.shutdown, wait=False, cancel_futures=True)
+            progress = exit_stack.enter_context(
+                rich_progress.Progress(
+                    transient=True,
+                    auto_refresh=False,
+                    disable=humans_in_control,
+                ),
+            )
             processor = _PlayProcessor(
                 executor=executor,
                 progress=progress,
@@ -421,14 +515,45 @@ class Match:
             processor.init()
             processor.monitor()
             processor.collect()
+            self.utilities = processor.role_utility_map
             turn = processor.process()
+            executor.shutdown(wait=False)
         next_state = self.interpreter.get_next_state(current_state, *turn.as_plays())
         self.states.append(next_state)
 
     def conclude(self) -> None:
         """Conclude the match."""
+        current_state = self.states[-1]
+        with concurrent_futures.ThreadPoolExecutor() as executor, rich_progress.Progress(
+            transient=True,
+            auto_refresh=False,
+            disable=True,
+        ) as progress:
+            processor = _ConcludeProcessor(
+                executor=executor,
+                progress=progress,
+                role_actor_map=self.role_actor_map,
+                roles=self.role_actor_map.keys(),
+                state=current_state,
+                interpreter=self.interpreter,
+            )
+            processor.init()
+            processor.collect()
+            self.utilities = processor.role_utility_map
 
     def abort(self) -> None:
         """Abort the match."""
+        with concurrent_futures.ThreadPoolExecutor() as executor, rich_progress.Progress(
+            transient=True,
+            auto_refresh=False,
+            disable=True,
+        ) as progress:
+            processor = _AbortProcessor(
+                executor=executor,
+                progress=progress,
+                role_actor_map=self.role_actor_map,
+                roles=self.role_actor_map.keys(),
+            )
+            processor.init()
 
     # endregion
