@@ -8,7 +8,7 @@ def test_update_state_no_ply() -> None:
     visualizer = Visualizer()
 
     states = mock.MagicMock()
-    visualizer._states = states
+    visualizer.states = states
 
     state = mock.MagicMock()
 
@@ -22,7 +22,7 @@ def test_update_state_next_ply() -> None:
     visualizer = Visualizer()
 
     states = mock.MagicMock()
-    visualizer._states = states
+    visualizer.states = states
 
     state = mock.MagicMock()
 
@@ -37,7 +37,7 @@ def test_update_state_future_ply() -> None:
     visualizer = Visualizer()
 
     states = mock.MagicMock()
-    visualizer._states = states
+    visualizer.states = states
 
     state = mock.MagicMock()
 
