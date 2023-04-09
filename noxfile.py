@@ -48,6 +48,7 @@ VERSIONS: MutableMapping[str, Optional[str]] = {}
 with pathlib.Path("pyproject.toml").open(mode="rb") as f:
     pyproject_toml = tomllib.load(f)
     VERSIONS.update(pyproject_toml["tool"]["poetry"]["group"]["dev"]["dependencies"])
+    VERSIONS.update(pyproject_toml["tool"]["poetry"]["group"]["bin"]["dependencies"])
 
 
 class Args(TypedDict):
@@ -149,33 +150,6 @@ ARGS: Final[ArgConfig] = dict(
         pytest=Args(
             allow_opts=("--doctest-modules",),
             allow_targets=ALL_TARGETS,
-        ),
-    ),
-    build=dict(
-        shiv=Args(
-            allow_opts=(
-                "--console-script",
-                "pyggp",
-                "--compressed",
-                "--output-file",
-                *(f"pyggp-{PY}" for PY in PYTHON_VERSIONS_SHORT_NAMES.values()),
-                "--python",
-                "/usr/bin/env -S python3 -O",
-                "/usr/bin/env python3",
-                "/usr/bin/env -S python -O",
-                "/usr/bin/env python",
-            ),
-            default_opts=(
-                "--console-script",
-                "pyggp",
-                "--compressed",
-                "--output-file",
-                f"pyggp-{PYTHON_VERSION_LOCAL_SHORT_NAME}",
-                "--python",
-                "/usr/bin/env -S python3 -O",
-            ),
-            allow_targets=(".", *ALL_TARGETS),
-            default_targets=(".",),
         ),
     ),
 )
@@ -309,8 +283,16 @@ def coverage(session: nox.Session) -> None:
 
 @nox.session
 def build(session: nox.Session) -> None:
-    programs = ("shiv",)
-    _install(session, *programs)
-    run = functools.partial(_run, session=session, context="build", posargs=session.posargs)
-    for program in programs:
-        run(program)
+    session.install(".")
+    dependencies = ("pyinstaller",)
+    _install(session, *dependencies)
+    session.run(
+        "pyinstaller",
+        "--onefile",
+        "--collect-all",
+        "clingo",
+        "--name",
+        "pyggp",
+        "src/pyggp/__main__.py",
+        env={"PYTHONOPTIMIZE": "1"},
+    )
