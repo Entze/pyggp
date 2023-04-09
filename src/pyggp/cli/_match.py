@@ -163,18 +163,18 @@ def run_match(
             visualizer.draw()
         else:
             visualizer.update_abort()
-    #
-    # if not aborted:
-    #     log.debug("Concluded %s", match)
-    #     match.conclude_match()
-    # else:
-    #     log.debug("Aborted %s", match)
-    #     match.abort_match()
-    #
-    # for move_nr, state in enumerate(match.states):
-    #     visualizer.update_state(state, move_nr)
-    #
-    # visualizer.update_result(match.get_result())
+
+    if not aborted:
+        log.debug("Concluded %s", match)
+        match.conclude()
+    else:
+        log.debug("Aborted %s", match)
+        match.abort()
+
+    for move_nr, state in enumerate(match.states):
+        visualizer.update_state(state, move_nr)
+
+    visualizer.update_result(match.utilities)
     visualizer.draw()
 
 
