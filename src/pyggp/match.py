@@ -157,7 +157,7 @@ class _SignalProcessor(Generic[R, S, A], abc.ABC):
                     with self.monitor_clock:
                         response = future.result(self.polling_interval)
                     responded = True
-                except TimeoutError:
+                except (TimeoutError, concurrent_futures.TimeoutError):
                     pass
                 except ActorError as inner_exception:
                     self.role_interrupted_map[role] = True
