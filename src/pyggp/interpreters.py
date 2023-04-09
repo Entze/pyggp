@@ -619,7 +619,7 @@ class ClingoInterpreter(Interpreter):
                 if role in goals_mutable:
                     raise MultipleGoalsInterpreterError
                 goals_mutable[role] = symbol.arguments[1].number
-        return {role: goals_mutable[role] for role in self.get_roles()}
+        return {role: goals_mutable.get(role) for role in self.get_roles()}
 
     def is_terminal(self, current: Union[State, View]) -> bool:
         """Check if the given state is terminal.
