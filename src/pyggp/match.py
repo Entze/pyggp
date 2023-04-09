@@ -563,3 +563,27 @@ class Match:
             processor.init()
 
     # endregion
+
+    @staticmethod
+    def get_rank(utilities: Mapping[Role, Union[int, None, Disqualification]]) -> Mapping[Role, int]:
+        """Get the rank of the utilities.
+
+        Args:
+            utilities: Mapping of roles to goals (utility values)
+
+        Returns:
+            Mapping of roles to their ranks
+
+        """
+        min_value = min((utility for utility in utilities.values() if isinstance(utility, int)), default=0)
+        none_value = min_value - 1
+        disqualification_value = none_value - 1
+        role_value_map = {role: utility for role, utility in utilities.items() if isinstance(utility, int)}
+        for role, utility in utilities.items():
+            if utility is None:
+                role_value_map[role] = none_value
+            elif not isinstance(utility, int):
+                role_value_map[role] = disqualification_value
+        value_sequence = sorted(role_value_map.values(), reverse=True)
+
+        return {role: value_sequence.index(utility) for role, utility in role_value_map.items()}

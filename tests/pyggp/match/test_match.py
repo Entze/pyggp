@@ -1,5 +1,5 @@
 import time
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping, Union
 from unittest import mock
 
 import exceptiongroup
@@ -8,8 +8,8 @@ import pytest
 from pyggp.exceptions.actor_exceptions import ActorError, PlayclockIsNoneActorError, TimeoutActorError
 from pyggp.exceptions.match_exceptions import DidNotStartMatchError, IllegalMoveMatchError
 from pyggp.gameclocks import GameClock
-from pyggp.interpreters import Interpreter, Role, State, View
-from pyggp.match import _DNS_TIMEOUT, Match, _StartProcessor
+from pyggp.interpreters import RANDOM, Interpreter, Role, State, View
+from pyggp.match import _DNF_ILLEGAL_MOVE, _DNF_TIMEOUT, _DNS_TIMEOUT, Disqualification, Match, _StartProcessor
 
 if TYPE_CHECKING:
     from pyggp.actors import Actor
@@ -389,3 +389,82 @@ def test_abort_two_player_match(two_player_mock_match: Match) -> None:
 
     actor_1.send_abort.assert_called_once_with()
     actor_2.send_abort.assert_called_once_with()
+
+
+@pytest.mark.parametrize(
+    ("utilities", "expected"),
+    [
+        ({}, {}),
+        (
+            {Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(1)),)))): 100},
+            {Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(1)),)))): 0},
+        ),
+        (
+            {
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(1)),)))): 100,
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(2)),)))): 0,
+            },
+            {
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(1)),)))): 0,
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(2)),)))): 1,
+            },
+        ),
+        (
+            {
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(1)),)))): 50,
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(2)),)))): 50,
+            },
+            {
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(1)),)))): 0,
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(2)),)))): 0,
+            },
+        ),
+        (
+            {
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(1)),)))): 50,
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(2)),)))): 50,
+                RANDOM: None,
+            },
+            {
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(1)),)))): 0,
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(2)),)))): 0,
+                RANDOM: 2,
+            },
+        ),
+        (
+            {
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(1)),)))): 100,
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(2)),)))): 50,
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(3)),)))): 50,
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(4)),)))): 0,
+                RANDOM: None,
+            },
+            {
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(1)),)))): 0,
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(2)),)))): 1,
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(3)),)))): 1,
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(4)),)))): 3,
+                RANDOM: 4,
+            },
+        ),
+        (
+            {
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(1)),)))): None,
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(2)),)))): None,
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(3)),)))): _DNF_ILLEGAL_MOVE,
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(4)),)))): _DNF_TIMEOUT,
+                RANDOM: None,
+            },
+            {
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(1)),)))): 0,
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(2)),)))): 0,
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(3)),)))): 3,
+                Role(gdl.Subrelation(gdl.Relation("role", (gdl.Subrelation(gdl.Number(4)),)))): 3,
+                RANDOM: 0,
+            },
+        ),
+    ],
+)
+def test_get_rank(utilities: Mapping[Role, Union[int, None, Disqualification]], expected: Mapping[Role, int]) -> None:
+    actual = Match.get_rank(utilities)
+    assert actual == expected
