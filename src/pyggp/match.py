@@ -48,19 +48,23 @@ _DNF_ILLEGAL_MOVE: Final[Literal["DNF(Illegal Move)"]] = "DNF(Illegal Move)"
 
 _DISQUALIFICATIONS: Final[Sequence[Disqualification]] = (_DNS_TIMEOUT, _DNF_TIMEOUT, _DNF_ILLEGAL_MOVE)
 
+R = TypeVar("R")
+A = TypeVar("A")
+S = TypeVar("S", bound=Mapping[str, Any])
+
 if TYPE_CHECKING:  # See https://github.com/python/typing/discussions/835#discussioncomment-1193041
     # To be fixed once 3.8 is no longer supported.
     Future_None = concurrent_futures.Future[None]
     Future_Any = concurrent_futures.Future[Any]
     Future_Move = concurrent_futures.Future[Move]
+    Future_R = concurrent_futures.Future[R]
+
+
 else:
     Future_None = concurrent_futures.Future
     Future_Any = concurrent_futures.Future
     Future_Move = concurrent_futures.Future
-
-R = TypeVar("R")
-A = TypeVar("A")
-S = TypeVar("S", bound=Mapping[str, Any])
+    Future_R = concurrent_futures.Future
 
 
 @dataclass
@@ -69,7 +73,8 @@ class _SignalProcessor(Generic[R, S, A], abc.ABC):
     progress: rich_progress.Progress
     role_actor_map: Mapping[Role, Actor]
     roles: Iterable[Role]
-    role_future_map: MutableMapping[Role, concurrent_futures.Future[R]] = field(default_factory=dict)
+    # Disables mypy. Because: Hack around Python 3.8's type system limitations. Future_R is a Future[R] in Python 3.9+.
+    role_future_map: MutableMapping[Role, Future_R] = field(default_factory=dict)  # type: ignore[type-arg]
     role_response_map: MutableMapping[Role, R] = field(default_factory=dict)
     role_interrupted_map: MutableMapping[Role, bool] = field(default_factory=dict)
     role_exception_map: MutableMapping[Role, ActorError] = field(default_factory=dict)
@@ -131,7 +136,8 @@ class _SignalProcessor(Generic[R, S, A], abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _signal(self, *args: Any, **kwargs: Any) -> concurrent_futures.Future[R]:
+    # Disables mypy. Because: Hack around Python 3.8's type system limitations. Future_R is a Future[R] in Python 3.9+.
+    def _signal(self, *args: Any, **kwargs: Any) -> Future_R:  # type: ignore[type-arg]
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -253,7 +259,7 @@ class _StartProcessor(_SignalProcessor[None, "_StartProcessor.StartArgs", None])
         ruleset: gdl.Ruleset,
         startclock_configuration: GameClock.Configuration,
         playclock_configuration: GameClock.Configuration,
-    ) -> concurrent_futures.Future[None]:
+    ) -> Future_None:
         return self.executor.submit(
             actor.send_start,
             role=role,
@@ -308,7 +314,7 @@ class _PlayProcessor(_SignalProcessor[Move, "_PlayProcessor.PlayArgs", Turn]):
         view = self.interpreter.get_sees_by_role(current=self.state, role=role)
         return _PlayProcessor.PlayArgs(actor=self.role_actor_map[role], ply=self.ply, view=view)
 
-    def _signal(self, *, actor: Actor, ply: int, view: View) -> concurrent_futures.Future[Move]:
+    def _signal(self, *, actor: Actor, ply: int, view: View) -> Future_Move:
         return self.executor.submit(actor.send_play, ply=ply, view=view)
 
     def _get_timeout(self, role: Role) -> float:
@@ -402,7 +408,7 @@ class _ConcludeProcessor(_StopProcessor["_ConcludeProcessor.ConcludeArgs"]):
         view = self.interpreter.get_sees_by_role(current=self.state, role=role)
         return _ConcludeProcessor.ConcludeArgs(actor=actor, view=view)
 
-    def _signal(self, *, actor: Actor, view: View) -> concurrent_futures.Future[None]:
+    def _signal(self, *, actor: Actor, view: View) -> Future_None:
         return self.executor.submit(actor.send_stop, view=view)
 
     def collect(self) -> None:
@@ -417,7 +423,7 @@ class _AbortProcessor(_StopProcessor[Mapping[str, Actor]]):
         actor = self.role_actor_map[role]
         return {"actor": actor}
 
-    def _signal(self, *, actor: Actor) -> concurrent_futures.Future[None]:
+    def _signal(self, *, actor: Actor) -> Future_None:
         return self.executor.submit(actor.send_abort)
 
 
@@ -463,7 +469,7 @@ class Match:
         """
         with contextlib.ExitStack() as exit_stack:
             executor = concurrent_futures.ThreadPoolExecutor()
-            exit_stack.callback(executor.shutdown, wait=False, cancel_futures=True)
+            exit_stack.callback(executor.shutdown, wait=False)
             progress = exit_stack.enter_context(rich_progress.Progress(transient=True, auto_refresh=False))
             processor = _StartProcessor(
                 executor=executor,
@@ -494,7 +500,7 @@ class Match:
         humans_in_control = any(self.role_actor_map[role].is_human_actor for role in roles_in_control)
         with contextlib.ExitStack() as exit_stack:
             executor = concurrent_futures.ThreadPoolExecutor()
-            exit_stack.callback(executor.shutdown, wait=False, cancel_futures=True)
+            exit_stack.callback(executor.shutdown, wait=False)
             progress = exit_stack.enter_context(
                 rich_progress.Progress(
                     transient=True,
