@@ -82,9 +82,9 @@ def parse_registry(
 def determine_file_path(path: pathlib.Path) -> pathlib.Path:
     if (path.exists() and path.is_file()) or not hasattr(sys, "_MEIPASS"):
         return path
-    base_path = pathlib.Path(sys._MEIPASS).joinpath("games")
-    path = base_path.joinpath(path)
-    return path
+    # Disables SLF001 (Private member accessed). Because: pyinstaller sets this attribute.
+    base_path = pathlib.Path(sys._MEIPASS).joinpath("games")  # noqa: SLF001
+    return base_path.joinpath(path)
 
 
 def load_ruleset(files: Sequence[pathlib.Path]) -> gdl.Ruleset:

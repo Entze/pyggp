@@ -60,7 +60,7 @@ def handle_match_command_args(
     except RulesetNotFoundCLIError as ruleset_not_found_error:
         message = ruleset_not_found_error.args[0]
         log.error(message)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     log.debug("Instantiating interpreter")
     interpreter = ClingoInterpreter.from_ruleset(ruleset=ruleset)
