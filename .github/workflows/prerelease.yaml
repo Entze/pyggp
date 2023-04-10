@@ -2,8 +2,6 @@ name: "prerelease"
 
 on:
   push:
-    branches:
-      - "main"
     tags:
       - "0.*.*"
       - "*.*.*a*"
@@ -37,14 +35,19 @@ jobs:
         run: |
           OS_NAME="${{ matrix.os }}"
           PLATFORM_NAME="${OS_NAME/-*/}"
+          PLATFORM_NAME="${PLATFORM_NAME/windows/win}"
+          PLATFORM_NAME="${PLATFORM_NAME/macos/mac}"
+          PLATFORM_NAME="${PLATFORM_NAME/ubuntu/linux}"
           echo "PLATFORM_NAME=$PLATFORM_NAME" >> $GITHUB_ENV
           echo "$PLATFORM_NAME"
       - name: "Rename artifact"
-        run: "mv dist/pyggp pyggp-${{ env.PLATFORM_NAME }}"
+        run: |
+            mv ./dist/pyggp ./pyggp-${{ env.PLATFORM_NAME }}
+            ls -lah pyggp-*
       - uses: actions/upload-artifact@v3
         with:
           name: "binaries"
-          path: "pyggp-${{ env.PLATFORM_NAME }}"
+          path: "./pyggp-${{ env.PLATFORM_NAME }}"
           if-no-files-found: error
   sanity_check:
     name: "🔬 Sanity Check (${{ matrix.os }})"
