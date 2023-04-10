@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "pyggp"
-version = "0.1.1a7"
+version = "0.1.1a8"
 description = "A Python implementation of the General Game Playing (GGP) framework."
 authors = ["Lukas Grassauer <lukas@grassauer.eu>"]
 license = "MIT"
@@ -110,7 +110,7 @@ tag_format = "$version"
 #update_changelog_on_bump = true
 annotated_tag = true
 gpg_sign = true
-version = "0.1.1a7"
+version = "0.1.1a8"
 version_files = [
     "pyproject.toml:version",
     "src/pyggp/_version.py:__version__"
