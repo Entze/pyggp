@@ -7,14 +7,14 @@
 - **pyggp.match.Match**: add method for ranking after match concluded
 - **pyggp.visualizers**: add presentation of result of the match
 - **pyggp.match**: make module stable
-- **pyggp.match**: use new _SignalProcessor class
+- **pyggp.match**: use new \_SignalProcessor class
 - **pyggp.interpreters.ClingoInterpreter**: forward clingo logs
 - **pyggp.cli.commands.match**: allow loading (multiple) files
 - **pyggp.agents.base_agents.HumanAgent**: improve reporting
 - **pyggp.gameclocks.GameClock.get_timeout**: add special case for non-timeout clocks
 - **pyggp.game_description_language**: print and convert distinct relations correctly
 - **pyggp.game_description_language.grammar**: add special case for distinct
-- **pyggp._logging.format_timedelta**: add case for infinite time
+- **pyggp.\_logging.format_timedelta**: add case for infinite time
 - WIP for new match code
 - **pyggp.match**: rewrite match WIP
 - **pyggp.game_description_language**: implement proper parser
@@ -34,8 +34,8 @@
 - **pyggp.exceptions.interpreter_exceptions**: make module stable
 - **pyggp.exceptions.agent_exceptions**: make module stable
 - **pyggp.exceptions.actor_exceptions**: make module stable
-- **pyggp._logging**: make module stable
-- **pyggp._clingo**: add clingo helpers
+- **pyggp.\_logging**: make module stable
+- **pyggp.\_clingo**: add clingo helpers
 - **pyggp**: add descriptive error message when python version is not supported
 - **pyggp.gdl.Ruleset**: make rules arg optional
 - **pyggp.actors**: add module to API
@@ -45,7 +45,7 @@
 - **pyggp.actors.Actor**: expand class to accomodate human actors
 - **pyggp.exceptions/actor_exceptions**: add custom TimeoutError and ValueError variants for ActorErrors
 - **pyggp.gameclocks.GameClock**: add no timeout capabilities
-- **pyggp._logging**: add inflect method
+- **pyggp.\_logging**: add inflect method
 - **pyggp.agents**: add RandomAgent
 
 ### Fix
@@ -77,7 +77,7 @@
 - reformat and refactor old tests
 - **pyggp.actors**: clean whitespace
 - backport the project to python3.8
-- **pyggp._logging**: remove unneccessary variables
+- **pyggp.\_logging**: remove unneccessary variables
 - run isort
 - **pyggp.visualizers.SimpleRichVisualizer**: rename panels for end of game
 - run isort on all files
@@ -121,7 +121,7 @@
 
 - add various improvements from typechecker and linter
 - use lazy string substitution instead of f-strings for logs
-- **pyggp.match.Match._initialize_agents**: replace constant 2.5 with self._slack
+- **pyggp.match.Match.\_initialize_agents**: replace constant 2.5 with self.\_slack
 - **tests.common**: add args and kwargs to Mock Interpreters
 - **pyggp.match**: correct spelling mistake in Disqualification
 - **pyggp.games.minipoker_ruleset**: correct mistake in game logic
@@ -136,7 +136,7 @@
 ### Refactor
 
 - **pyggp.visualizers**: sort imports
-- **pyggp.logging**: move module to _logging (to make it protected)
+- **pyggp.logging**: move module to \_logging (to make it protected)
 - **pyggp.gdl.match.Match**: use dict instead of dict.keys() in iterator
 - **pyggp.exceptions**: restructure exceptions to mitigate circular dependencies
 - rename GameClockConfig to GameClockConfiguration and introduce default values

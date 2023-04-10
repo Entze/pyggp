@@ -22,7 +22,7 @@ The following python packages are used to run the unittests:
 
 - [pytest](https://docs.pytest.org)
 
-Please note that the built in [unittest](https://docs.python.org/3/library/unittest.html) framework is not used.
+Please note that the built-in [unittest](https://docs.python.org/3/library/unittest.html) framework is not used.
 Additionally, [doctest](https://docs.python.org/3/library/doctest.html) are used in documentation, however they are for
 documentation only.
 
@@ -38,7 +38,6 @@ Consider a function `get_collatz` which has the
 [following specification](https://en.wikipedia.org/wiki/Collatz_conjecture):
 
 ```python
-# path: src/pyggp/math
 
 def get_collatz(n: int) -> int:
     """Gets the successor of a number by the collatz operation.
@@ -54,6 +53,13 @@ def get_collatz(n: int) -> int:
     Raises:
         ValueError: n is not a positive integer.
     """
+    if n <= 0:
+        message = "n must be a positive integer."
+        raise ValueError(message)
+    if n % 2 == 0:
+        return n // 2
+    return 3 * n + 1
+
 ```
 
 Ideally the tests for this function would be:
@@ -65,7 +71,7 @@ located in a file with the path: `tests/math/test_get_collatz.py`.
 
 ### Classes
 
-Consider a class `` which has the following specification:
+Consider a class `C` which has the following specification:
 
 ```python
 
@@ -94,8 +100,8 @@ class C:
 Ideally the tests for this class would be:
 
 - `test_public_method_as_expected` (use with `pytest.mark.parametrize` to achieve full line coverage)
-- `test_dunder_init_as_expected` (if there is no complex logic in the `__init__` consider
-  a [dataclass](https://docs.python.org/3/library/dataclasses.html) instead)
+- `test_dunder_init_as_expected` (if there is no complex logic in the `__init__` consider a
+  [dataclass](https://docs.python.org/3/library/dataclasses.html) instead)
 - `test_dunder_str_as_expected` (use with `pytest.mark.parametrize` to achieve full line coverage)
 
 Do not test `C._protected_method` by itself. If it is not testable indirectly, consider refactoring the class.

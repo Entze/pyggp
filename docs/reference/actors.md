@@ -1,4 +1,3 @@
-
 # Actors
 
 ::: pyggp.actors

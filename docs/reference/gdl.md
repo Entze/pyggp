@@ -1,4 +1,3 @@
-
 # GDL
 
 ::: pyggp.gdl

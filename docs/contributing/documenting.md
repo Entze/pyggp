@@ -1,7 +1,7 @@
 # Documenting
 
-This document outlines how to consistently document the modules, classes, and functions in pyggp. It mostly follows
-the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html).
+This document outlines how to consistently document the modules, classes, and functions in pyggp. It mostly follows the
+[Google Python Style Guide](https://google.github.io/styleguide/pyguide.html).
 
 ## Modules
 
