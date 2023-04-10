@@ -46,8 +46,8 @@ jobs:
           echo "$PLATFORM_NAME"
       - name: "Rename artifact"
         run: |
-            mv dist/pyggp pyggp-${{ env.PLATFORM_NAME }}
-            ls -lah pyggp-*
+          mv dist/pyggp pyggp-${{ env.PLATFORM_NAME }}
+          ls -lah pyggp-*
       - uses: actions/upload-artifact@v3
         with:
           name: "binaries"
@@ -73,26 +73,22 @@ jobs:
           PLATFORM_NAME="${PLATFORM_NAME/windows/win}"
           PLATFORM_NAME="${PLATFORM_NAME/macos/mac}"
           PLATFORM_NAME="${PLATFORM_NAME/ubuntu/linux}"
+          POSTFIX="${PLATFORM_NAME/win/.exe}"
+          POSTFIX="${PLATFORM_NAME/mac/}"
+          POSTFIX="${PLATFORM_NAME/linux/}"
           echo "PLATFORM_NAME=$PLATFORM_NAME" >> $GITHUB_ENV
-          echo "$PLATFORM_NAME"
+          echo "POSTFIX=$POSTFIX" >> $GITHUB_ENV
+          echo "${PLATFORM_NAME}${POSTFIX}"
       - uses: actions/download-artifact@v3
         with:
           name: "binaries"
       - run: chmod +x pyggp-*
       - run: |
-            ./pyggp-${{ env.PLATFORM_NAME }} --sys-info
-            ./pyggp-${{ env.PLATFORM_NAME }} match --ruleset nim first=Arbitrary second=Arbitrary
-            ./pyggp-${{ env.PLATFORM_NAME }} match --ruleset tic-tac-toe o=Arbitrary x=Arbitrary
-            ./pyggp-${{ env.PLATFORM_NAME }} match --ruleset rock-paper-scissors left=Arbitrary right=Arbitrary
-            ./pyggp-${{ env.PLATFORM_NAME }} match --ruleset minipoker bluffer=Arbitrary caller=Arbitrary
-        if: runner.os != 'Windows'
-      - run: |
-             ./pyggp-${{ env.PLATFORM_NAME }}.exe --sys-info
-             ./pyggp-${{ env.PLATFORM_NAME }}.exe match --ruleset nim first=Arbitrary second=Arbitrary
-             ./pyggp-${{ env.PLATFORM_NAME }}.exe match --ruleset tic-tac-toe o=Arbitrary x=Arbitrary
-             ./pyggp-${{ env.PLATFORM_NAME }}.exe match --ruleset rock-paper-scissors left=Arbitrary right=Arbitrary
-             ./pyggp-${{ env.PLATFORM_NAME }}.exe match --ruleset minipoker bluffer=Arbitrary caller=Arbitrary
-        if: runner.os == 'Windows'
+          ./pyggp-${{ env.PLATFORM_NAME }}${{ env.POSTFIX }} --sys-info
+          ./pyggp-${{ env.PLATFORM_NAME }}${{ env.POSTFIX }} match --ruleset nim first=Arbitrary second=Arbitrary
+          ./pyggp-${{ env.PLATFORM_NAME }}${{ env.POSTFIX }} match --ruleset tic-tac-toe o=Arbitrary x=Arbitrary
+          ./pyggp-${{ env.PLATFORM_NAME }}${{ env.POSTFIX }} match --ruleset rock-paper-scissors left=Arbitrary right=Arbitrary
+          ./pyggp-${{ env.PLATFORM_NAME }}${{ env.POSTFIX }} match --ruleset minipoker bluffer=Arbitrary caller=Arbitrary
   pypi:
     name: "📤 Upload to Test PyPI"
     timeout-minutes: 10
@@ -117,9 +113,9 @@ jobs:
       - run: poetry install --with dev,bin
       - uses: JRubics/poetry-publish@v1.16
         with:
-            pypi_token: ${{ secrets.TEST_PYPI_TOKEN }}
-            repository_name: "testpypi"
-            repository_url: "https://test.pypi.org/legacy/"
+          pypi_token: ${{ secrets.TEST_PYPI_TOKEN }}
+          repository_name: "testpypi"
+          repository_url: "https://test.pypi.org/legacy/"
   gh-release:
     name: "🎉 GitHub Prerelease"
     timeout-minutes: 10
