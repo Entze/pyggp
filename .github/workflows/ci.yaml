@@ -11,6 +11,7 @@ on:
       - ".pre-commit-config.yaml"
       - "noxfile.py"
       - ".github/workflows/ci.yaml"
+      - "!src/pyggp/_version.py"
   pull_request:
 
 jobs:
