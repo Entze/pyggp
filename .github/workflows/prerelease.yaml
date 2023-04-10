@@ -42,12 +42,12 @@ jobs:
           echo "$PLATFORM_NAME"
       - name: "Rename artifact"
         run: |
-            mv ./dist/pyggp ./pyggp-${{ env.PLATFORM_NAME }}
+            mv dist/pyggp pyggp-${{ env.PLATFORM_NAME }}
             ls -lah pyggp-*
       - uses: actions/upload-artifact@v3
         with:
           name: "binaries"
-          path: "./pyggp-${{ env.PLATFORM_NAME }}"
+          path: "pyggp-*"
           if-no-files-found: error
   sanity_check:
     name: "🔬 Sanity Check (${{ matrix.os }})"
@@ -71,6 +71,9 @@ jobs:
         with:
           name: "binaries"
       - run: "pyggp-${{ env.PLATFORM_NAME }} --sys-info"
+        if: runner.os != 'Windows'
+      - run: "pyggp-${{ env.PLATFORM_NAME }}.exe --sys-info"
+        if: runner.os == 'Windows'
   pypi:
     name: "📤 Upload to Test PyPI"
     timeout-minutes: 10
