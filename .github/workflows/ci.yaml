@@ -11,8 +11,6 @@ on:
       - ".pre-commit-config.yaml"
       - "noxfile.py"
       - ".github/workflows/ci.yaml"
-    tags-ignore:
-      - "**"
   pull_request:
 
 jobs:

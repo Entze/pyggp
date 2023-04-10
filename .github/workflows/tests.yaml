@@ -7,8 +7,6 @@ on:
       - "tests/**.py"
       - "noxfile.py"
       - ".github/workflows/tests.yaml"
-    tags-ignore:
-      - "**"
   pull_request:
 
 jobs:
