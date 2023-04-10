@@ -286,9 +286,15 @@ def build(session: nox.Session) -> None:
     session.install(".")
     dependencies = ("pyinstaller",)
     _install(session, *dependencies)
+    src_data = "src/games"
+    dest_data = "games"
+    sep = ":" if platform.system() != "Windows" else ";"
+    data = f"{src_data}{sep}{dest_data}"
     session.run(
         "pyinstaller",
         "--onefile",
+        "--add-data",
+        data,
         "--collect-all",
         "clingo",
         "--name",
