@@ -81,17 +81,17 @@ jobs:
       - run: chmod +x pyggp-*
       - run: |
             ./pyggp-${{ env.PLATFORM_NAME }} --sys-info
-            ./pyggp-${{ env.PLATFORM_NAME }} match nim first=Arbitrary second=Arbitrary
-            ./pyggp-${{ env.PLATFORM_NAME }} match tic-tac-toe o=Arbitrary x=Arbitrary
-            ./pyggp-${{ env.PLATFORM_NAME }} match rock-paper-scissors left=Arbitrary right=Arbitrary
-            ./pyggp-${{ env.PLATFORM_NAME }} match minipoker bluffer=Arbitrary caller=Arbitrary
+            ./pyggp-${{ env.PLATFORM_NAME }} match --ruleset nim first=Arbitrary second=Arbitrary
+            ./pyggp-${{ env.PLATFORM_NAME }} match --ruleset tic-tac-toe o=Arbitrary x=Arbitrary
+            ./pyggp-${{ env.PLATFORM_NAME }} match --ruleset rock-paper-scissors left=Arbitrary right=Arbitrary
+            ./pyggp-${{ env.PLATFORM_NAME }} match --ruleset minipoker bluffer=Arbitrary caller=Arbitrary
         if: runner.os != 'Windows'
       - run: |
              ./pyggp-${{ env.PLATFORM_NAME }}.exe --sys-info
-             ./pyggp-${{ env.PLATFORM_NAME }}.exe match nim first=Arbitrary second=Arbitrary
-             ./pyggp-${{ env.PLATFORM_NAME }}.exe match tic-tac-toe o=Arbitrary x=Arbitrary
-             ./pyggp-${{ env.PLATFORM_NAME }}.exe match rock-paper-scissors left=Arbitrary right=Arbitrary
-             ./pyggp-${{ env.PLATFORM_NAME }}.exe match minipoker bluffer=Arbitrary caller=Arbitrary
+             ./pyggp-${{ env.PLATFORM_NAME }}.exe match --ruleset nim first=Arbitrary second=Arbitrary
+             ./pyggp-${{ env.PLATFORM_NAME }}.exe match --ruleset tic-tac-toe o=Arbitrary x=Arbitrary
+             ./pyggp-${{ env.PLATFORM_NAME }}.exe match --ruleset rock-paper-scissors left=Arbitrary right=Arbitrary
+             ./pyggp-${{ env.PLATFORM_NAME }}.exe match --ruleset minipoker bluffer=Arbitrary caller=Arbitrary
         if: runner.os == 'Windows'
   pypi:
     name: "📤 Upload to Test PyPI"
