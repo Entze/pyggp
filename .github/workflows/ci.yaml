@@ -52,9 +52,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'
-      - run: poetry install --with ci --sync
+      - run: poetry install --with ci
       - uses: actions/cache@v3
         with:
           path: .nox
-          key: ${{ runner.os }}-python${{ matrix.python-version }}-nox-${{ hashFiles('**/noxfile.py') }}
+          key: ci-${{ runner.os }}-python${{ matrix.python-version }}-nox-${{ hashFiles('**/noxfile.py', '**/pyproject.toml', '**/poetry.lock') }}
       - run: poetry run nox -R --tags ci

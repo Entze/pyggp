@@ -29,6 +29,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'
+      - uses: actions/cache@v3
+        with:
+          path: .nox
+          key: build-${{ runner.os }}-python${{ matrix.python-version }}-nox-${{ hashFiles('**/noxfile.py', '**/pyproject.toml', '**/poetry.lock') }}
       - run: poetry install --with dev,bin
       - run: poetry run nox -R --session build
       - name: "Set platform name"
@@ -55,6 +59,7 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-22.04, ubuntu-20.04, macos-12, macos-11, windows-2022, windows-2019 ]
+      fail-fast: false
     runs-on: ${{ matrix.os }}
     needs: build
     defaults:
@@ -95,6 +100,10 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'poetry'
+      - uses: actions/cache@v3
+        with:
+          path: .nox
+          key: test-pypi-${{ runner.os }}-python${{ matrix.python-version }}-nox-${{ hashFiles('**/noxfile.py', '**/pyproject.toml', '**/poetry.lock') }}
       - run: poetry install --with dev,bin
       - uses: JRubics/poetry-publish@v1.16
         with:

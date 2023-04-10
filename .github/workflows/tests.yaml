@@ -46,7 +46,7 @@ jobs:
       - uses: actions/cache@v3
         with:
           path: .nox
-          key: ${{ runner.os }}-python${{ matrix.python-version }}-nox-${{ hashFiles('**/noxfile.py') }}
+          key: tests-${{ runner.os }}-python${{ matrix.python-version }}-nox-${{ hashFiles('**/noxfile.py', '**/pyproject.toml', '**/poetry.lock') }}
       - run: poetry run nox -R --sessions unittests-${{ matrix.python-version }}
       - run: poetry run nox -R --sessions doctests-${{ matrix.python-version }}
   coverage:
@@ -72,7 +72,7 @@ jobs:
       - uses: actions/cache@v3
         with:
           path: .nox
-          key: ${{ runner.os }}-python${{ matrix.python-version }}-nox-${{ hashFiles('**/noxfile.py') }}
+          key: coverage-${{ runner.os }}-python${{ matrix.python-version }}-nox-${{ hashFiles('**/noxfile.py', '**/pyproject.toml', '**/poetry.lock') }}
       - run: poetry run nox -R --session coverage
       - uses: codecov/codecov-action@v3
         with:
