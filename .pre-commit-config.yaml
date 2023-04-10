@@ -46,12 +46,6 @@ repos:
     rev: 0.21.0
     hooks:
       - id: check-github-workflows
-  - repo: https://github.com/jackdewinter/pymarkdown
-    rev: v0.9.8
-    hooks:
-      - id: pymarkdown
-        args: [ --config=.pymarkdown-config.json, scan, . ]
-        exclude: (^.github/|CHANGELOG.md)
   - repo: local
     hooks:
       - id: poetry-check

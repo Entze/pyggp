@@ -9,9 +9,10 @@ on:
       - "pyproject.toml"
       - "poetry.lock"
       - ".pre-commit-config.yaml"
-      - ".pymarkdown-config.json"
       - "noxfile.py"
       - ".github/workflows/ci.yaml"
+    tags-ignore:
+      - "**"
   pull_request:
 
 jobs:
