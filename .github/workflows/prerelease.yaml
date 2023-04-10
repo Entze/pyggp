@@ -114,6 +114,8 @@ jobs:
     name: "🎉 GitHub Prerelease"
     timeout-minutes: 10
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     needs:
       - build
       - sanity_check
