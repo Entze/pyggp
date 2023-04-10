@@ -8,6 +8,7 @@ from typing import (
 )
 
 import exceptiongroup
+import typer
 from exceptiongroup import ExceptionGroup
 
 import pyggp.game_description_language as gdl
@@ -22,6 +23,7 @@ from pyggp.cli._common import (
     load_ruleset,
     parse_registry,
 )
+from pyggp.exceptions.cli_exceptions import RulesetNotFoundCLIError
 from pyggp.exceptions.match_exceptions import DidNotFinishMatchError, DidNotStartMatchError
 from pyggp.gameclocks import (
     DEFAULT_NO_TIMEOUT_CONFIGURATION,
@@ -53,7 +55,12 @@ def handle_match_command_args(
     role_playclockconfig_registry: Sequence[str],
 ) -> MatchCommandParams:
     log.debug("Fetching ruleset")
-    ruleset = load_ruleset(files)
+    try:
+        ruleset = load_ruleset(files)
+    except RulesetNotFoundCLIError as ruleset_not_found_error:
+        message = ruleset_not_found_error.args[0]
+        log.error(message)
+        raise typer.Exit(1)
 
     log.debug("Instantiating interpreter")
     interpreter = ClingoInterpreter.from_ruleset(ruleset=ruleset)

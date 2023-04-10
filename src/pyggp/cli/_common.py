@@ -1,11 +1,13 @@
 import importlib
 import logging
 import pathlib
+import sys
 from typing import Callable, Collection, Iterable, Iterator, Optional, Sequence, Tuple, Type, TypeVar
 
 import rich.progress as rich_progress
 
 import pyggp.game_description_language as gdl
+from pyggp._logging import log
 from pyggp.agents import Agent, ArbitraryAgent, HumanAgent, RandomAgent
 from pyggp.exceptions.cli_exceptions import AgentNotFoundCLIError, RolesMismatchCLIError, RulesetNotFoundCLIError
 from pyggp.interpreters import Role
@@ -77,15 +79,23 @@ def parse_registry(
         yield key, value
 
 
+def determine_file_path(path: pathlib.Path) -> pathlib.Path:
+    if (path.exists() and path.is_file()) or not hasattr(sys, "_MEIPASS"):
+        return path
+    base_path = pathlib.Path(sys._MEIPASS).joinpath("games")
+    path = base_path.joinpath(path)
+    return path
+
+
 def load_ruleset(files: Sequence[pathlib.Path]) -> gdl.Ruleset:
     rules_strs = []
     for file in rich_progress.track(files, description="Loading files", transient=True):
-        if not file.exists() or not file.is_file():
-            raise RulesetNotFoundCLIError(file)
+        path = determine_file_path(file)
         try:
-            rules_strs.append(file.read_text())
+            rules_strs.append(path.read_text())
+            log.debug("Loaded %s", path)
         except OSError as read_error:
-            raise RulesetNotFoundCLIError(file) from read_error
+            raise RulesetNotFoundCLIError(path) from read_error
     rules_str = "\n".join(rules_strs)
     tree = gdl.ruleset_parser.parse(rules_str)
     ruleset = gdl.transformer.transform(tree)
