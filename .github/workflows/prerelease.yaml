@@ -73,6 +73,7 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: "binaries"
+      - run: chmod +x pyggp-*
       - run: "./pyggp-${{ env.PLATFORM_NAME }} --sys-info"
         if: runner.os != 'Windows'
       - run: "./pyggp-${{ env.PLATFORM_NAME }}.exe --sys-info"
