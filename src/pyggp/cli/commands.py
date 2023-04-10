@@ -9,7 +9,7 @@ from pyggp._logging import log
 from pyggp.cli._common import (
     determine_log_level,
 )
-from pyggp.cli._main import version_callback
+from pyggp.cli._main import sys_info_callback, version_callback
 from pyggp.cli._match import (
     handle_match_command_args,
     run_local_match,
@@ -27,6 +27,14 @@ def main(
         help="Show version number and exit",
         is_eager=True,
         callback=version_callback,
+    ),
+    sys_info: bool = typer.Option(
+        False,
+        "--sys-info",
+        "-S",
+        help="Show system information and exit",
+        is_eager=True,
+        callback=sys_info_callback,
     ),
 ) -> None:
     """A GGP engine.
