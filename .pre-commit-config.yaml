@@ -46,14 +46,6 @@ repos:
     rev: 0.21.0
     hooks:
       - id: check-github-workflows
-  - repo: https://github.com/executablebooks/mdformat
-    rev: 0.7.13
-    hooks:
-      - id: mdformat
-        additional_dependencies:
-          - mdformat-gfm
-          - mdformat-black
-        args: [--check, --wrap=120, --number]
   - repo: local
     hooks:
       - id: poetry-check
