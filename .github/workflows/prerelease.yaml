@@ -36,14 +36,15 @@ jobs:
       - name: "Set platform name"
         run: |
           OS_NAME="${{ matrix.os }}"
-          PLATFORM_NAME="${OS_NAME//-latest/}"
+          PLATFORM_NAME="${OS_NAME/-*/}"
+          echo "PLATFORM_NAME=$PLATFORM_NAME" >> $GITHUB_ENV
           echo "$PLATFORM_NAME"
       - name: "Rename artifact"
-        run: "mv dist/pyggp dist/pyggp-${{ env.PLATFORM_NAME }}"
+        run: "mv dist/pyggp pyggp-${{ env.PLATFORM_NAME }}"
       - uses: actions/upload-artifact@v3
         with:
           name: "binaries"
-          path: "dist/pyggp-${{ env.PLATFORM_NAME }}"
+          path: "pyggp-${{ env.PLATFORM_NAME }}"
           if-no-files-found: error
   sanity_check:
     name: "🔬 Sanity Check (${{ matrix.os }})"
@@ -60,7 +61,8 @@ jobs:
       - name: "Set platform name"
         run: |
           OS_NAME="${{ matrix.os }}"
-          PLATFORM_NAME="${OS_NAME//-latest/}"
+          PLATFORM_NAME="${OS_NAME/-*/}"
+          echo "PLATFORM_NAME=$PLATFORM_NAME" >> $GITHUB_ENV
           echo "$PLATFORM_NAME"
       - uses: actions/download-artifact@v3
         with:
