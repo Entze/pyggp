@@ -65,6 +65,9 @@ jobs:
         run: |
           OS_NAME="${{ matrix.os }}"
           PLATFORM_NAME="${OS_NAME/-*/}"
+          PLATFORM_NAME="${PLATFORM_NAME/windows/win}"
+          PLATFORM_NAME="${PLATFORM_NAME/macos/mac}"
+          PLATFORM_NAME="${PLATFORM_NAME/ubuntu/linux}"
           echo "PLATFORM_NAME=$PLATFORM_NAME" >> $GITHUB_ENV
           echo "$PLATFORM_NAME"
       - uses: actions/download-artifact@v3
