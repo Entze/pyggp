@@ -17,6 +17,7 @@ from typing import (
 )
 
 import nox
+import nox as nox_session
 import tomli as tomllib
 from typing_extensions import NotRequired, TypeAlias
 
@@ -43,12 +44,24 @@ PYTHON_VERSION_LOCAL_SHORT_NAME: Final[str] = (
     + str(__python_minor)
 )
 
+IDENTIFIERS: MutableMapping[str, str] = {}
 VERSIONS: MutableMapping[str, Optional[str]] = {}
 
-with pathlib.Path("pyproject.toml").open(mode="rb") as f:
-    pyproject_toml = tomllib.load(f)
-    VERSIONS.update(pyproject_toml["tool"]["poetry"]["group"]["dev"]["dependencies"])
-    VERSIONS.update(pyproject_toml["tool"]["poetry"]["group"]["bin"]["dependencies"])
+with pathlib.Path("pyproject.toml").open(mode="rb") as pyproject_toml_file, pathlib.Path("poetry.lock").open(
+    mode="rb",
+) as poetry_lock_file:
+    pyproject_toml = tomllib.load(pyproject_toml_file)
+    poetry_lock = tomllib.load(poetry_lock_file)
+    for group in pyproject_toml["tool"]["poetry"]["group"]:
+        for dependency, data in pyproject_toml["tool"]["poetry"]["group"][group]["dependencies"].items():
+            name = dependency
+            lock_info, *_ = (package for package in poetry_lock["package"] if package["name"] == name)
+            version = lock_info["version"]
+            VERSIONS[dependency] = f"=={version}"
+            if isinstance(data, str):
+                IDENTIFIERS[dependency] = dependency
+            elif isinstance(data, dict):
+                IDENTIFIERS[dependency] = f"{dependency}[{','.join(data['extras'])}]"
 
 
 class Args(TypedDict):
@@ -86,7 +99,7 @@ ARGS: Final[ArgConfig] = dict(
             default_targets=("src", "tests", "noxfile.py"),
         ),
         docformatter=Args(
-            static_opts=("--check", "--diff"),
+            static_opts=("--check", "--diff", "--recursive"),
             allow_targets=ALL_TARGETS,
             default_targets=("src", "tests", "noxfile.py"),
         ),
@@ -132,7 +145,10 @@ ARGS: Final[ArgConfig] = dict(
             default_targets=("src", "tests", "noxfile.py"),
         ),
         docformatter=Args(
-            static_opts=("--in-place",),
+            static_opts=(
+                "--in-place",
+                "--recursive",
+            ),
             allow_targets=ALL_TARGETS,
             default_targets=("src", "tests", "noxfile.py"),
         ),
@@ -209,7 +225,7 @@ def _run(session: nox.Session, context: str, program: str, posargs: Sequence[str
     session.run(program, *opts, *targets, success_codes=success_codes)
 
 
-@nox.session(tags=["checks", "tests"], python=PYTHON_VERSIONS)
+@nox_session.session(tags=["checks", "tests"], python=PYTHON_VERSIONS)
 def unittests(session: nox.Session) -> None:
     session.install(".")
     dependencies = ("pytest", "pytest-unordered")
@@ -220,7 +236,7 @@ def unittests(session: nox.Session) -> None:
         run(program=program)
 
 
-@nox.session(tags=["checks", "tests"], python=PYTHON_VERSIONS)
+@nox_session.session(tags=["checks", "tests"], python=PYTHON_VERSIONS)
 def doctests(session: nox.Session) -> None:
     session.install(".")
     dependencies = ("pytest",)
@@ -231,7 +247,7 @@ def doctests(session: nox.Session) -> None:
         run(program=program)
 
 
-@nox.session(tags=["checks", "ci"])
+@nox_session.session(tags=["checks", "ci"])
 def lint(session: nox.Session) -> None:
     session.install(".")
     dependencies = ("black", "docformatter", "pytest", "ruff")
@@ -242,7 +258,7 @@ def lint(session: nox.Session) -> None:
         run(program=program)
 
 
-@nox.session(tags=["checks", "ci"])
+@nox_session.session(tags=["checks", "ci"])
 def typecheck(session: nox.Session) -> None:
     session.install(".")
     dependencies = ("mypy", "pytest")
@@ -253,7 +269,7 @@ def typecheck(session: nox.Session) -> None:
         run(program=program)
 
 
-@nox.session
+@nox_session.session
 def fix(session: nox.Session) -> None:
     session.install(".")
     dependencies = ("black", "docformatter", "ruff")
@@ -264,7 +280,7 @@ def fix(session: nox.Session) -> None:
         run(program=program)
 
 
-@nox.session
+@nox_session.session
 def coverage(session: nox.Session) -> None:
     session.install(".")
     dependencies = ("coverage", "pytest")
@@ -281,7 +297,7 @@ def coverage(session: nox.Session) -> None:
     _run(session, "coverage", "coverage", posargs=("xml", *session.posargs))
 
 
-@nox.session
+@nox_session.session
 def build(session: nox.Session) -> None:
     session.install(".")
     dependencies = ("pyinstaller",)
