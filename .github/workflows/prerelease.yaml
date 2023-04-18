@@ -32,7 +32,7 @@ jobs:
       - uses: actions/cache@v3
         with:
           path: .nox
-          key: build-${{ runner.os }}-python${{ matrix.python-version }}-nox-${{ hashFiles('**/noxfile.py', '**/pyproject.toml', '**/poetry.lock') }}
+          key: ${{ github.ref_name }}-${{ github.workflow }}-${{ github.job }}-${{ runner.os }}-python${{ matrix.python-version }}-.nox-${{ hashFiles('**/noxfile.py', '**/pyproject.toml', '**/poetry.lock') }}
       - run: poetry install --with dev,bin
       - run: poetry run nox -R --session build
       - name: "Set platform name"
@@ -109,7 +109,7 @@ jobs:
       - uses: actions/cache@v3
         with:
           path: .nox
-          key: test-pypi-${{ runner.os }}-python${{ matrix.python-version }}-nox-${{ hashFiles('**/noxfile.py', '**/pyproject.toml', '**/poetry.lock') }}
+          key: ${{ github.ref_name }}-${{ github.workflow }}-${{ github.job }}-${{ runner.os }}-python${{ matrix.python-version }}-.nox-${{ hashFiles('**/noxfile.py', '**/pyproject.toml', '**/poetry.lock') }}
       - run: poetry install --with dev,bin
       - uses: JRubics/poetry-publish@v1.16
         with:
