@@ -1,4 +1,5 @@
 import contextlib
+import logging
 import pathlib
 from dataclasses import dataclass
 from typing import (
@@ -12,7 +13,6 @@ import typer
 from exceptiongroup import ExceptionGroup
 
 import pyggp.game_description_language as gdl
-from pyggp._logging import log
 from pyggp.actors import LocalActor
 from pyggp.agents import Agent, HumanAgent
 from pyggp.cli._common import (
@@ -34,6 +34,8 @@ from pyggp.gameclocks import (
 from pyggp.interpreters import RANDOM, ClingoInterpreter, Interpreter, Role
 from pyggp.match import Match
 from pyggp.visualizers import SimpleVisualizer, Visualizer
+
+log: logging.Logger = logging.getLogger("pyggp")
 
 
 @dataclass(frozen=True)

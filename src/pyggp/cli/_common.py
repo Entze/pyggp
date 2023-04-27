@@ -7,10 +7,11 @@ from typing import Callable, Collection, Iterable, Iterator, Optional, Sequence,
 import rich.progress as rich_progress
 
 import pyggp.game_description_language as gdl
-from pyggp._logging import log
 from pyggp.agents import Agent, ArbitraryAgent, HumanAgent, RandomAgent
 from pyggp.exceptions.cli_exceptions import AgentNotFoundCLIError, RolesMismatchCLIError, RulesetNotFoundCLIError
 from pyggp.interpreters import Role
+
+log: logging.Logger = logging.getLogger("pyggp")
 
 _INFO_VERBOSITY = 0
 _WARNING_VERBOSITY = -1

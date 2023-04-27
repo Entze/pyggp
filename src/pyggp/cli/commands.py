@@ -5,7 +5,6 @@ from typing import List
 
 import typer
 
-from pyggp._logging import log
 from pyggp.cli._common import (
     determine_log_level,
 )
@@ -14,6 +13,8 @@ from pyggp.cli._match import (
     handle_match_command_args,
     run_local_match,
 )
+
+log: logging.Logger = logging.getLogger("pyggp")
 
 app = typer.Typer()
 
@@ -57,8 +58,6 @@ def match(
     log_level = determine_log_level(verbose=verbose, quiet=quiet)
 
     log.setLevel(log_level)
-    if __debug__:
-        log.setLevel(logging.DEBUG)
     log.debug(
         "Arguments: log_level=%s, files=%s, registry=%s, startclock=%s, playclock=%s",
         logging.getLevelName(log_level),

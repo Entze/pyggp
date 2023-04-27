@@ -1,6 +1,7 @@
 """Provides the most common basic agents."""
 import abc
 import contextlib
+import logging
 import random
 from contextlib import AbstractContextManager
 from types import TracebackType
@@ -11,10 +12,11 @@ import rich.prompt
 from rich import print
 
 import pyggp.game_description_language as gdl
-from pyggp._logging import log
 from pyggp.exceptions.agent_exceptions import InterpreterIsNoneInterpreterAgentError, RoleIsNoneInterpreterAgentError
 from pyggp.gameclocks import GameClock
 from pyggp.interpreters import ClingoInterpreter, Interpreter, Move, Role, View
+
+log: logging.Logger = logging.getLogger("pyggp")
 
 
 class Agent(abc.ABC):

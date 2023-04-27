@@ -1,6 +1,7 @@
 """Interpreters for GDL rulesets."""
 import collections
 import functools
+import logging
 import time
 from dataclasses import dataclass, field
 from typing import (
@@ -26,7 +27,6 @@ import clingox.backend as clingox_backend
 from typing_extensions import Self
 
 import pyggp.game_description_language as gdl
-from pyggp._logging import log
 from pyggp.exceptions.interpreter_exceptions import (
     ModelTimeoutInterpreterError,
     MoreThanOneModelInterpreterError,
@@ -39,6 +39,8 @@ from pyggp.exceptions.interpreter_exceptions import (
     UnsatRolesInterpreterError,
     UnsatSeesInterpreterError,
 )
+
+log: logging.Logger = logging.getLogger("pyggp")
 
 _State = FrozenSet[gdl.Subrelation]
 State = NewType("State", _State)

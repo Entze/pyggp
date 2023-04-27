@@ -2,6 +2,7 @@
 import abc
 import concurrent.futures as concurrent_futures
 import contextlib
+import logging
 from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
@@ -26,7 +27,7 @@ import rich.progress as rich_progress
 from typing_extensions import TypeAlias
 
 import pyggp.game_description_language as gdl
-from pyggp._logging import format_timedelta, log
+from pyggp._logging import format_timedelta
 from pyggp.actors import Actor
 from pyggp.exceptions.actor_exceptions import ActorError, PlayclockIsNoneActorError, TimeoutActorError
 from pyggp.exceptions.match_exceptions import (
@@ -38,6 +39,8 @@ from pyggp.exceptions.match_exceptions import (
 )
 from pyggp.gameclocks import GameClock
 from pyggp.interpreters import ClingoInterpreter, Interpreter, Move, Role, State, Turn, View
+
+log: logging.Logger = logging.getLogger("pyggp")
 
 Disqualification: TypeAlias = Literal["DNS(Timeout)", "DNF(Timeout)", "DNF(Illegal Move)"]
 "Disqualifications."
