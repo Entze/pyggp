@@ -155,7 +155,6 @@ select = [
     "C90",
     "I",
     "N",
-    "D",
     "UP",
     "YTT",
     "ANN",
@@ -209,6 +208,7 @@ target-version = "py38"
 "__init__.py" = ["F401"]
 "src/pyggp/cli/*" = ["ARG001", "B008", "FBT001", "FBT003", "PLR0913"] # typer does not follow these rules
 "src/pyggp/cli/_main.py" = ["UP031"] # rich.print is similar to print
+"src/pyggp/game_description_language/grammar.py" = ["D102"] # Visitor pattern, documentation redundant
 "tests/*" = ["D", "SLF", "INP", "PLR2004", "FBT001"]
 "noxfile.py" = ["D", "C408"]
 
