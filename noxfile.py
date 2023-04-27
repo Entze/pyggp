@@ -92,14 +92,22 @@ ARGS: Final[ArgConfig] = dict(
             default_targets=("src",),
         ),
     ),
-    lint=dict(
-        black=Args(
-            static_opts=("--check",),
+    doclint=dict(
+        docformatter=Args(
+            static_opts=("--check", "--diff", "--recursive"),
             allow_targets=ALL_TARGETS,
             default_targets=("src", "tests", "noxfile.py"),
         ),
-        docformatter=Args(
-            static_opts=("--check", "--diff", "--recursive"),
+        ruff=Args(
+            static_opts=("check", "--select", "D"),
+            allow_opts=("--show-fixes", "--statistics"),
+            allow_targets=ALL_TARGETS,
+            default_targets=("src", "tests", "noxfile.py"),
+        ),
+    ),
+    lint=dict(
+        black=Args(
+            static_opts=("--check",),
             allow_targets=ALL_TARGETS,
             default_targets=("src", "tests", "noxfile.py"),
         ),
@@ -108,20 +116,6 @@ ARGS: Final[ArgConfig] = dict(
             allow_opts=("--show-fixes", "--statistics"),
             allow_targets=ALL_TARGETS,
             default_targets=("src", "tests", "noxfile.py"),
-        ),
-        pytest=Args(
-            static_opts=(
-                "--doctest-modules",
-                "--ignore-glob=test_*.py",
-            ),
-            allow_opts=(
-                "--ignore-glob=test_*.py",
-                "--doctest-modules",
-                "--ignore-glob=tests/*",
-            ),
-            allow_targets=ALL_TARGETS,
-            default_targets=("src",),
-            success_codes=(0, 5),
         ),
     ),
     typecheck=dict(
@@ -153,7 +147,7 @@ ARGS: Final[ArgConfig] = dict(
             default_targets=("src", "tests", "noxfile.py"),
         ),
         ruff=Args(
-            static_opts=("check", "--fix"),
+            static_opts=("check", "--extend-select", "D", "--fix"),
             allow_targets=ALL_TARGETS,
             default_targets=("src", "tests", "noxfile.py"),
         ),
@@ -248,10 +242,21 @@ def doctests(session: nox.Session) -> None:
 
 
 @nox_session.session(tags=["checks", "ci"])
+def doclint(session: nox.Session) -> None:
+    session.install(".")
+    dependencies = ("docformatter", "ruff")
+    programs = ("docformatter", "ruff")
+    _install(session, *dependencies)
+    run = functools.partial(_run, session=session, context="doclint", posargs=session.posargs)
+    for program in programs:
+        run(program=program)
+
+
+@nox_session.session(tags=["checks", "ci"])
 def lint(session: nox.Session) -> None:
     session.install(".")
-    dependencies = ("black", "docformatter", "pytest", "ruff")
-    programs = ("black", "docformatter", "ruff", "pytest")
+    dependencies = ("black", "ruff")
+    programs = ("black", "ruff")
     _install(session, *dependencies)
     run = functools.partial(_run, session=session, context="lint", posargs=session.posargs)
     for program in programs:
