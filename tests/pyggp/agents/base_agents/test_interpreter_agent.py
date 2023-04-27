@@ -18,10 +18,10 @@ def test_prepare_match() -> None:
         playclock_config,
     )
 
-    assert agent._role == role
-    assert agent._ruleset == ruleset
-    assert agent._startclock_config == startclock_config
-    assert agent._playclock_config == playclock_config
+    assert agent.role == role
+    assert agent.ruleset == ruleset
+    assert agent.startclock_config == startclock_config
+    assert agent.playclock_config == playclock_config
 
 
 @mock.patch.object(InterpreterAgent, "__abstractmethods__", set())
@@ -31,8 +31,8 @@ def test_conclude_match() -> None:
 
     agent.conclude_match(view)
 
-    assert agent._interpreter is None
-    assert agent._role is None
-    assert agent._ruleset is None
-    assert agent._startclock_config is None
-    assert agent._playclock_config is None
+    assert agent.interpreter is None
+    assert agent.role is None
+    assert agent.ruleset is None
+    assert agent.startclock_config is None
+    assert agent.playclock_config is None

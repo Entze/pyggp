@@ -3,35 +3,35 @@ import abc
 import contextlib
 import logging
 import random
-from contextlib import AbstractContextManager
+from dataclasses import dataclass
 from types import TracebackType
-from typing import Any, Optional, Type
+from typing import TYPE_CHECKING, Any, Optional, Type
 
 import rich.console
 import rich.prompt
 from rich import print
 
 import pyggp.game_description_language as gdl
-from pyggp.exceptions.agent_exceptions import InterpreterIsNoneInterpreterAgentError, RoleIsNoneInterpreterAgentError
+from pyggp.exceptions.agent_exceptions import InterpreterIsNoneInterpreterAgentError, RoleIsNoneAgentError
 from pyggp.gameclocks import GameClock
 from pyggp.interpreters import ClingoInterpreter, Interpreter, Move, Role, View
+
+if TYPE_CHECKING:
+    # TODO: Remove this once Python 3.8 is no longer supported.
+    NoneContextManager = contextlib.AbstractContextManager[None]
+    AnyContextManager = contextlib.AbstractContextManager[Any]
+else:
+    NoneContextManager = contextlib.AbstractContextManager
+    AnyContextManager = contextlib.AbstractContextManager
 
 log: logging.Logger = logging.getLogger("pyggp")
 
 
-class Agent(abc.ABC):
+@dataclass
+class Agent(NoneContextManager, abc.ABC):
     """Base class for all agents."""
 
     # region Magic Methods
-
-    def __repr__(self) -> str:
-        """Representation of the agent.
-
-        Returns:
-            Representation of the agent
-
-        """
-        return f"{self.__class__.__name__}(id={hex(id(self))})"
 
     def __enter__(self) -> None:
         """Calls set_up."""
@@ -122,26 +122,19 @@ class Agent(abc.ABC):
     # endregion
 
 
+@dataclass
 class InterpreterAgent(Agent, abc.ABC):
     """Base class for all agents that use an interpreter."""
 
-    # region Magic Methods
+    # region Attributes and Properties
 
-    # Disables ARG002 (Unused method argument). Because: Defer arguments to other classes in MRO.
-    def __init__(self, interpreter: Optional[Interpreter] = None, *args: Any, **kwargs: Any) -> None:  # noqa: ARG002
-        """Initializes the agent.
+    role: Optional[Role] = None
+    ruleset: Optional[gdl.Ruleset] = None
+    startclock_config: Optional[GameClock.Configuration] = None
+    playclock_config: Optional[GameClock.Configuration] = None
+    interpreter: Optional[Interpreter] = None
 
-        Args:
-            interpreter: Interpreter to use
-            *args: Leftover arguments
-            **kwargs: Leftover keyword arguments
-
-        """
-        self._interpreter: Optional[Interpreter] = interpreter
-        self._role: Optional[Role] = None
-        self._ruleset: Optional[gdl.Ruleset] = None
-        self._startclock_config: Optional[GameClock.Configuration] = None
-        self._playclock_config: Optional[GameClock.Configuration] = None
+    # endregion
 
     def prepare_match(
         self,
@@ -160,11 +153,12 @@ class InterpreterAgent(Agent, abc.ABC):
 
         """
         super().prepare_match(role, ruleset, startclock_config, playclock_config)
-        self._role = role
-        self._ruleset = ruleset
-        self._startclock_config = startclock_config
-        self._playclock_config = playclock_config
-        self._interpreter = ClingoInterpreter.from_ruleset(ruleset)
+        self.role = role
+        self.ruleset = ruleset
+        self.startclock_config = startclock_config
+        self.playclock_config = playclock_config
+        if self.interpreter is None:
+            self.interpreter = ClingoInterpreter.from_ruleset(ruleset)
 
     def conclude_match(self, view: View) -> None:
         """Concludes the current match.
@@ -174,13 +168,14 @@ class InterpreterAgent(Agent, abc.ABC):
 
         """
         super().conclude_match(view)
-        self._interpreter = None
-        self._role = None
-        self._ruleset = None
-        self._startclock_config = None
-        self._playclock_config = None
+        self.role = None
+        self.ruleset = None
+        self.startclock_config = None
+        self.playclock_config = None
+        self.interpreter = None
 
 
+@dataclass
 class ArbitraryAgent(InterpreterAgent):
     """Agent that returns an arbitrary legal move."""
 
@@ -197,16 +192,15 @@ class ArbitraryAgent(InterpreterAgent):
             Move
 
         """
-        if self._interpreter is None:
+        if self.interpreter is None:
             raise InterpreterIsNoneInterpreterAgentError
-        if self._role is None:
-            raise RoleIsNoneInterpreterAgentError
-        moves = self._interpreter.get_legal_moves_by_role(view, self._role)
-        # Disables S311 (Standard pseudo-random generators are not suitable for security/cryptographic purposes).
-        # Because: This is not a security/cryptographic purpose.
-        return random.choice(tuple(moves))  # noqa: S311
+        if self.role is None:
+            raise RoleIsNoneAgentError
+        moves = self.interpreter.get_legal_moves_by_role(view, self.role)
+        return random.choice(tuple(moves))
 
 
+@dataclass
 class RandomAgent(InterpreterAgent):
     """Agent that handles the random role.
 
@@ -227,14 +221,12 @@ class RandomAgent(InterpreterAgent):
             Move
 
         """
-        if self._interpreter is None:
+        if self.interpreter is None:
             raise InterpreterIsNoneInterpreterAgentError
-        if self._role is None:
-            raise RoleIsNoneInterpreterAgentError
-        moves = self._interpreter.get_legal_moves_by_role(view, self._role)
-        # Disables S311 (Standard pseudo-random generators are not suitable for security/cryptographic purposes).
-        # Because: This is not a security/cryptographic purpose.
-        return random.choice(tuple(moves))  # noqa: S311
+        if self.role is None:
+            raise RoleIsNoneAgentError
+        moves = self.interpreter.get_legal_moves_by_role(view, self.role)
+        return random.choice(tuple(moves))
 
 
 class HumanAgent(InterpreterAgent):
@@ -253,16 +245,16 @@ class HumanAgent(InterpreterAgent):
             Move
 
         """
-        if self._interpreter is None:
+        if self.interpreter is None:
             raise InterpreterIsNoneInterpreterAgentError
-        if self._role is None:
-            raise RoleIsNoneInterpreterAgentError
-        moves = sorted(self._interpreter.get_legal_moves_by_role(view, self._role))
+        if self.role is None:
+            raise RoleIsNoneAgentError
+        moves = sorted(self.interpreter.get_legal_moves_by_role(view, self.role))
 
         move_idx: Optional[int] = None
         while move_idx is None or not (1 <= move_idx <= len(moves)):
             console = rich.console.Console()
-            ctx: AbstractContextManager[Any] = (
+            ctx: AnyContextManager = (
                 # Disables mypy. Because console.pager() returns only `object` and does not seem to be typed correctly.
                 console.pager()  # type: ignore[assignment]
                 # Disables PLR2004 (Magic value used in comparison). Because: 10 is an arbitrary value.
