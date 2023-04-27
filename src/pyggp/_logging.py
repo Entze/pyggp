@@ -1,31 +1,7 @@
 import datetime
-import logging
 from typing import Final, Union
 
 import inflection
-import rich.logging
-import typer
-
-handler: rich.logging.RichHandler = rich.logging.RichHandler(
-    rich_tracebacks=True,
-    markup=True,
-)
-
-if not __debug__:
-    handler.tracebacks_suppress = [
-        typer,
-        rich,
-    ]
-
-FORMAT: str = "%(message)s"
-logging.basicConfig(
-    level=logging.NOTSET,
-    format=FORMAT,
-    datefmt="[%X]",
-    handlers=[handler],
-)
-
-log: logging.Logger = logging.getLogger("pyggp")
 
 
 def inflect(noun: str, count: int = 0) -> str:
