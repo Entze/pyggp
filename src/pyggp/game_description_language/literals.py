@@ -48,6 +48,21 @@ class Literal:
     "Sign of the literal."
 
     @property
+    def is_comparison(self) -> bool:
+        """Whether the literal is a comparison."""
+        return self.atom.name is not None and self.atom.name.startswith("__comp_")
+
+    @property
+    def is_not_equal(self) -> bool:
+        """Whether the literal is a not equal relation.
+
+        Returns:
+            Whether the literal is a not equal relation
+
+        """
+        return self.atom.name == "__comp_not_equal" and len(self.atom.arguments) > 1
+
+    @property
     def infix_str(self) -> str:
         """Infix string representation of the literal.
 
@@ -55,10 +70,10 @@ class Literal:
             The infix string representation
 
         """
-        if self.atom.name is not None and self.atom.name.startswith("__comp_"):
-            if self.atom.name == "__comp_not_equal" and len(self.atom.arguments) > 1:
+        if self.is_comparison:
+            if self.is_not_equal:
                 return self._infix_str__comp_not_equal()
-            message = f"Assumption: All __comp_ atoms are covered. {self.atom.name} is not covered."
+            message = "Assumption: All __comp_ atoms are covered."
             raise AssertionError(message)
         if self.sign == Literal.Sign.NOSIGN:
             return self.atom.infix_str
