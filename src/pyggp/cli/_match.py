@@ -97,18 +97,19 @@ def handle_match_command_args(
             role_startclockconfig_map[role] = DEFAULT_NO_TIMEOUT_CONFIGURATION
             role_playclockconfig_map[role] = DEFAULT_NO_TIMEOUT_CONFIGURATION
 
-    role_playclockconfig_map.update(
+    role_startclockconfig_map.update(
         parse_registry(
             role_startclockconfig_registry,
-            default_value=DEFAULT_PLAY_CLOCK_CONFIGURATION,
+            default_value=DEFAULT_START_CLOCK_CONFIGURATION,
             str_to_key=get_role_from_str,
             str_to_value=GameClock.Configuration.from_str,
         ),
     )
-    role_startclockconfig_map.update(
+
+    role_playclockconfig_map.update(
         parse_registry(
             role_playclockconfig_registry,
-            default_value=DEFAULT_START_CLOCK_CONFIGURATION,
+            default_value=DEFAULT_PLAY_CLOCK_CONFIGURATION,
             str_to_key=get_role_from_str,
             str_to_value=GameClock.Configuration.from_str,
         ),
@@ -199,30 +200,21 @@ def run_local_match(
     visualizer: Visualizer,
 ) -> None:
     log.debug("Started orchestrating match")
-    agents = []
-    agent_role_map = {}
-    for role, agent_name in role_agentname_map.items():
-        log.debug(
-            "Instantiating agent [italic]%s[/italic] for role [italic yellow]%s[/italic yellow]",
-            agent_name,
-            role,
-        )
-        agent_type = agentname_agenttype_map[agent_name]
-        agent = agent_type()
-        agent_role_map[agent] = role
-        agents.append(agent)
-
-    actors = []
-    role_actor_map = {}
     with contextlib.ExitStack() as stack:
-        for agent in agents:
-            role = agent_role_map[agent]
+        role_actor_map = {}
+        for role, agent_name in role_agentname_map.items():
+            log.debug(
+                "Instantiating agent [italic]%s[/italic] for role [italic yellow]%s[/italic yellow]",
+                agent_name,
+                role,
+            )
+            agent_type = agentname_agenttype_map[agent_name]
+            agent = agent_type()
             log.debug("Beginning setup for %s with role [italic yellow]%s[/italic yellow]", agent, role)
             stack.enter_context(agent)
             is_human_actor = isinstance(agent, HumanAgent)
             actor = LocalActor(agent=agent, is_human_actor=is_human_actor)
             log.debug("Instantiating %s for %s with role [italic yellow]%s[/italic yellow]", actor, agent, role)
-            actors.append(actor)
             role_actor_map[role] = actor
 
         match = Match(
