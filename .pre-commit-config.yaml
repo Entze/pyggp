@@ -30,7 +30,7 @@ repos:
       - id: mixed-line-ending
       - id: trailing-whitespace
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: v2.42.1
+    rev: 3.2.0
     hooks:
       - id: commitizen
   - repo: https://github.com/psf/black
@@ -38,7 +38,7 @@ repos:
     hooks:
       - id: black
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.261
+    rev: v0.0.263
     hooks:
       - id: ruff
         args: [--select, "I,PGH,E501", --fixable, "I", --fix, --exit-non-zero-on-fix]
