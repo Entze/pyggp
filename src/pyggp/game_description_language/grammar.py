@@ -70,21 +70,21 @@ subrelation_parser = lark.Lark(grammar=infix_grammar, start="subrelation", parse
 class TreeToGDLTransformer(lark.Transformer[lark.Token, GDL]):
     """Transforms a tree to the corresponding gdl object."""
 
-    def ruleset(self, children: Sequence[Sentence]) -> Ruleset:  # noqa: D102
+    def ruleset(self, children: Sequence[Sentence]) -> Ruleset:
         return Ruleset.from_rules(children)
 
-    def rule(self, children: Tuple[Relation, Sequence[Literal]]) -> Sentence:  # noqa: D102
+    def rule(self, children: Tuple[Relation, Sequence[Literal]]) -> Sentence:
         head, body = children
         return Sentence(head, tuple(body))
 
-    def body(self, children: Sequence[Literal]) -> Sequence[Literal]:  # noqa: D102
+    def body(self, children: Sequence[Literal]) -> Sequence[Literal]:
         return children
 
-    def fact(self, children: Sequence[Relation]) -> Sentence:  # noqa: D102
+    def fact(self, children: Sequence[Relation]) -> Sentence:
         (head,) = children
         return Sentence(head)
 
-    def literal(self, children: Union[Tuple[lark.Token, Relation], Tuple[Relation]]) -> Literal:  # noqa: D102
+    def literal(self, children: Union[Tuple[lark.Token, Relation], Tuple[Relation]]) -> Literal:
         # Disables PLR2004. Because: Not a magic value, but either a tuple of one or two elements.
         if len(children) == 2:  # noqa: PLR2004
             # Disables mypy. Because: False positive
@@ -94,48 +94,48 @@ class TreeToGDLTransformer(lark.Transformer[lark.Token, GDL]):
         (relation,) = children  # type: ignore[misc]
         return Literal(relation)
 
-    def not_equal(self, children: Sequence[Iterable[Subrelation]]) -> Relation:  # noqa: D102
+    def not_equal(self, children: Sequence[Iterable[Subrelation]]) -> Relation:
         (arguments,) = children
         return Relation("__comp_not_equal", tuple(arguments))
 
-    def tuple_(self, children: Sequence[Iterable[Subrelation]]) -> Relation:  # noqa: D102
+    def tuple_(self, children: Sequence[Iterable[Subrelation]]) -> Relation:
         (arguments,) = children
         return Relation(arguments=tuple(arguments))
 
-    def empty_tuple(self, children: Sequence[Any]) -> Relation:  # noqa: D102, ARG002
+    def empty_tuple(self, children: Sequence[Any]) -> Relation:  # noqa: ARG002
         return Relation()
 
-    def function(self, children: Tuple[lark.Token, Iterable[Subrelation]]) -> Relation:  # noqa: D102
+    def function(self, children: Tuple[lark.Token, Iterable[Subrelation]]) -> Relation:
         name, arguments = children
         return Relation(str(name), tuple(arguments))
 
-    def arguments(self, children: Sequence[Subrelation]) -> Sequence[Subrelation]:  # noqa: D102
+    def arguments(self, children: Sequence[Subrelation]) -> Sequence[Subrelation]:
         return children
 
-    def subrelation(self, children: Sequence[Symbol]) -> Subrelation:  # noqa: D102
+    def subrelation(self, children: Sequence[Symbol]) -> Subrelation:
         (symbol,) = children
         return Subrelation(symbol)
 
-    def atom(self, children: Sequence[lark.Token]) -> Relation:  # noqa: D102
+    def atom(self, children: Sequence[lark.Token]) -> Relation:
         (name,) = children
         return Relation(str(name))
 
-    def string(self, children: Sequence[lark.Token]) -> String:  # noqa: D102
+    def string(self, children: Sequence[lark.Token]) -> String:
         (escaped_string,) = children
         return String(str(escaped_string[1:-1]))
 
-    def number(self, children: Sequence[lark.Token]) -> Number:  # noqa: D102
+    def number(self, children: Sequence[lark.Token]) -> Number:
         (number,) = children
         return Number(int(number))
 
-    def variable(self, children: Sequence[lark.Token]) -> Variable:  # noqa: D102
+    def variable(self, children: Sequence[lark.Token]) -> Variable:
         (varname,) = children
         return Variable(str(varname))
 
-    def anonymous_wildcard(self, children: Sequence[Any]) -> Variable:  # noqa: D102, ARG002
+    def anonymous_wildcard(self, children: Sequence[Any]) -> Variable:  # noqa: ARG002
         return Variable("_")
 
-    def named_wildcard(self, children: Sequence[lark.Token]) -> Variable:  # noqa: D102
+    def named_wildcard(self, children: Sequence[lark.Token]) -> Variable:
         (varname,) = children
         return Variable("_" + str(varname))
 
