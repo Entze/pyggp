@@ -49,8 +49,8 @@ def main(
 def match(
     registry: List[str] = typer.Argument(None, metavar="[ROLE=AGENT]...", show_default=False),
     files: List[pathlib.Path] = typer.Option(..., "--ruleset", "--file", "-f", show_default=False),
-    startclock: List[str] = typer.Option(None, show_default=False),
-    playclock: List[str] = typer.Option(None, show_default=False),
+    startclock: List[str] = typer.Option(None, "--startclock", "-s", show_default=False),
+    playclock: List[str] = typer.Option(None, "--playclock", "-p", show_default=False),
     verbose: int = typer.Option(0, "--verbose", "-v", count=True, show_default=False),
     quiet: int = typer.Option(0, "--quiet", "-q", count=True, show_default=False),
 ) -> None:
