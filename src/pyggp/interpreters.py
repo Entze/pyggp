@@ -6,6 +6,7 @@ import time
 from dataclasses import dataclass, field
 from typing import (
     Callable,
+    ClassVar,
     Final,
     FrozenSet,
     Iterator,
@@ -18,20 +19,24 @@ from typing import (
     Sequence,
     Set,
     Tuple,
+    TypedDict,
     Union,
 )
 
 import clingo
 import clingo.ast as clingo_ast
 import clingox.backend as clingox_backend
-from typing_extensions import Self
+from typing_extensions import NotRequired, Self, assert_type
 
+import pyggp._clingo as clingo_helper
 import pyggp.game_description_language as gdl
 from pyggp.exceptions.interpreter_exceptions import (
+    InterpreterError,
     ModelTimeoutInterpreterError,
     MoreThanOneModelInterpreterError,
     MultipleGoalsInterpreterError,
     SolveTimeoutInterpreterError,
+    UnsatDevelopmentsInterpreterError,
     UnsatGoalInterpreterError,
     UnsatInitInterpreterError,
     UnsatLegalInterpreterError,
@@ -45,8 +50,50 @@ log: logging.Logger = logging.getLogger("pyggp")
 _State = FrozenSet[gdl.Subrelation]
 State = NewType("State", _State)
 """States are sets of subrelations."""
+
 View = NewType("View", State)
 """Views are (partial) states."""
+
+
+def get_assertions(
+    current: Union[State, View],
+    name: str = "true",
+    pre_arguments: Sequence[clingo_ast.AST] = (),
+    post_arguments: Sequence[clingo_ast.AST] = (),
+) -> Iterator[clingo_ast.AST]:
+    """Get the clingo assertions for the given state.
+
+    Args:
+        current: State or view
+        name: Name of the relation
+        pre_arguments: Arguments before the subrelation
+        post_arguments: Arguments after the subrelation
+
+    Returns:
+        Iterator of clingo assertions
+
+    """
+    return (
+        clingo_helper.create_rule(
+            body=(
+                clingo_helper.create_literal(
+                    sign=clingo_ast.Sign.Negation,
+                    atom=clingo_helper.create_atom(
+                        clingo_helper.create_function(
+                            name=name,
+                            arguments=(
+                                *pre_arguments,
+                                subrelation.as_clingo_ast(),
+                                *post_arguments,
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        for subrelation in current
+    )
+
 
 Role = NewType("Role", gdl.Subrelation)
 """Roles are relations, numbers, or string."""
@@ -126,29 +173,93 @@ class Turn(Mapping[Role, Move]):
         for role, _ in self._role_move_pairs:
             yield role
 
-    def as_plays(self) -> FrozenSet[Play]:
+    def as_plays(self) -> Iterator[Play]:
         """Return the plays of the turn.
 
         Returns:
             Plays of the turn
 
         """
-        return frozenset(Play(gdl.Relation("does", arguments=(role, move))) for role, move in self._role_move_pairs)
+        return (Play(gdl.Relation("does", arguments=(role, move))) for role, move in self._role_move_pairs)
 
 
 class Record(NamedTuple):
     """Record (possibly partial) of a game."""
 
-    states: Mapping[int, State]
+    states: Mapping[int, State] = field(default_factory=dict)
     """States of the game by ply."""
-    views: Mapping[int, Mapping[Role, View]]
+    views: Mapping[int, Mapping[Role, View]] = field(default_factory=dict)
     """Views of the state by role by ply."""
-    turns: Mapping[int, Turn]
+    turns: Mapping[int, Turn] = field(default_factory=dict)
     """Turns of the game by ply."""
+
+    @property
+    def horizon(self) -> int:
+        """Maximum ply associated with either states, views or turns."""
+        return max(
+            max(self.states.keys(), default=0),
+            max(self.views.keys(), default=0),
+            max(self.turns.keys(), default=0),
+        )
+
+    def get_state_assertions(self) -> Iterator[clingo_ast.AST]:
+        """Get the clingo assertions for the states of the game.
+
+        Yields:
+            Clingo assertions for the states of the game
+
+        """
+        for ply, state in self.states.items():
+            current_time = clingo_helper.create_symbolic_term(clingo.Number(ply))
+            yield from get_assertions(state, name="holds_at", post_arguments=(current_time,))
+
+    def get_view_assertions(self) -> Iterator[clingo_ast.AST]:
+        """Get the clingo assertions for the views of the game.
+
+        Yields:
+            Clingo assertions for the views of the game
+
+        """
+        for ply, views in self.views.items():
+            current_time = clingo_helper.create_symbolic_term(clingo.Number(ply))
+            for role, view in views.items():
+                role_ast = role.as_clingo_ast()
+                yield from get_assertions(
+                    view,
+                    name="sees_at",
+                    pre_arguments=(role_ast,),
+                    post_arguments=(current_time,),
+                )
+
+    def get_turn_assertions(self) -> Iterator[clingo_ast.AST]:
+        """Get the clingo assertions for the turns of the game.
+
+        Yields:
+            Clingo assertions for the turns of the game
+
+        """
+        for ply, turn in self.turns.items():
+            current_time = clingo_helper.create_symbolic_term(clingo.Number(ply))
+            for role, move in turn.items():
+                role_ast = role.as_clingo_ast()
+                move_ast = move.as_clingo_ast()
+                yield clingo_helper.create_rule(
+                    body=(
+                        clingo_helper.create_literal(
+                            sign=clingo_ast.Sign.Negation,
+                            atom=clingo_helper.create_atom(
+                                clingo_helper.create_function(
+                                    name="does_at",
+                                    arguments=(role_ast, move_ast, current_time),
+                                ),
+                            ),
+                        ),
+                    ),
+                )
 
 
 class DevelopmentStep(NamedTuple):
-    """A development."""
+    """Describes a possible state and a turn that leads to the next state."""
 
     state: State
     """State of that step."""
@@ -158,11 +269,46 @@ class DevelopmentStep(NamedTuple):
 
 _Development = Sequence[DevelopmentStep]
 Development = NewType("Development", _Development)
+"""A sequence of development steps."""
+
+
+def development_from_symbols(symbols: Sequence[clingo.Symbol]) -> Development:
+    """Create a development from clingo symbols.
+
+    Args:
+        symbols: Clingo symbols
+
+    Returns:
+        Development
+
+    """
+    ply_state_map: MutableMapping[int, Set[gdl.Subrelation]] = collections.defaultdict(set)
+    ply_turn_map: MutableMapping[int, MutableMapping[Role, Move]] = collections.defaultdict(dict)
+    for symbol in symbols:
+        if symbol.match("holds_at", 2):
+            subrelation = gdl.Subrelation.from_clingo_symbol(symbol.arguments[0])
+            ply = symbol.arguments[1].number
+            ply_state_map[ply].add(subrelation)
+        elif symbol.match("does_at", 3):
+            role = Role(gdl.Subrelation.from_clingo_symbol(symbol.arguments[0]))
+            move = Move(gdl.Subrelation.from_clingo_symbol(symbol.arguments[1]))
+            ply = symbol.arguments[2].number
+            ply_turn_map[ply][role] = move
+    assert list(range(0, len(ply_state_map))) == sorted(ply_state_map.keys())
+    return Development(
+        tuple(
+            DevelopmentStep(
+                state=State(frozenset(ply_state_map[ply])),
+                turn=Turn.from_mapping(ply_turn_map[ply]) if ply_turn_map[ply] else None,
+            )
+            for ply in range(0, len(ply_state_map))
+        ),
+    )
 
 
 @dataclass
 class Interpreter:
-    """An interpreter for a GDL ruleset_resource.
+    """An interpreter for a GDL ruleset.
 
     Used to calculate the state transitions for games. The interpreter itself is stateless.
 
@@ -367,6 +513,22 @@ class Interpreter:
             and subrelation.symbol.matches_signature(name="control", arity=1)
         )
 
+    @staticmethod
+    def get_ranks(goals: Mapping[Role, Optional[int]]) -> Mapping[Role, int]:
+        """Return the ranks for each role.
+
+        Args:
+            goals: Mapping of role to its goal (utility value)
+
+        Returns:
+            Mapping of role to its rank
+
+        """
+        ranking: MutableSequence[Union[int, None]] = []
+        ranking.extend(sorted((goal for goal in goals.values() if isinstance(goal, int)), reverse=True))
+        ranking.append(None)
+        return {role: ranking.index(goal) for role, goal in goals.items()}
+
 
 @dataclass
 class ClingoInterpreter(Interpreter):
@@ -378,8 +540,22 @@ class ClingoInterpreter(Interpreter):
 
     # region Inner Classes
 
+    class TemporalClassification(TypedDict):
+        """Describes how a GDL sentence is to be transformed to a temporal ASP rule."""
+
+        name: NotRequired[str]
+        "Associated name of the temporal ASP rule (default {name}_at)."
+        timeshift: NotRequired[Optional[int]]
+        "Associated timeshift of the temporal ASP rule (default for dynamic 0, default for static None)."
+        time: NotRequired[Union[str, int, None]]
+        "Associated time argument of the temporal ASP rule (default for dynamic '__time', default for static None)."
+        is_static: NotRequired[bool]
+        "Whether the temporal ASP rule is static (default False)."
+
     @dataclass(frozen=True)
-    class _ClingoASTRules:
+    class ClingoASTRules:
+        """Container for the clingo AST rules."""
+
         roles_rules: Sequence[clingo_ast.AST] = field(default_factory=tuple)
         init_rules: Sequence[clingo_ast.AST] = field(default_factory=tuple)
         next_rules: Sequence[clingo_ast.AST] = field(default_factory=tuple)
@@ -388,11 +564,24 @@ class ClingoInterpreter(Interpreter):
         goal_rules: Sequence[clingo_ast.AST] = field(default_factory=tuple)
         terminal_rules: Sequence[clingo_ast.AST] = field(default_factory=tuple)
 
-        static_rules: Sequence[clingo_ast.AST] = field(default_factory=tuple, init=False)
-        dynamic_rules: Sequence[clingo_ast.AST] = field(default_factory=tuple, init=False)
+        static_rules: Sequence[clingo_ast.AST] = field(default_factory=tuple)
+        dynamic_rules: Sequence[clingo_ast.AST] = field(default_factory=tuple)
+
+        static_program: ClassVar[clingo_ast.AST] = clingo_helper.PROGRAM_STATIC
+        dynamic_program: ClassVar[clingo_ast.AST] = clingo_helper.PROGRAM_DYNAMIC
+
+        dynamic_pick_plays: ClassVar[Callable[[int], clingo_ast.AST]] = staticmethod(
+            clingo_helper.create_pick_move_rule,
+        )
 
         @classmethod
         def from_ruleset(cls, ruleset: gdl.Ruleset) -> Self:
+            """Create a ClingoASTRules object from a GDL ruleset.
+
+            Args:
+                ruleset: GDL ruleset to create the ClingoASTRules object from
+
+            """
             roles_rules = tuple(sentence.as_clingo_ast() for sentence in ruleset.role_rules)
             init_rules = tuple(sentence.as_clingo_ast() for sentence in ruleset.init_rules)
             next_rules = tuple(sentence.as_clingo_ast() for sentence in ruleset.next_rules)
@@ -400,7 +589,198 @@ class ClingoInterpreter(Interpreter):
             legal_rules = tuple(sentence.as_clingo_ast() for sentence in ruleset.legal_rules)
             goal_rules = tuple(sentence.as_clingo_ast() for sentence in ruleset.goal_rules)
             terminal_rules = tuple(sentence.as_clingo_ast() for sentence in ruleset.terminal_rules)
-            return cls(roles_rules, init_rules, next_rules, sees_rules, legal_rules, goal_rules, terminal_rules)
+            static_rules_list = [cls.static_program]
+            dynamic_rules_list = [cls.dynamic_program]
+            temporal_classification = ClingoInterpreter.ClingoASTRules.build_temporal_classification(ruleset)
+            for sentence in ruleset.rules:
+                rule = ClingoInterpreter.ClingoASTRules.sentence_to_rule(sentence, temporal_classification)
+                is_static = temporal_classification[sentence.head.signature].get("is_static", False)
+                if not is_static:
+                    dynamic_rules_list.append(rule)
+                else:
+                    static_rules_list.append(rule)
+            static_rules = tuple(static_rules_list)
+            dynamic_rules = tuple(dynamic_rules_list)
+
+            return cls(
+                roles_rules=roles_rules,
+                init_rules=init_rules,
+                next_rules=next_rules,
+                sees_rules=sees_rules,
+                legal_rules=legal_rules,
+                goal_rules=goal_rules,
+                terminal_rules=terminal_rules,
+                static_rules=static_rules,
+                dynamic_rules=dynamic_rules,
+            )
+
+        @staticmethod
+        def build_temporal_classification(
+            ruleset: gdl.Ruleset,
+        ) -> Mapping[gdl.Relation.Signature, "ClingoInterpreter.TemporalClassification"]:
+            """Build the temporal classification for the GDL ruleset."""
+            signature_temporal_classification_map = {
+                gdl.Relation.Signature("role", 1): ClingoInterpreter.TemporalClassification(
+                    name="role",
+                    is_static=True,
+                ),
+                gdl.Relation.Signature("init", 1): ClingoInterpreter.TemporalClassification(
+                    name="holds_at",
+                    time=0,
+                    is_static=True,
+                ),
+                gdl.Relation.Signature("next", 1): ClingoInterpreter.TemporalClassification(
+                    name="holds_at",
+                    timeshift=1,
+                ),
+                gdl.Relation.Signature("true", 1): ClingoInterpreter.TemporalClassification(
+                    name="holds_at",
+                ),
+                gdl.Relation.Signature("does", 2): ClingoInterpreter.TemporalClassification(),
+                gdl.Relation.Signature("sees", 2): ClingoInterpreter.TemporalClassification(),
+                gdl.Relation.Signature("legal", 2): ClingoInterpreter.TemporalClassification(),
+                gdl.Relation.Signature("goal", 2): ClingoInterpreter.TemporalClassification(),
+                gdl.Relation.Signature("terminal", 0): ClingoInterpreter.TemporalClassification(),
+            }
+            relevant_signatures = set(signature_temporal_classification_map.keys())
+            has_changed = True
+            while has_changed:
+                __before_len = len(relevant_signatures)
+                relevant_signatures.update(
+                    body_literal.atom.signature
+                    for sentence in ruleset.rules
+                    for body_literal in sentence.body
+                    if not body_literal.is_comparison
+                )
+                relevant_signatures.update(
+                    sentence.head.signature
+                    for sentence in ruleset.rules
+                    if any(body_literal.atom.signature in relevant_signatures for body_literal in sentence.body)
+                )
+                __after_len = len(relevant_signatures)
+                has_changed = __before_len != __after_len
+
+            has_changed = True
+            while has_changed:
+                has_changed = False
+                for sentence in ruleset.rules:
+                    head_relation = sentence.head
+                    head_signature = head_relation.signature
+                    if head_signature in signature_temporal_classification_map:
+                        continue
+                    if head_signature not in relevant_signatures:
+                        signature_temporal_classification_map[
+                            head_signature
+                        ] = ClingoInterpreter.TemporalClassification(is_static=True)
+                        continue
+                    has_changed = True
+                    is_static = True
+                    time_ = None
+                    for body_literal in sentence.body:
+                        body_relation = body_literal.atom
+                        body_signature = body_relation.signature
+                        if body_signature not in signature_temporal_classification_map:
+                            continue
+                        body_classification = signature_temporal_classification_map[body_signature]
+                        body_is_static = body_classification.get("is_static", False)
+                        is_static = is_static and body_is_static
+                        body_time = body_classification.get("time", "__time") if not body_is_static else None
+                        if time_ is None:
+                            time_ = body_time
+                    name = f"{head_relation.name}_static" if is_static else f"{head_relation.name}_at"
+                    signature_temporal_classification_map[head_signature] = ClingoInterpreter.TemporalClassification(
+                        name=name,
+                        time=time_,
+                        is_static=is_static,
+                    )
+            return signature_temporal_classification_map
+
+        @staticmethod
+        def sentence_to_rule(
+            sentence: gdl.Sentence,
+            temporal_classification: Mapping[gdl.Relation.Signature, "ClingoInterpreter.TemporalClassification"],
+        ) -> clingo_ast.AST:
+            """Convert a GDL sentence to a Clingo rule.
+
+            Args:
+                sentence: GDL sentence to convert
+                temporal_classification: Mapping from GDL relation signatures to temporal classifications
+
+            Returns:
+                Clingo rule
+
+            """
+            clingo_head_function = ClingoInterpreter.ClingoASTRules.relation_to_clingo_function(
+                sentence.head,
+                temporal_classification,
+            )
+            clingo_head_literal = clingo_helper.create_literal(atom=clingo_helper.create_atom(clingo_head_function))
+            clingo_body_literals = []
+            for body_literal in sentence.body:
+                if body_literal.is_comparison:
+                    clingo_body_literals.append(body_literal.as_clingo_ast())
+                else:
+                    function = ClingoInterpreter.ClingoASTRules.relation_to_clingo_function(
+                        body_literal.atom,
+                        temporal_classification,
+                    )
+                    sign = body_literal.sign.as_clingo_ast()
+                    clingo_body_literals.append(clingo_helper.create_literal(sign, clingo_helper.create_atom(function)))
+            return clingo_helper.create_rule(clingo_head_literal, tuple(clingo_body_literals))
+
+        @staticmethod
+        def relation_to_clingo_function(
+            relation: gdl.Relation,
+            signature_temporal_classification_map: Mapping[
+                gdl.Relation.Signature,
+                "ClingoInterpreter.TemporalClassification",
+            ],
+        ) -> clingo_ast.AST:
+            """Convert a GDL relation to a Clingo function.
+
+            Args:
+                relation: GDL relation to convert
+                signature_temporal_classification_map: Mapping from GDL relation signatures to temporal classifications
+
+            Returns:
+                Clingo function
+
+            """
+            signature = relation.signature
+            if signature not in signature_temporal_classification_map:
+                return relation.as_clingo_ast()
+            temporal_classification = signature_temporal_classification_map[signature]
+            is_static = temporal_classification.get("is_static", False)
+            if not is_static:
+                name = temporal_classification.get("name", f"{relation.name}_at")
+                time_ = temporal_classification.get("time", "__time")
+                timeshift = temporal_classification.get("timeshift", None)
+            else:
+                name = temporal_classification.get("name", f"{relation.name}_static")
+                time_ = temporal_classification.get("time", None)
+                timeshift = temporal_classification.get("timeshift", None)
+
+            last_arguments: Sequence[clingo_ast.AST] = ()
+            if time_ is not None:
+                time_ast = None
+                if isinstance(time_, int):
+                    time_ast = clingo_helper.create_symbolic_term(symbol=clingo.Number(time_))
+                elif isinstance(time_, str):
+                    time_ast = clingo_helper.create_function(name=time_)
+                assert time_ast is not None, "Assumption: time is either an int, str or None."
+                if timeshift is not None:
+                    last_argument = clingo_helper.create_binary_operation(
+                        left=time_ast,
+                        right=clingo_helper.create_symbolic_term(clingo.Number(timeshift)),
+                    )
+                else:
+                    last_argument = time_ast
+                last_arguments = (last_argument,)
+            arguments: Sequence[clingo_ast.AST] = (
+                *(argument.as_clingo_ast() for argument in relation.arguments),
+                *last_arguments,
+            )
+            return clingo_helper.create_function(name=name, arguments=arguments)
 
     # Disables N818 (Exception name should be named with an Error suffix). Because this is not an error, but an effect.
     class Unsat(Exception):  # noqa: N818
@@ -414,7 +794,7 @@ class ClingoInterpreter(Interpreter):
     """Timeout for the model query in seconds."""
     solve_timeout: float = 10.0
     """Timeout for all model queries in seconds."""
-    _rules: _ClingoASTRules = field(default_factory=_ClingoASTRules, repr=False)
+    _rules: ClingoASTRules = field(default_factory=ClingoASTRules, repr=False)
 
     # endregion
 
@@ -437,8 +817,7 @@ class ClingoInterpreter(Interpreter):
             ruleset=ruleset,
             model_timeout=model_timeout,
             solve_timeout=solve_timeout,
-            # Disables SLF001 ( Private member accessed). Because this its own inner class.
-            _rules=ClingoInterpreter._ClingoASTRules.from_ruleset(ruleset),  # noqa: SLF001
+            _rules=ClingoInterpreter.ClingoASTRules.from_ruleset(ruleset),
         )
 
     # endregion
@@ -653,8 +1032,74 @@ class ClingoInterpreter(Interpreter):
             All possible developments for the given record
 
         """
-        assert record
-        yield Development(())  # TODO: Implement
+        ctl, rules = self._get_development_ctl(record)
+        try:
+            yield from self._get_development_model(ctl, record)
+        except InterpreterError:
+            log.debug("Error while getting developments. Solving the following rules: %s", " ".join(rules))
+            raise
+
+    def _get_development_model(self, ctl: clingo.Control, record: Record) -> Iterator[Development]:
+        ctl.ground(
+            (
+                ("base", ()),
+                ("static", ()),
+                *(("dynamic", (clingo.Number(__time),)) for __time in range(0, record.horizon + 1)),
+            ),
+        )
+        # Disables mypy. Because contract guarantees that handle is not SolveResult when called with yield_=True or
+        # async_=True.
+        with ctl.solve(yield_=True, async_=True) as handle:  # type: ignore[union-attr]
+            handle.resume()
+            done = handle.wait(self.model_timeout)
+            if not done:
+                handle.cancel()
+                raise ModelTimeoutInterpreterError
+            model = handle.model()
+            if model is None:
+                raise UnsatDevelopmentsInterpreterError
+            symbols = model.symbols(shown=True)
+            yield development_from_symbols(symbols)
+            while model is not None:
+                handle.resume()
+                done = handle.wait(self.model_timeout)
+                if not done:
+                    handle.cancel()
+                    raise ModelTimeoutInterpreterError
+                model = handle.model()
+                if model is not None:
+                    symbols = model.symbols(shown=True)
+                    yield development_from_symbols(symbols)
+
+    def _get_development_ctl(self, record: Record) -> Tuple[clingo.Control, Sequence[str]]:
+        ctl = clingo.Control()
+        # Disables mypy. Because: clingo does not provide a typesafe way to set the configuration.
+        ctl.configuration.solve.models = 0  # type: ignore[union-attr]
+
+        rules = []
+        with clingo_ast.ProgramBuilder(ctl) as ast_builder:
+            for rule in record.get_state_assertions():
+                ast_builder.add(rule)
+                rules.append(str(rule))
+            for rule in record.get_view_assertions():
+                ast_builder.add(rule)
+                rules.append(str(rule))
+            for rule in record.get_turn_assertions():
+                ast_builder.add(rule)
+                rules.append(str(rule))
+            for rule in self._rules.static_rules:
+                ast_builder.add(rule)
+                rules.append(str(rule))
+            for rule in self._rules.dynamic_rules:
+                ast_builder.add(rule)
+                rules.append(str(rule))
+            horizon = record.horizon
+            assert_type(horizon, int)
+            assert isinstance(horizon, int)
+            rule = ClingoInterpreter.ClingoASTRules.dynamic_pick_plays(horizon)
+            ast_builder.add(rule)
+            rules.append(str(rule))
+        return ctl, rules
 
     def _get_model(self, ctl: clingo.Control) -> Iterator[clingo.Symbol]:
         total_wait_time = 0.0
@@ -765,503 +1210,3 @@ class ClingoInterpreter(Interpreter):
         return ctl
 
     # endregion
-
-
-#
-#
-
-#
-#
-# class _ToRenameDict(TypedDict):
-#     name: str
-#     head_shift: Optional[int]
-#     body_shift: Optional[int]
-#     append_arguments: Sequence[clingo.ast.AST]
-#
-#
-# @dataclass
-# class _EventCalculus:
-#     static: Sequence[clingo.ast.AST]
-#     dynamic: Sequence[clingo.ast.AST]
-#
-#     @classmethod
-#     def from_ruleset(cls, ruleset: Ruleset) -> Self:
-#         static = [clingo.ast.Program(pyggp.gdl._loc, "static", ())]
-#         dynamic = [clingo.ast.Program(pyggp.gdl._loc, "dynamic", (clingo.ast.Id(pyggp.gdl._loc, "__time"),))]
-#         dynamic_to_rename: MutableMapping[Signature, _ToRenameDict] = {
-#             Signature("next", 1): _ToRenameDict(head_shift=0, body_shift=1, name="holds_at", append_arguments=()),
-#             Signature("true", 1): _ToRenameDict(head_shift=0, body_shift=0, name="holds_at", append_arguments=()),
-#             Signature("sees", 2): _ToRenameDict(head_shift=0, body_shift=0, name="sees_at", append_arguments=()),
-#             Signature("legal", 2): _ToRenameDict(head_shift=0, body_shift=0, name="legal_at", append_arguments=()),
-#             Signature("does", 2): _ToRenameDict(head_shift=0, body_shift=0, name="does_at", append_arguments=()),
-#         }
-#         static_to_rename: MutableMapping[Signature, _ToRenameDict] = {
-#             Signature("init", 1): _ToRenameDict(
-#                 head_shift=None,
-#                 body_shift=None,
-#                 name="holds_at",
-#                 append_arguments=(clingo.ast.SymbolicTerm(pyggp.gdl._loc, clingo.Number(0)),),
-#             ),
-#         }
-#         to_rename_size = len(dynamic_to_rename)
-#         changed = True
-#         while changed:
-#             for sentence in ruleset.rules:
-#                 if any(signature in sentence for signature in dynamic_to_rename):
-#                     signature = sentence.head.signature
-#                     name, arity = signature
-#                     dynamic_to_rename.setdefault(
-#                         signature,
-#                         _ToRenameDict(head_shift=0, body_shift=0, name=f"{name}_at", append_arguments=()),
-#                     )
-#             changed = len(dynamic_to_rename) != to_rename_size
-#             to_rename_size = len(dynamic_to_rename)
-#
-#         assert set(dynamic_to_rename.keys()).isdisjoint(set(static_to_rename.keys())), (
-#             "There exists Signatures that are both static and dynamic: "
-#             f"{set(dynamic_to_rename.keys()) & set(static_to_rename.keys())}"
-#         )
-#
-#         for sentence in ruleset.rules:
-#             rule_ast = _EventCalculus.sentence_to_clingo_ast_with_time(sentence, dynamic_to_rename, static_to_rename)
-#             assert not (sentence.head.signature in static_to_rename and sentence.head.signature in dynamic_to_rename)
-#             if sentence.head.signature not in dynamic_to_rename:
-#                 static.append(rule_ast)
-#             else:
-#                 dynamic.append(rule_ast)
-#
-#         return cls(static, dynamic)
-#
-#     @staticmethod
-#     def relation_to_clingo_ast_with_time(
-#         relation: Relation,
-#         name: str,
-#         shift: Optional[int],
-#         append_arguments: Sequence[clingo.ast.AST],
-#     ) -> clingo.ast.AST:
-#         if shift is not None:
-#             time_ = clingo.ast.Function(pyggp.gdl._loc, "__time", (), False)
-#             if shift == 0:
-#                 time_shift = (time_,)
-#             else:
-#                 if shift > 0:
-#                     operator = clingo.ast.BinaryOperator.Minus
-#                 else:
-#                     assert shift < 0
-#                     operator = clingo.ast.BinaryOperator.Plus
-#
-#                 time_shift = (
-#                     clingo.ast.BinaryOperation(
-#                         pyggp.gdl._loc,
-#                         operator,
-#                         time_,
-#                         clingo.ast.SymbolicTerm(pyggp.gdl._loc, clingo.Number(abs(shift))),
-#                     ),
-#                 )
-#         else:
-#             time_shift = ()
-#
-#         arguments = (*relation.to_clingo_ast().arguments, *time_shift, *append_arguments)
-#         return clingo.ast.SymbolicAtom(clingo.ast.Function(pyggp.gdl._loc, name, arguments, False))
-#
-#     @staticmethod
-#     def literal_to_clingo_ast_with_time(
-#         literal: Literal,
-#         name: str,
-#         shift: int,
-#         append_arguments: Sequence[clingo.ast.AST],
-#     ) -> clingo.ast.AST:
-#         atom = _EventCalculus.relation_to_clingo_ast_with_time(literal.atom, name, shift, append_arguments)
-#         if literal.sign == Sign.NOSIGN:
-#             sign = clingo.ast.Sign.NoSign
-#         elif literal.sign == Sign.NEGATIVE:
-#             sign = clingo.ast.Sign.Negation
-#         else:
-#             assert_never(literal.sign)
-#         return clingo.ast.Literal(pyggp.gdl._loc, sign, atom)
-#
-#     @staticmethod
-#     def sentence_to_clingo_ast_with_time(
-#         sentence: Sentence,
-#         dynamic_to_rename: Optional[Mapping[Signature, _ToRenameDict]] = None,
-#         static_to_rename: Optional[Mapping[Signature, _ToRenameDict]] = None,
-#     ) -> clingo.ast.AST:
-#         if dynamic_to_rename is None:
-#             dynamic_to_rename = {}
-#         if static_to_rename is None:
-#             static_to_rename = {}
-#         to_rename = dynamic_to_rename | static_to_rename
-#         if sentence.head.signature in to_rename:
-#             head_name = to_rename[sentence.head.signature]["name"]
-#             head_shift = to_rename[sentence.head.signature]["head_shift"]
-#             body_shift = to_rename[sentence.head.signature]["body_shift"]
-#             append_head_arguments = to_rename[sentence.head.signature]["append_arguments"]
-#             head_atom = _EventCalculus.relation_to_clingo_ast_with_time(
-#                 sentence.head,
-#                 head_name,
-#                 head_shift,
-#                 append_head_arguments,
-#             )
-#             head_literal = clingo.ast.Literal(pyggp.gdl._loc, clingo.ast.Sign.NoSign, head_atom)
-#             body_literals = []
-#             for literal in sentence.body:
-#                 if literal.atom.signature in to_rename:
-#                     body_name = to_rename[literal.atom.signature]["name"]
-#                     append_body_arguments = to_rename[literal.atom.signature]["append_arguments"]
-#                     body_literals.append(
-#                         _EventCalculus.literal_to_clingo_ast_with_time(
-#                             literal,
-#                             body_name,
-#                             body_shift,
-#                             append_body_arguments,
-#                         ),
-#                     )
-#                 else:
-#                     body_literals.append(literal.to_clingo_ast())
-#             rule_ast = clingo.ast.Rule(pyggp.gdl._loc, head_literal, body_literals)
-#         else:
-#             rule_ast = sentence.to_clingo_ast()
-#         return rule_ast
-#
-#
-# class ClingoInterpreter(Interpreter):
-#     """An interpreter for a GDL ruleset_resource using clingo.
-#
-#     Queries the clingo solver for the state transitions. Translates the GDL ruleset_resource to ASP.
-#
-#     Attributes:
-#         ruleset: The ruleset_resource to interpret.
-#
-#
-#     """
-#
-#     # region Magic Methods
-#
-#     def __init__(
-#         self,
-#         ruleset: Optional[Ruleset] = None,
-#         model_timeout: Optional[float] = 10.0,
-#         prove_only_model_timeout: Optional[float] = 2.0,
-#     ) -> None:
-#         """Initialize the interpreter.
-#
-#         Convert the sentences to clingo ASTs.
-#
-#         Args:
-#             ruleset: The ruleset_resource to interpret.
-#             model_timeout: The timeout in seconds for each model query.
-#             prove_only_model_timeout: The timeout in seconds for proving that there is only one model.
-#
-#         """
-#         super().__init__(ruleset)
-#         self._rules = _Rules.from_ruleset(ruleset)
-#         self._event_calculus = _EventCalculus.from_ruleset(ruleset)
-#
-#         self._model_timeout = model_timeout
-#         self._prove_only_model_timeout = prove_only_model_timeout
-#
-#     # endregion
-#
-#     # region Methods
-#
-#     def get_roles(self) -> FrozenSet[ConcreteRole]:
-#         ctl = _get_ctl(rules=self._rules.roles_rules)
-#         model = self._get_model(ctl)
-#         if model is None:
-#             raise UnsatRolesInterpreterError
-#         return frozenset(from_clingo_symbol(symbol.arguments[0]) for symbol in model if symbol.match("role", 1))
-#
-#     def get_init_state(self) -> State:
-#         ctl = _get_ctl(rules=self._rules.init_rules)
-#         model = self._get_model(ctl)
-#         if model is None:
-#             raise UnsatInitInterpreterError
-#         return frozenset(from_clingo_symbol(symbol.arguments[0]) for symbol in model if symbol.match("init", 1))
-#
-#     def get_next_state(self, state: State, *plays: Play) -> State:
-#         ctl = _get_ctl(state=state, plays=plays, rules=self._rules.next_rules)
-#         model = self._get_model(ctl)
-#         if model is None:
-#             raise UnsatNextInterpreterError
-#         return frozenset(from_clingo_symbol(symbol.arguments[0]) for symbol in model if symbol.match("next", 1))
-#
-#     @property
-#     def has_incomplete_information(self) -> bool:
-#         return bool(self._rules.sees_rules)
-#
-#     def get_sees(self, state: State) -> Mapping[ConcreteRole, State]:
-#         if not self.has_incomplete_information:
-#             return {role: state for role in self.get_roles()}
-#         ctl = _get_ctl(state=state, rules=self._rules.sees_rules)
-#         model = self._get_model(ctl)
-#         if model is None:
-#             raise UnsatSeesInterpreterError
-#         views: MutableMapping[ConcreteRole, Optional[Set[Subrelation]]] = self._get_role_mapping(model, "sees", 2)
-#         if Relation.random() in self.get_roles():
-#             views[Relation.random()] = set(state)
-#         return {role: frozenset(view) if view is not None else frozenset() for role, view in views.items()}
-#
-#     def get_legal_moves(self, state: State) -> Mapping[ConcreteRole, FrozenSet[Move]]:
-#         ctl = _get_ctl(state=state, rules=self._rules.legal_rules)
-#         model = self._get_model(ctl)
-#         if model is None:
-#             raise UnsatLegalInterpreterError
-#         role_moves_mapping = self._get_role_mapping(model, "legal", 2)
-#         return {
-#             role: frozenset(moves) if moves is not None else frozenset() for role, moves in role_moves_mapping.items()
-#         }
-#
-#     def get_goals(self, state: State) -> Mapping[ConcreteRole, Optional[int]]:
-#         ctl = _get_ctl(state=state, rules=self._rules.goal_rules)
-#         model = self._get_model(ctl)
-#         if model is None:
-#             raise UnsatGoalInterpreterError
-#         role_goalset_mapping = self._get_role_mapping(model, "goal", 2)
-#         goals: MutableMapping[ConcreteRole, Optional[int]] = {}
-#         for role, goalset in role_goalset_mapping.items():
-#             if goalset is None:
-#                 goals[role] = None
-#             elif len(goalset) != 1:
-#                 raise MultipleGoalsInterpreterError
-#             else:
-#                 goal = next(iter(goalset))
-#                 if not isinstance(goal, int):
-#                     raise GoalNotIntegerInterpreterError
-#                 goals[role] = goal
-#         return goals
-#
-#     def is_terminal(self, state: State) -> bool:
-#         ctl = _get_ctl(state=state, rules=self._rules.terminal_rules)
-#         with SymbolicBackend(ctl.backend()) as backend:
-#             backend.add_rule(pos_body=(Relation.terminal().to_clingo_symbol(),))
-#         model = self._get_model(ctl)
-#         return model is None
-#
-#     def get_developments(
-#         self,
-#         state_record: Optional[StateRecord] = None,
-#         sees_record: Optional[SeesRecord] = None,
-#         move_record: Optional[ConcreteRoleMoveMappingRecord] = None,
-#     ) -> Iterator[Development]:
-#         if state_record is None:
-#             state_record = {}
-#         if sees_record is None:
-#             sees_record = {}
-#         if move_record is None:
-#             move_record = {}
-#         _max_state_ply = max(state_record.keys(), default=-1)
-#         _max_sees_ply = max(sees_record.keys(), default=-1)
-#         _max_move_ply = max(move_record.keys(), default=-1)
-#         current_ply = max(_max_state_ply, _max_sees_ply, _max_move_ply)
-#         prg = []
-#         ctl = Control()
-#         ctl.configuration.solve.models = 0
-#         for ply in range(0, current_ply + 1):
-#             with SymbolicBackend(ctl.backend()) as backend:
-#                 if ply in state_record:
-#                     state = state_record[ply]
-#                     for relation in state:
-#                         symbol = to_clingo_symbol(relation)
-#                         func = clingo.Function("holds_at", (symbol, clingo.Number(ply)))
-#                         backend.add_rule(neg_body=(func,))
-#                         prg.append(f":- not {func}.")
-#                 if ply in sees_record:
-#                     role_view = sees_record[ply]
-#                     for role, view in role_view.items():
-#                         role_symbol = to_clingo_symbol(role)
-#                         for relation in view:
-#                             symbol = to_clingo_symbol(relation)
-#                             func = clingo.Function("sees_at", (role_symbol, symbol, clingo.Number(ply)))
-#                             backend.add_rule(neg_body=(func,))
-#                             prg.append(f":- not {func}.")
-#                 if ply in move_record:
-#                     for role, move in move_record[ply].items():
-#                         role_symbol = to_clingo_symbol(role)
-#                         move_symbol = to_clingo_symbol(move)
-#                         func = clingo.Function("does_at", (role_symbol, move_symbol, clingo.Number(ply)))
-#                         backend.add_rule(neg_body=(func,))
-#                         prg.append(f":- not {func}.")
-#         with clingo.ast.ProgramBuilder(ctl) as builder:
-#             _does_at_atom = _clingo.create_atom(
-#                 _clingo.create_function(
-#                     "does_at",
-#                     (
-#                         _clingo.create_variable("Role"),
-#                         _clingo.create_variable("Move"),
-#                         _clingo.create_variable("Ply"),
-#                     ),
-#                 ),
-#             )
-#             _legal_at_atom = _clingo.create_atom(
-#                 _clingo.create_function(
-#                     "legal_at",
-#                     (
-#                         _clingo.create_variable("Role"),
-#                         _clingo.create_variable("Move"),
-#                         _clingo.create_variable("Ply"),
-#                     ),
-#                 ),
-#             )
-#             _does_at_literal = _clingo.create_literal(atom=_does_at_atom)
-#             _legal_at_literal = _clingo.create_literal(atom=_legal_at_atom)
-#             _right_guard = _clingo.create_guard(
-#                 comparison=clingo.ast.ComparisonOperator.Equal,
-#                 term=_clingo.create_symbolic_term(clingo.Number(1)),
-#             )
-#             _condition = (_legal_at_literal,)
-#             _conditional_literal = _clingo.create_conditional_literal(_does_at_literal, _condition)
-#             _head_aggregate = _clingo.create_aggregate(elements=(_conditional_literal,), right_guard=_right_guard)
-#             _head = _head_aggregate
-#             _role_function = _clingo.create_function("role", (_clingo.create_variable("Role"),))
-#             _role_atom = _clingo.create_atom(_role_function)
-#             _role_literal = _clingo.create_literal(atom=_role_atom)
-#             _holds_at_function = _clingo.create_function(
-#                 "holds_at",
-#                 (
-#                     _clingo.create_function("control", (_clingo.create_variable("Role"),)),
-#                     _clingo.create_variable("Ply"),
-#                 ),
-#             )
-#             _holds_at_atom = _clingo.create_atom(_holds_at_function)
-#             _holds_at_literal = _clingo.create_literal(atom=_holds_at_atom)
-#             _comparison_atom = _clingo.create_comparison(
-#                 term=_clingo.create_symbolic_term(clingo.Number(0)),
-#                 guards=(
-#                     _clingo.create_guard(clingo.ast.ComparisonOperator.LessEqual, _clingo.create_variable("Ply")),
-#                     _clingo.create_guard(
-#                         clingo.ast.ComparisonOperator.LessThan,
-#                         _clingo.create_symbolic_term(clingo.Number(current_ply)),
-#                     ),
-#                 ),
-#             )
-#             _comparison_literal = _clingo.create_literal(atom=_comparison_atom)
-#             _body = (_role_literal, _comparison_literal, _holds_at_literal)
-#             _rule = _clingo.create_rule(head=_head, body=_body)
-#
-#             builder.add(_rule)
-#             prg.append(str(_rule))
-#             _does_at_signature = clingo.ast.ShowSignature(pyggp.gdl._loc, "does_at", 3, True)
-#             builder.add(_does_at_signature)
-#             prg.append(str(_does_at_signature))
-#             _holds_at_signature = clingo.ast.ShowSignature(pyggp.gdl._loc, "holds_at", 2, True)
-#             builder.add(_holds_at_signature)
-#             prg.append(str(_holds_at_signature))
-#             _sees_at_signature = clingo.ast.ShowSignature(pyggp.gdl._loc, "sees_at", 3, True)
-#             builder.add(_sees_at_signature)
-#             prg.append(str(_sees_at_signature))
-#             for rule in self._event_calculus.static:
-#                 builder.add(rule)
-#                 prg.append(str(rule))
-#             for rule in self._event_calculus.dynamic:
-#                 builder.add(rule)
-#                 prg.append(str(rule))
-#         ctl.ground(
-#             (("base", ()), ("static", ()), *(("dynamic", (clingo.Number(i),)) for i in range(0, current_ply + 1))),
-#         )
-#         log.debug("Program: \n\t%s\n" % "\n\t".join(prg))
-#         solve_handle = ctl.solve(yield_=True, async_=True)
-#         assert isinstance(solve_handle, clingo.SolveHandle)
-#         with solve_handle as handle:
-#             handle.resume()
-#             while True:
-#                 ready = handle.wait(self._model_timeout)
-#                 if not ready:
-#                     raise TimeoutError("Timeout while waiting for model.")
-#                 model = handle.model()
-#                 if model is None:
-#                     break
-#                 symbols: Sequence[clingo.Symbol] = model.symbols(shown=True)
-#                 handle.resume()
-#                 moves: MutableMapping[int, Optional[MutableConcreteRoleMoveMapping]] = {
-#                     ply: {} for ply in range(0, current_ply)
-#                 }
-#                 moves[current_ply] = None
-#                 states: MutableStateRecord = {ply: set() for ply in range(0, current_ply + 1)}
-#                 views: MutableSeesRecord = {ply: collections.defaultdict(set) for ply in range(0, current_ply + 1)}
-#                 for symbol in symbols:
-#                     if symbol.match("does_at", 3):
-#                         role = from_clingo_symbol(symbol.arguments[0])
-#                         move = from_clingo_symbol(symbol.arguments[1])
-#                         ply = int(symbol.arguments[2].number)
-#                         assert 0 <= ply < current_ply
-#                         moves[ply][role] = move
-#                     elif symbol.match("holds_at", 2):
-#                         relation = from_clingo_symbol(symbol.arguments[0])
-#                         ply = int(symbol.arguments[1].number)
-#                         assert 0 <= ply <= current_ply
-#                         states[ply].add(relation)
-#                     elif symbol.match("sees_at", 3):
-#                         role = from_clingo_symbol(symbol.arguments[0])
-#                         relation = from_clingo_symbol(symbol.arguments[1])
-#                         ply = int(symbol.arguments[2].number)
-#                         assert 0 <= ply <= current_ply
-#                         views[ply][role].add(relation)
-#
-#                 immutable_states = {ply: frozenset(state) for ply, state in states.items()}
-#                 immutable_views = (
-#                     {
-#                         ply: {role: frozenset(view) for role, view in role_view.items()}
-#                         for ply, role_view in views.items()
-#                     }
-#                     if self.has_incomplete_information or any(role_view for role_view in views.values())
-#                     else None
-#                 )
-#                 immutable_moves = moves
-#                 development: Development = tuple(
-#                     (
-#                         immutable_states[ply],
-#                         None if immutable_views is None else immutable_views[ply],
-#                         immutable_moves[ply],
-#                     )
-#                     for ply in range(0, current_ply + 1)
-#                 )
-#                 yield development
-#
-#     def _get_model(self, ctl: Control) -> Optional[Sequence[clingo.Symbol]]:
-#         ctl.ground((("base", ()),))
-#         solve_handle = ctl.solve(yield_=True, async_=True)
-#         assert isinstance(solve_handle, clingo.SolveHandle)
-#         with solve_handle as handle:
-#             handle.resume()
-#             ready = handle.wait(self._model_timeout)
-#             if not ready:
-#                 raise TimeoutError("Timeout while waiting for model.")  # pragma: no cover
-#             model = handle.model()
-#             if model is None:
-#                 return None
-#             symbols: Sequence[clingo.Symbol] = model.symbols(shown=True)
-#             handle.resume()
-#             ready = handle.wait(self._prove_only_model_timeout)
-#             if not ready:
-#                 raise TimeoutError("Timeout while proving that there is only one model.")  # pragma: no cover
-#             _m = handle.model()
-#             if _m is not None:
-#                 raise MoreThanOneModelInterpreterError
-#             return symbols
-#
-#     def _get_role_mapping(
-#         self,
-#         model: Sequence[clingo.Symbol] = (),
-#         name: str = "",
-#         arity: int = 0,
-#     ) -> MutableMapping[ConcreteRole, Optional[Set[Subrelation]]]:
-#         mapping: MutableMapping[ConcreteRole, Optional[Set[Subrelation]]] = {role: None for role in self.get_roles()}
-#         unexpected_roles = set()
-#         for symbol in model:
-#             if symbol.match(name, arity):
-#                 role = from_clingo_symbol(symbol.arguments[0])
-#                 if role not in mapping:
-#                     unexpected_roles.add(role)
-#                 else:
-#                     target = mapping[role]
-#                     if target is None:
-#                         target = set()
-#                     assert isinstance(target, set)
-#                     target.add(from_clingo_symbol(symbol.arguments[1]))
-#                     mapping[role] = target
-#         if unexpected_roles:
-#             raise UnexpectedRoleInterpreterError
-#         return mapping
-#
-#     # endregion
-#

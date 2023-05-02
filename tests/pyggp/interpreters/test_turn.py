@@ -109,5 +109,5 @@ def test_dunder_iter(turn: Turn, expected: tuple) -> None:
     ],
 )
 def test_as_plays(turn: Turn, expected: FrozenSet[Play]) -> None:
-    actual = turn.as_plays()
+    actual = frozenset(turn.as_plays())
     assert actual == expected

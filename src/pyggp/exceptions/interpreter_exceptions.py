@@ -53,6 +53,10 @@ class UnsatGoalInterpreterError(UnsatInterpreterError):
     """Rules for goal are unsatisfiable."""
 
 
+class UnsatDevelopmentsInterpreterError(UnsatInterpreterError):
+    """Rules for developments are unsatisfiable."""
+
+
 class UnexpectedRoleInterpreterError(InvalidGDLInterpreterError):
     """Unexpected role found."""
 
