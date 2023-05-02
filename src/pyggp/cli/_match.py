@@ -61,7 +61,9 @@ def handle_match_command_args(
         ruleset = load_ruleset(files)
     except RulesetNotFoundCLIError as ruleset_not_found_error:
         message = ruleset_not_found_error.args[0]
-        log.error(message)
+        # Disables TRY400 (Use `logging.exception` instead of `logging.error`). Because: The whole stacktrace is not
+        # needed here.
+        log.error(message)  # noqa: TRY400
         raise typer.Exit(1) from None
 
     log.debug("Instantiating interpreter")
