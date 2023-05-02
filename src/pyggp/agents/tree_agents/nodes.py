@@ -156,26 +156,29 @@ class Node(Generic[_P, _V, _K], abc.ABC):
             # Disables mypy. Because cls.default_evaluator is a ClassVar it cannot use TypeVars. Setting
             # cls.default_evaluator needs to be done in the subclass.
             valuation = cls.default_evaluator(interpreter, self.perspective)  # type: ignore[assignment]
-        self.valuation = valuation
+        if self.valuation is not None:
+            self.valuation = self.valuation.propagate(valuation)
+        else:
+            self.valuation = valuation
         return valuation
 
-    def propagate_back(self) -> None:
+    def propagate_back(self, valuation: Optional[_V] = None) -> None:
         """Propagates the valuations back to the root."""
-        if self.valuation is None:
+        if valuation is None:
+            valuation = self.valuation
+        if valuation is None:
             return
+
         node = self
-        assert node.valuation is not None, "Assumption: self.valuation is not None implies node.valuation is not None."
         while not node.is_root:
-            child = node
-            assert (
-                child.valuation is not None
-            ), "Assumption: node.valuation is not None implies child.valuation is not None."
+            assert not node.is_root, "Assumption: node.is_root is False implies node.is_root is False."
             assert node.parent is not None, "Assumption: node.is_root is False implies node.parent is not None."
             node = node.parent
             if node.valuation is not None:
-                node.valuation = node.valuation.propagate(child.valuation)
+                node.valuation = node.valuation.propagate(valuation)
             else:
-                node.valuation = child.valuation
+                node.valuation = valuation
+            assert node.valuation is not None, "Guarantee: node.valuation is not None."
 
     @abc.abstractmethod
     def develop(self, interpreter: Interpreter, ply: int, view: View) -> Self:

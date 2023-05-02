@@ -86,8 +86,8 @@ class MCTSNode(Generic[_P, _PV, _K], Node[_P, _PV, _K], abc.ABC):
             node = node.select(selector=selector, max_expand_width=max_expand_width)
             expand_depth += 1
         node.expand(interpreter)
-        node.evaluate(interpreter, evaluator=evaluator)
-        node.propagate_back()
+        valuation = node.evaluate(interpreter, evaluator=evaluator)
+        node.propagate_back(valuation)
 
     def choose(self, *, chooser: Optional[Selector[_P, _PV, _K]] = None) -> _K:
         """Chooses a move.
