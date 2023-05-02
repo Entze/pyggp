@@ -72,3 +72,17 @@ def test_develop() -> None:
         child = root.develop(mock_interpreter, ply, view)
 
     assert child == pass_child
+
+
+@mock.patch.object(DeterministicNode, "__abstractmethods__", set())
+def test_develop_on_already_developed() -> None:
+    mock_perspective = mock.MagicMock()
+
+    node = DeterministicNode(perspective=mock_perspective)
+
+    mock_interpreter = mock.MagicMock()
+    mock_view = mock.MagicMock()
+
+    new_root = node.develop(mock_interpreter, 0, mock_view)
+
+    assert new_root == node
