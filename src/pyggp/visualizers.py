@@ -147,7 +147,7 @@ class SimpleVisualizer(Visualizer):
         for n, (role, utility) in enumerate(sorted(self.utilities.items())):
             if utility is not None:
                 utility_index = role_rank_map[role]
-                percentile = utility_index / (len(self.utilities) - 1)
+                percentile = utility_index / (len(self.utilities) - 1)  # TODO: division by zero
                 color_index = int(percentile * utility_colors_max_index)
                 color = self.utility_colors[color_index]
                 pre = f"[{color}]"
