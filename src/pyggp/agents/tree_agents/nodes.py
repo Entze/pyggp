@@ -162,22 +162,18 @@ class Node(Generic[_P, _V, _K], abc.ABC):
             self.valuation = valuation
         return valuation
 
-    def propagate_back(self, valuation: Optional[_V] = None) -> None:
+    def propagate_back(self, valuation: _V) -> None:
         """Propagates the valuations back to the root."""
-        if valuation is None:
-            valuation = self.valuation
-        if valuation is None:
-            return
-
         node = self
         while not node.is_root:
             assert not node.is_root, "Assumption: node.is_root is False implies node.is_root is False."
             assert node.parent is not None, "Assumption: node.is_root is False implies node.parent is not None."
+            child = node
             node = node.parent
             if node.valuation is not None:
                 node.valuation = node.valuation.propagate(valuation)
             else:
-                node.valuation = valuation
+                node.valuation = child.valuation
             assert node.valuation is not None, "Guarantee: node.valuation is not None."
 
     @abc.abstractmethod
@@ -194,33 +190,6 @@ class Node(Generic[_P, _V, _K], abc.ABC):
 
         """
         raise NotImplementedError
-
-    def get_state_record(self) -> Optional[State]:
-        """Gets the state record.
-
-        Returns:
-            State record or None
-
-        """
-        return self.perspective.get_state_record()
-
-    def get_view_record(self) -> Optional[View]:
-        """Gets the view record.
-
-        Returns:
-            View record or None
-
-        """
-        return self.perspective.get_view_record()
-
-    def get_turn_record(self) -> Optional[Turn]:
-        """Gets the turn record.
-
-        Returns:
-            Turn or None
-
-        """
-        return self.turn
 
     @abc.abstractmethod
     def trim(self) -> None:
@@ -261,9 +230,9 @@ class DeterministicNode(Generic[_DP, _V], Node[_DP, _V, Turn], abc.ABC):
         turns: MutableMapping[int, Turn] = {}
         depth = self.depth
         node = self
-        state = node.get_state_record()
+        state = node.perspective.get_state_record()
         assert state is not None, "Assumption: DeterministicNode always has a state record."
-        turn = node.get_turn_record()
+        turn = node.turn
         states[depth] = state
         if turn is not None:
             turns[depth] = turn
@@ -271,9 +240,9 @@ class DeterministicNode(Generic[_DP, _V], Node[_DP, _V, Turn], abc.ABC):
             assert node.parent is not None, "Assumption: not node.is_root implies node.parent is not None."
             node = node.parent
             depth -= 1
-            state = node.get_state_record()
+            state = node.perspective.get_state_record()
             assert state is not None, "Assumption: DeterministicNode always has a state record."
-            turn = node.get_turn_record()
+            turn = node.turn
             states[depth] = state
             if turn is not None:
                 turns[depth] = turn
