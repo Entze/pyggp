@@ -19,3 +19,15 @@ class InterpreterAgentError(AgentError):
 
 class InterpreterIsNoneInterpreterAgentError(InterpreterAgentError):
     """Accessed interpreter when it was None."""
+
+
+class MCTSAgentError(InterpreterAgentError):
+    """Base class for all exceptions regarding MCTS agents."""
+
+
+class RootIsNoneMCTSAgentError(MCTSAgentError):
+    """Accessed root when it was None."""
+
+
+class PlayclockIsNoneMCTSAgentError(MCTSAgentError):
+    """Accessed play_clock when it was None."""
