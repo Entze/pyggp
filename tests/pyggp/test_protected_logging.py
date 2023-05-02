@@ -2,7 +2,7 @@ import datetime
 from typing import Union
 
 import pytest
-from pyggp._logging import format_timedelta, inflect
+from pyggp._logging import format_amount, format_timedelta, inflect
 
 
 @pytest.mark.parametrize(
@@ -38,4 +38,42 @@ def test_inflect(noun: str, count: int, expected: str) -> None:
     ],
 )
 def test_format_timedelta(delta: Union[float, int, datetime.timedelta], expected: str) -> None:
-    assert format_timedelta(delta) == expected
+    actual = format_timedelta(delta)
+    assert actual == expected
+
+
+@pytest.mark.parametrize(
+    ("amount", "expected"),
+    [
+        (0, "0"),
+        (0.0, "0"),
+        (0.001, "0"),
+        (0.01, "0.01"),
+        (1, "1"),
+        (1.0, "1"),
+        (1.1, "1.1"),
+        (1.12, "1.12"),
+        (1.123, "1.12"),
+        (1.1234, "1.12"),
+        (1.126, "1.13"),
+        (1_000, "1k"),
+        (1_000_000, "1M"),
+        (999_990, "999.99k"),
+        (1_500, "1.5k"),
+        (1_500_000, "1.5M"),
+        (1_000.123, "1k"),
+        (1_000_000_000, "1G"),
+        (1_050_000_000, "1.05G"),
+        (1_000_000_000_000, "1T"),
+        (1_000_000_000_000_000, "1P"),
+        (1_000_000_000_000_000_000, "1E"),
+        (1_000_000_000_000_000_000_000, "1Z"),
+        (1_000_000_000_000_000_000_000_000, "1Y"),
+        (1_000_000_000_000_000_000_000_000_000, "1R"),
+        (1_000_000_000_000_000_000_000_000_000_000, "1Q"),
+        (1_000_000_000_000_000_000_000_000_000_000_000, "1000Q"),
+    ],
+)
+def test_format_amount(amount: Union[float, int], expected: str) -> None:
+    actual = format_amount(amount)
+    assert actual == expected
