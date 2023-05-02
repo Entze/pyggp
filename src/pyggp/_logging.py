@@ -1,5 +1,6 @@
 import datetime
-from typing import Final, Union
+import math
+from typing import Final, Mapping, Union
 
 import inflection
 
@@ -23,7 +24,11 @@ def inflect(noun: str, count: int = 0) -> str:
         '2 cats'
 
     """
-    return f"{count} {inflection.pluralize(noun) if count != 1 else inflection.singularize(noun)}"
+    return f"{count} {inflect_without_count(noun, count)}"
+
+
+def inflect_without_count(noun: str, count: int = 0) -> str:
+    return inflection.pluralize(noun) if count != 1 else inflection.singularize(noun)
 
 
 _ONE_MINUTE_IN_S: Final[float] = 60.0
@@ -77,3 +82,34 @@ def format_timedelta(delta: Union[float, int, datetime.timedelta]) -> str:  # no
     if total_seconds >= _ONE_MILLISECOND_IN_S:
         return f"{total_seconds * 1000:.0f}ms"
     return f"{total_seconds * 1000:.4f}ms"
+
+
+_LOGARITHM_SYMBOL_MAP: Final[Mapping[int, str]] = {
+    0: "",
+    3: "k",
+    6: "M",
+    9: "G",
+    12: "T",
+    15: "P",
+    18: "E",
+    21: "Z",
+    24: "Y",
+    27: "R",
+}
+
+
+def remove_trailing(string: str, *trails: str) -> str:
+    for trail in trails:
+        while string.endswith(trail):
+            string = string[: -len(trail)]
+    return string
+
+
+def format_amount(amount: Union[float, int]) -> str:
+    if amount == 0:
+        return "0"
+    exponent: int = max(0, min(30, math.floor(math.log10(amount))))
+    symbol: str = _LOGARITHM_SYMBOL_MAP.get(exponent - (exponent % 3), "Q")
+    diminished_amount: float = round(amount / 10 ** (exponent - (exponent % 3)), 2)
+    formatted = remove_trailing(f"{diminished_amount:.2f}", "0", ".")
+    return f"{formatted}{symbol}"
