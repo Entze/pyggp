@@ -41,7 +41,7 @@ def test_develop() -> None:
             },
         ),
     )
-    flip_turn = Turn.from_mapping(
+    flip_turn = Turn(
         {Role(gdl.Subrelation(gdl.Relation("player"))): Move(gdl.Subrelation(gdl.Relation("flip")))},
     )
     flip_child = DeterministicNode.from_state(flip_state, parent=root)
@@ -54,7 +54,7 @@ def test_develop() -> None:
             },
         ),
     )
-    pass_turn = Turn.from_mapping(
+    pass_turn = Turn(
         {Role(gdl.Subrelation(gdl.Relation("player"))): Move(gdl.Subrelation(gdl.Relation("pass")))},
     )
 

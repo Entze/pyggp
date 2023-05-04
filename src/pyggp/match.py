@@ -355,7 +355,7 @@ class _PlayProcessor(_SignalProcessor[Move, "_PlayProcessor.PlayArgs", Turn]):
         return False, None
 
     def _aggregate_responses(self) -> Turn:
-        return Turn.from_mapping(self.role_response_map)
+        return Turn(self.role_response_map)
 
 
 @dataclass

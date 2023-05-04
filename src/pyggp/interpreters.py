@@ -44,6 +44,7 @@ from pyggp.exceptions.interpreter_exceptions import (
     UnsatRolesInterpreterError,
     UnsatSeesInterpreterError,
 )
+from pyggp.frozendict import FrozenDict
 
 log: logging.Logger = logging.getLogger("pyggp")
 
@@ -111,67 +112,12 @@ Move = NewType("Move", gdl.Subrelation)
 RANDOM: Final[Role] = Role(gdl.Subrelation(gdl.Relation("random")))
 
 
-@dataclass(frozen=True)
-class Turn(Mapping[Role, Move]):
+class Turn(FrozenDict[Role, Move]):
     """Mapping of roles to a move.
 
     Resembles a collection of plays.
 
     """
-
-    _role_move_pairs: FrozenSet[Tuple[Role, Move]] = field(default_factory=frozenset)
-
-    @classmethod
-    def from_mapping(cls, mapping: Mapping[Role, Move]) -> Self:
-        """Create a turn from a mapping of roles to moves.
-
-        Args:
-            mapping: Mapping of roles to moves
-
-        Returns:
-            Turn
-
-        """
-        # Disables PyCharm's type checker. Because seems to be a bug.
-        # noinspection PyTypeChecker
-        return cls(frozenset(mapping.items()))
-
-    def __getitem__(self, role: Role) -> Move:
-        """Get the move for the given role.
-
-        Args:
-            role: Role
-
-        Returns:
-            Move
-
-        Raises:
-            KeyError: Role does not have a move
-
-        """
-        for role_, move in self._role_move_pairs:
-            if role_ == role:
-                return move
-        raise KeyError(role)
-
-    def __len__(self) -> int:
-        """Return the number of roles that have moves.
-
-        Returns:
-            Number of roles that have moves
-
-        """
-        return len(self._role_move_pairs)
-
-    def __iter__(self) -> Iterator[Role]:
-        """Iterate over the roles that have moves.
-
-        Yields:
-            Roles that have moves
-
-        """
-        for role, _ in self._role_move_pairs:
-            yield role
 
     def as_plays(self) -> Iterator[Play]:
         """Return the plays of the turn.
@@ -180,7 +126,7 @@ class Turn(Mapping[Role, Move]):
             Plays of the turn
 
         """
-        return (Play(gdl.Relation("does", arguments=(role, move))) for role, move in self._role_move_pairs)
+        return (Play(gdl.Relation("does", arguments=(role, move))) for role, move in self._pairs)
 
 
 class Record(NamedTuple):
@@ -299,7 +245,7 @@ def development_from_symbols(symbols: Sequence[clingo.Symbol]) -> Development:
         tuple(
             DevelopmentStep(
                 state=State(frozenset(ply_state_map[ply])),
-                turn=Turn.from_mapping(ply_turn_map[ply]) if ply_turn_map[ply] else None,
+                turn=Turn(ply_turn_map[ply]) if ply_turn_map[ply] else None,
             )
             for ply in range(0, len(ply_state_map))
         ),
