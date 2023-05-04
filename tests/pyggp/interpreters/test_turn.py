@@ -29,8 +29,8 @@ from pyggp.interpreters import Move, Play, Role, Turn
         ),
     ],
 )
-def test_from_mapping(mapping: Mapping[Role, Move], expected: Turn) -> None:
-    actual = Turn.from_mapping(mapping)
+def test_dunder_init(mapping: Mapping[Role, Move], expected: Turn) -> None:
+    actual = Turn(mapping)
     assert actual == expected
 
 
