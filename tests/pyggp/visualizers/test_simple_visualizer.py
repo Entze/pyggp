@@ -1,4 +1,4 @@
-from pyggp.interpreters import State
+from pyggp.engine_primitives import State
 from pyggp.visualizers import SimpleVisualizer
 
 

@@ -2,7 +2,7 @@
 from typing import Optional
 
 from pyggp.actors import Actor
-from pyggp.interpreters import Move, Role
+from pyggp.engine_primitives import Move, Role
 
 
 class MatchError(Exception):

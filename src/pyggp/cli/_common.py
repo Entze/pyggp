@@ -8,8 +8,8 @@ import rich.progress as rich_progress
 
 import pyggp.game_description_language as gdl
 from pyggp.agents import Agent, ArbitraryAgent, HumanAgent, RandomAgent
+from pyggp.engine_primitives import Role
 from pyggp.exceptions.cli_exceptions import AgentNotFoundCLIError, RolesMismatchCLIError, RulesetNotFoundCLIError
-from pyggp.interpreters import Role
 
 log: logging.Logger = logging.getLogger("pyggp")
 

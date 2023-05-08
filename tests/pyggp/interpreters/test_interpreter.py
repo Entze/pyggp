@@ -1,8 +1,9 @@
 from typing import FrozenSet
 
 import pytest
+from pyggp.engine_primitives import Role, State, View
 from pyggp.game_description_language import Relation, String, Subrelation
-from pyggp.interpreters import Interpreter, Role, State, View
+from pyggp.interpreters import Interpreter
 
 
 @pytest.mark.parametrize(

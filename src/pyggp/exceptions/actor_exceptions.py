@@ -2,7 +2,7 @@
 from typing import Optional
 
 from pyggp._logging import format_timedelta
-from pyggp.interpreters import Move, Role
+from pyggp.engine_primitives import Move, Role
 
 
 class ActorError(Exception):

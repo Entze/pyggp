@@ -3,9 +3,9 @@ from unittest import mock
 import pyggp.game_description_language as gdl
 import pytest
 from pyggp.actors import Actor
+from pyggp.engine_primitives import Role, State, View
 from pyggp.exceptions.actor_exceptions import PlayclockIsNoneActorError, TimeoutActorError
 from pyggp.gameclocks import DEFAULT_PLAY_CLOCK_CONFIGURATION, DEFAULT_START_CLOCK_CONFIGURATION, GameClock
-from pyggp.interpreters import Role, State, View
 
 
 def test_send_start_raises_on_expired_startclock() -> None:

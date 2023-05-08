@@ -1,87 +1,104 @@
 """Valuations for MCTS agents."""
+import contextlib
 from dataclasses import dataclass
-from typing import Literal, Mapping
+from typing import Any, Optional, Protocol, TypeVar
 
 from typing_extensions import Self
 
-from pyggp._logging import format_amount, inflect_without_count
+from pyggp._logging import format_amount
 from pyggp.agents.tree_agents.valuations import Valuation
+
+_U = TypeVar("_U")
+
+
+class PlayoutValuation(Valuation[_U], Protocol[_U]):
+    total_playouts: int
 
 
 @dataclass(frozen=True)
-class PlayoutValuation(Valuation):
-    """Valuation that stores number of times a rank was achieved by a role."""
+class NormalizedUtilityValuation(PlayoutValuation[float]):
+    """Valuation that sums the achieved rank normalized as a value between 0 and 1.
 
-    ranks: Mapping[int, int]
-    "Mapping of rank to amount of times it was achieved."
+    1 is the best rank, 0 is the worst rank. If a tie occurs, the ranks utility value is split between all roles who
+    received the same rank. If more than two ranks, they are evenly spaced out between 0 and 1.
 
-    @property
-    def total_playouts(self) -> int:
-        """Total number of playouts."""
-        return sum(self.ranks.values())
+    """
 
-    @property
-    def relative_ranks(self) -> Mapping[int, float]:
-        """Relative count (not necessarily the probability) of the ranks."""
-        return {rank: count / self.total_playouts for rank, count in self.ranks.items()}
+    utility: float = 0.0
+    total_playouts: int = 0
 
     @property
-    def expected_rank(self) -> float:
-        """Weighted average of ranks and their counts."""
-        return sum(rank * count / self.total_playouts for rank, count in self.ranks.items())
+    def average_utility(self) -> float:
+        """Average utility."""
+        return self.utility / self.total_playouts
 
-    def __rich__(self) -> str:
-        """Rich representation of the valuation.
-
-        Returns:
-            Rich representation of the valuation
-
-        """
-        fmt = ["{"]
-        rank_dict_str_list = []
-        for rank, probability in sorted(self.relative_ranks.items()):
-            probability_str = f"{probability * 100:.2f}" if self.ranks[rank] != self.total_playouts else "100.0"
-            rank_dict_str_list.append(f"[blue]{rank}[/blue]: [green]{probability_str:>5}%[/green]")
-        fmt.append(", ".join(rank_dict_str_list))
-        fmt.append("}")
-        fmt.append(
-            f" (expected rank: [yellow]{self.expected_rank:.2f}[/yellow] @ "
-            f"[orange1]{format_amount(self.total_playouts):>7}[/orange1] "
-            f"{inflect_without_count('playout', self.total_playouts)})",
-        )
-        return "".join(fmt)
-
-    def compare(self, other: Self) -> Literal["<", "==", ">"]:
-        """Compares this valuation to another.
-
-        Uses the expected rank for comparison. The lower the rank the greater the valuation.
+    @classmethod
+    def from_utility(cls, utility: float) -> Self:
+        """Constructs a valuation from a utility.
 
         Args:
-            other: Other valuation to compare to
+            utility: Utility
 
         Returns:
-            "<", "==", or ">" if this valuation is less than, equal to, or greater than the other
+            Valuation
 
         """
+        assert 0 <= utility <= 1, "Requirement: 0 <= utility <= 1"
+        return cls(utility=utility, total_playouts=1)
+
+    def __lt__(self, other: Any) -> bool:
+        other_key = NormalizedUtilityValuation._key(other)
+        if other_key is None:
+            return False
+        return self.average_utility < other_key
+
+    def __le__(self, other: Any) -> bool:
         if self == other:
-            return "=="
-        if self.expected_rank > other.expected_rank:
-            return "<"
-        return ">"
+            return True
+        other_key = NormalizedUtilityValuation._key(other)
+        if other_key is None:
+            return False
+        return self.average_utility <= other_key
 
-    def propagate(self, other: Self) -> Self:
-        """Combines the information from this valuation with another.
+    def __gt__(self, other: Any) -> bool:
+        other_key = NormalizedUtilityValuation._key(other)
+        if other_key is None:
+            return True
+        return self.average_utility > other_key
 
-        Sums up the counts of the ranks.
+    def __ge__(self, other: Any) -> bool:
+        other_key = NormalizedUtilityValuation._key(other)
+        if other_key is None or self == other:
+            return True
+        return self.average_utility >= other_key
+
+    def __str__(self) -> str:
+        return f"{self.average_utility:.2f} @ {format_amount(self.total_playouts)}"
+
+    def propagate(self, utility: float) -> Self:
+        """Combines the information from this valuation with a utility.
 
         Args:
-            other: Other valuation to combine with
+            utility: Immediate utility of a node or state
 
         Returns:
-            New valuation that combines the information from this valuation with the other
+            Updated valuation
 
         """
-        all_ranks = set(self.ranks.keys()).union(set(other.ranks.keys()))
-        ranks = {rank: self.ranks.get(rank, 0) + other.ranks.get(rank, 0) for rank in all_ranks}
-        # Disables mypy. Mypy does not seem to respect the typing_extension.Self implementation.
-        return PlayoutValuation(ranks=ranks)  # type: ignore[return-value]
+        assert 0 <= utility <= 1, "Requirement: 0 <= utility <= 1"
+        # Disables mypy. Because: mypy cannot infer that class is self.
+        return NormalizedUtilityValuation(  # type: ignore[return-value]
+            utility=self.utility + utility,
+            total_playouts=self.total_playouts + 1,
+        )
+
+    @staticmethod
+    def _key(other: Any) -> Optional[float]:
+        if hasattr(other, "utility") and hasattr(other, "total_playouts"):
+            return float(other.utility / other.total_playouts)
+        if isinstance(other, float):
+            return other
+        if hasattr(other, "__getitem__"):
+            with contextlib.suppress(ZeroDivisionError, KeyError, TypeError):
+                return float(other[0] / other[1])
+        return None

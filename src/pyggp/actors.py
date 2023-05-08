@@ -9,10 +9,10 @@ from typing import Optional
 
 import pyggp.game_description_language as gdl
 from pyggp.agents import Agent
+from pyggp.engine_primitives import Move, Role, View
 from pyggp.exceptions.actor_exceptions import AgentIsNoneLocalActorError, PlayclockIsNoneActorError, TimeoutActorError
 from pyggp.game_description_language.rulesets import Ruleset
 from pyggp.gameclocks import GameClock
-from pyggp.interpreters import Move, Role, View
 
 
 @dataclass

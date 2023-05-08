@@ -2,7 +2,7 @@
 import pathlib
 from typing import Iterable, Optional
 
-from pyggp.interpreters import Role
+from pyggp.engine_primitives import Role
 
 
 class CLIError(Exception):

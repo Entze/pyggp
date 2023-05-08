@@ -99,27 +99,32 @@ def test_from_ruleset_static_only() -> None:
     expected = ClingoInterpreter(
         ruleset=ruleset,
         _rules=ClingoInterpreter.ClingoASTRules(
-            static_rules=(
-                clingo_helper.PROGRAM_STATIC,
-                clingo_helper.create_rule(
-                    clingo_helper.create_literal(
-                        atom=clingo_helper.create_atom(clingo_helper.create_function("fact_static")),
-                    ),
-                ),
-                clingo_helper.create_rule(
-                    clingo_helper.create_literal(
-                        atom=clingo_helper.create_atom(clingo_helper.create_function("rule_static")),
-                    ),
+            dynamic_rules=(
+                (clingo_helper.PROGRAM_STATEMACHINE, ()),
+                (
+                    clingo_helper.PROGRAM_STATIC,
                     (
-                        clingo_helper.create_literal(
-                            atom=clingo_helper.create_atom(clingo_helper.create_function("fact_static")),
+                        clingo_helper.create_rule(
+                            clingo_helper.create_literal(
+                                atom=clingo_helper.create_atom(clingo_helper.create_function("fact_static")),
+                            ),
+                        ),
+                        clingo_helper.create_rule(
+                            clingo_helper.create_literal(
+                                atom=clingo_helper.create_atom(clingo_helper.create_function("rule_static")),
+                            ),
+                            (
+                                clingo_helper.create_literal(
+                                    atom=clingo_helper.create_atom(clingo_helper.create_function("fact_static")),
+                                ),
+                            ),
                         ),
                     ),
                 ),
             ),
-            dynamic_rules=(clingo_helper.PROGRAM_DYNAMIC,),
         ),
     )
+    assert actual._rules.dynamic_rules == expected._rules.dynamic_rules
     assert actual == expected
 
 
@@ -147,24 +152,26 @@ def test_ruleset_with_dynamic_rules() -> None:
 
     expected_static_rules = (
         clingo_helper.PROGRAM_STATIC,
-        clingo_helper.create_rule(
-            clingo_helper.create_literal(
-                atom=clingo_helper.create_atom(clingo_helper.create_function("irrelevant_static")),
+        (
+            clingo_helper.create_rule(
+                clingo_helper.create_literal(
+                    atom=clingo_helper.create_atom(clingo_helper.create_function("irrelevant_static")),
+                ),
             ),
-        ),
-        clingo_helper.create_rule(
-            clingo_helper.create_literal(
-                atom=clingo_helper.create_atom(clingo_helper.create_function("relevant_static")),
+            clingo_helper.create_rule(
+                clingo_helper.create_literal(
+                    atom=clingo_helper.create_atom(clingo_helper.create_function("relevant_static")),
+                ),
             ),
-        ),
-        clingo_helper.create_rule(
-            clingo_helper.create_literal(
-                atom=clingo_helper.create_atom(
-                    clingo_helper.create_function(
-                        "holds_at",
-                        arguments=(
-                            clingo_helper.create_function("state"),
-                            clingo_helper.create_symbolic_term(clingo.Number(0)),
+            clingo_helper.create_rule(
+                clingo_helper.create_literal(
+                    atom=clingo_helper.create_atom(
+                        clingo_helper.create_function(
+                            "holds_at",
+                            arguments=(
+                                clingo_helper.create_function("state"),
+                                clingo_helper.create_symbolic_term(clingo.Number(0)),
+                            ),
                         ),
                     ),
                 ),
@@ -173,56 +180,63 @@ def test_ruleset_with_dynamic_rules() -> None:
     )
     expected_dynamic_rules = (
         clingo_helper.PROGRAM_DYNAMIC,
-        clingo_helper.create_rule(
-            clingo_helper.create_literal(
-                atom=clingo_helper.create_atom(
-                    clingo_helper.create_function("rule_at", arguments=(clingo_helper.create_function("__time"),)),
-                ),
-            ),
-            (
+        (
+            clingo_helper.create_rule(
                 clingo_helper.create_literal(
                     atom=clingo_helper.create_atom(
-                        clingo_helper.create_function(
-                            "holds_at",
-                            arguments=(
-                                clingo_helper.create_function("state"),
-                                clingo_helper.create_function("__time"),
+                        clingo_helper.create_function("rule_at", arguments=(clingo_helper.create_function("__time"),)),
+                    ),
+                ),
+                (
+                    clingo_helper.create_literal(
+                        atom=clingo_helper.create_atom(
+                            clingo_helper.create_function(
+                                "holds_at",
+                                arguments=(
+                                    clingo_helper.create_function("state"),
+                                    clingo_helper.create_function("__time"),
+                                ),
                             ),
                         ),
                     ),
-                ),
-                clingo_helper.create_literal(
-                    atom=clingo_helper.create_atom(clingo_helper.create_function("relevant_static")),
-                ),
-                clingo_helper.create_literal(
-                    sign=clingo_ast.Sign.Negation,
-                    atom=clingo_helper.create_atom(clingo_helper.create_function("unrelated")),
+                    clingo_helper.create_literal(
+                        atom=clingo_helper.create_atom(clingo_helper.create_function("relevant_static")),
+                    ),
+                    clingo_helper.create_literal(
+                        sign=clingo_ast.Sign.Negation,
+                        atom=clingo_helper.create_atom(clingo_helper.create_function("unrelated")),
+                    ),
                 ),
             ),
         ),
-        clingo_helper.create_rule(
-            clingo_helper.create_literal(
-                atom=clingo_helper.create_atom(
-                    clingo_helper.create_function(
-                        "holds_at",
-                        arguments=(
-                            clingo_helper.create_function("state"),
-                            clingo_helper.create_binary_operation(
-                                left=clingo_helper.create_function("__time"),
-                                right=clingo_helper.create_symbolic_term(clingo.Number(1)),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-            (
+    )
+    expected_statemachine_rules = (
+        clingo_helper.PROGRAM_STATEMACHINE,
+        (
+            clingo_helper.create_rule(
                 clingo_helper.create_literal(
                     atom=clingo_helper.create_atom(
                         clingo_helper.create_function(
                             "holds_at",
                             arguments=(
                                 clingo_helper.create_function("state"),
-                                clingo_helper.create_function("__time"),
+                                clingo_helper.create_binary_operation(
+                                    left=clingo_helper.create_function("__time"),
+                                    right=clingo_helper.create_symbolic_term(clingo.Number(1)),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+                (
+                    clingo_helper.create_literal(
+                        atom=clingo_helper.create_atom(
+                            clingo_helper.create_function(
+                                "holds_at",
+                                arguments=(
+                                    clingo_helper.create_function("state"),
+                                    clingo_helper.create_function("__time"),
+                                ),
                             ),
                         ),
                     ),
@@ -231,8 +245,13 @@ def test_ruleset_with_dynamic_rules() -> None:
         ),
     )
 
-    assert actual._rules.static_rules == expected_static_rules
-    assert actual._rules.dynamic_rules == expected_dynamic_rules
+    expected = (
+        expected_static_rules,
+        expected_dynamic_rules,
+        expected_statemachine_rules,
+    )
+
+    assert sorted(actual._rules.dynamic_rules) == sorted(expected)
 
 
 def test_ruleset_with_comp() -> None:
@@ -254,26 +273,28 @@ def test_ruleset_with_comp() -> None:
     actual = ClingoInterpreter.from_ruleset(ruleset)
     expected_static_rules = (
         clingo_helper.PROGRAM_STATIC,
-        clingo_helper.create_rule(
-            clingo_helper.create_literal(
-                atom=clingo_helper.create_atom(
-                    clingo_helper.create_function(
-                        "static_static",
-                        arguments=(
-                            clingo_helper.create_variable("A"),
-                            clingo_helper.create_variable("B"),
+        (
+            clingo_helper.create_rule(
+                clingo_helper.create_literal(
+                    atom=clingo_helper.create_atom(
+                        clingo_helper.create_function(
+                            "static_static",
+                            arguments=(
+                                clingo_helper.create_variable("A"),
+                                clingo_helper.create_variable("B"),
+                            ),
                         ),
                     ),
                 ),
-            ),
-            (
-                clingo_helper.create_literal(
-                    atom=clingo_helper.create_comparison(
-                        clingo_helper.create_variable("A"),
-                        (
-                            clingo_helper.create_guard(
-                                clingo_ast.ComparisonOperator.NotEqual,
-                                clingo_helper.create_variable("B"),
+                (
+                    clingo_helper.create_literal(
+                        atom=clingo_helper.create_comparison(
+                            clingo_helper.create_variable("A"),
+                            (
+                                clingo_helper.create_guard(
+                                    clingo_ast.ComparisonOperator.NotEqual,
+                                    clingo_helper.create_variable("B"),
+                                ),
                             ),
                         ),
                     ),
@@ -281,6 +302,11 @@ def test_ruleset_with_comp() -> None:
             ),
         ),
     )
-    expected_dynamic_rules = (clingo_helper.PROGRAM_DYNAMIC,)
-    assert actual._rules.static_rules == expected_static_rules
-    assert actual._rules.dynamic_rules == expected_dynamic_rules
+    expected_statemachine_rules = (clingo_helper.PROGRAM_STATEMACHINE, ())
+    expected = sorted(
+        [
+            expected_static_rules,
+            expected_statemachine_rules,
+        ],
+    )
+    assert sorted(actual._rules.dynamic_rules) == expected

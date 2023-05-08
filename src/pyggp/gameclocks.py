@@ -15,6 +15,8 @@ from pyggp.exceptions.gameclock_exceptions import (
     TotalTimeInvalidFloatGameClockConfigurationError,
 )
 
+ONE_HOUR_IN_NS: Final[int] = 3600 * 1_000_000_000
+
 
 @dataclass
 class GameClock:
@@ -63,6 +65,27 @@ class GameClock:
         This is the time that will be removed from the delta before the total time is decremented.
 
         """
+
+        @property
+        def total_time_ns(self) -> int:
+            """Total time in nanoseconds."""
+            if self.total_time == float("inf"):
+                return ONE_HOUR_IN_NS
+            return int(self.total_time * 1e9)
+
+        @property
+        def increment_ns(self) -> int:
+            """Increment in nanoseconds."""
+            if self.increment == float("inf"):
+                return ONE_HOUR_IN_NS
+            return int(self.increment * 1e9)
+
+        @property
+        def delay_ns(self) -> int:
+            """Delay in nanoseconds."""
+            if self.delay == float("inf"):
+                return ONE_HOUR_IN_NS
+            return int(self.delay * 1e9)
 
         # endregion
 
