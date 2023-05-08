@@ -147,7 +147,7 @@ ARGS: Final[ArgConfig] = dict(
             default_targets=("src", "tests", "noxfile.py"),
         ),
         ruff=Args(
-            static_opts=("check", "--extend-select", "D", "--fix"),
+            static_opts=("check", "--extend-select", "D", "--fix-only"),
             allow_targets=ALL_TARGETS,
             default_targets=("src", "tests", "noxfile.py"),
         ),
