@@ -210,7 +210,7 @@ target-version = "py38"
 "src/pyggp/cli/_main.py" = ["UP031"] # rich.print is similar to print
 "src/pyggp/agents/*" = ["S311"] # Pseudo-randomness is fine
 "src/pyggp/game_description_language/grammar.py" = ["D102"] # Visitor pattern, documentation redundant
-"tests/*" = ["D", "SLF", "INP", "PLR2004", "FBT001"]
+"tests/*" = ["D", "SLF", "INP", "PLR2004", "FBT001", "PLR0913", "ANN001"]
 "noxfile.py" = ["D", "C408"]
 
 [tool.ruff.flake8-quotes]
