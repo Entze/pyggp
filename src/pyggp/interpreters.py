@@ -990,7 +990,7 @@ class ClingoInterpreter(Interpreter):
             (
                 ("base", ()),
                 ("static", ()),
-                *(("dynamic", (clingo.Number(__time),)) for __time in range(0, record.horizon + 1)),
+                *(("dynamic", (clingo.Number(__time),)) for __time in range(0, record.horizon)),
             ),
         )
         # Disables mypy. Because contract guarantees that handle is not SolveResult when called with yield_=True or
