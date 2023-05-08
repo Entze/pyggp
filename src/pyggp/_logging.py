@@ -27,6 +27,10 @@ def inflect(noun: str, count: int = 0) -> str:
     return f"{count} {inflect_without_count(noun, count)}"
 
 
+def compact_inflect(noun: str, count: int = 0) -> str:
+    return f"{format_amount(count)} {inflect_without_count(noun, count)}"
+
+
 def inflect_without_count(noun: str, count: int = 0) -> str:
     return inflection.pluralize(noun) if count != 1 else inflection.singularize(noun)
 

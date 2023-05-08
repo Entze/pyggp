@@ -29,6 +29,7 @@ from typing_extensions import TypeAlias
 import pyggp.game_description_language as gdl
 from pyggp._logging import format_timedelta
 from pyggp.actors import Actor
+from pyggp.engine_primitives import Move, Role, State, Turn, View
 from pyggp.exceptions.actor_exceptions import ActorError, PlayclockIsNoneActorError, TimeoutActorError
 from pyggp.exceptions.match_exceptions import (
     DidNotFinishMatchError,
@@ -38,7 +39,7 @@ from pyggp.exceptions.match_exceptions import (
     TimeoutMatchError,
 )
 from pyggp.gameclocks import GameClock
-from pyggp.interpreters import ClingoInterpreter, Interpreter, Move, Role, State, Turn, View
+from pyggp.interpreters import ClingoInterpreter, Interpreter
 
 log: logging.Logger = logging.getLogger("pyggp")
 

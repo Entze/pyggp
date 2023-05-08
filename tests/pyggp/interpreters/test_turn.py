@@ -1,8 +1,8 @@
 from typing import FrozenSet, Mapping
 
 import pytest
+from pyggp.engine_primitives import Move, Play, Role, Turn
 from pyggp.game_description_language import Number, Relation, Subrelation
-from pyggp.interpreters import Move, Play, Role, Turn
 
 
 @pytest.mark.parametrize(

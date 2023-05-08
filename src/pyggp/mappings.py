@@ -1,4 +1,13 @@
-from typing import FrozenSet, Generic, Iterable, Iterator, Mapping, Tuple, TypeVar, Union
+from typing import (
+    FrozenSet,
+    Generic,
+    Iterable,
+    Iterator,
+    Mapping,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 _K = TypeVar("_K")
 _V = TypeVar("_V")
@@ -28,3 +37,9 @@ class FrozenDict(Generic[_K, _V], Mapping[_K, _V]):
 
     def __hash__(self) -> int:
         return hash(self._pairs)
+
+    def __repr__(self) -> str:
+        sub_strs = []
+        for k, v in self._pairs:
+            sub_strs.append(f"{k}: {v}")
+        return f"{'{'}{', '.join(sub_strs)}{'}'}"

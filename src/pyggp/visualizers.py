@@ -5,7 +5,7 @@ from typing import ClassVar, Mapping, MutableSequence, Optional, Sequence, Union
 
 from rich import print
 
-from pyggp.interpreters import Role, State
+from pyggp.engine_primitives import Role, State
 from pyggp.match import Disqualification, Match
 
 

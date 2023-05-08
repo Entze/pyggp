@@ -1,20 +1,18 @@
 """Interpreters for GDL rulesets."""
 import collections
 import functools
+import itertools
 import logging
 import time
 from dataclasses import dataclass, field
 from typing import (
     Callable,
     ClassVar,
-    Final,
     FrozenSet,
     Iterator,
     Mapping,
     MutableMapping,
     MutableSequence,
-    NamedTuple,
-    NewType,
     Optional,
     Sequence,
     Set,
@@ -30,6 +28,7 @@ from typing_extensions import NotRequired, Self, assert_type
 
 import pyggp._clingo as clingo_helper
 import pyggp.game_description_language as gdl
+from pyggp.engine_primitives import Development, DevelopmentStep, Move, Play, Role, State, Turn, View
 from pyggp.exceptions.interpreter_exceptions import (
     InterpreterError,
     ModelTimeoutInterpreterError,
@@ -44,178 +43,9 @@ from pyggp.exceptions.interpreter_exceptions import (
     UnsatRolesInterpreterError,
     UnsatSeesInterpreterError,
 )
-from pyggp.frozendict import FrozenDict
+from pyggp.records import Record
 
 log: logging.Logger = logging.getLogger("pyggp")
-
-_State = FrozenSet[gdl.Subrelation]
-State = NewType("State", _State)
-"""States are sets of subrelations."""
-
-View = NewType("View", State)
-"""Views are (partial) states."""
-
-
-def get_assertions(
-    current: Union[State, View],
-    name: str = "true",
-    pre_arguments: Sequence[clingo_ast.AST] = (),
-    post_arguments: Sequence[clingo_ast.AST] = (),
-) -> Iterator[clingo_ast.AST]:
-    """Get the clingo assertions for the given state.
-
-    Args:
-        current: State or view
-        name: Name of the relation
-        pre_arguments: Arguments before the subrelation
-        post_arguments: Arguments after the subrelation
-
-    Returns:
-        Iterator of clingo assertions
-
-    """
-    return (
-        clingo_helper.create_rule(
-            body=(
-                clingo_helper.create_literal(
-                    sign=clingo_ast.Sign.Negation,
-                    atom=clingo_helper.create_atom(
-                        clingo_helper.create_function(
-                            name=name,
-                            arguments=(
-                                *pre_arguments,
-                                subrelation.as_clingo_ast(),
-                                *post_arguments,
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        )
-        for subrelation in current
-    )
-
-
-Role = NewType("Role", gdl.Subrelation)
-"""Roles are relations, numbers, or string."""
-
-Play = NewType("Play", gdl.Relation)
-"""Plays are does/2 relations.
-
-Plays are of the form does(Subrelation(Role), Subrelation(Move)).
-
-"""
-
-Move = NewType("Move", gdl.Subrelation)
-"""Moves are relations, numbers, or strings."""
-
-RANDOM: Final[Role] = Role(gdl.Subrelation(gdl.Relation("random")))
-
-
-class Turn(FrozenDict[Role, Move]):
-    """Mapping of roles to a move.
-
-    Resembles a collection of plays.
-
-    """
-
-    def as_plays(self) -> Iterator[Play]:
-        """Return the plays of the turn.
-
-        Returns:
-            Plays of the turn
-
-        """
-        return (Play(gdl.Relation("does", arguments=(role, move))) for role, move in self._pairs)
-
-
-class Record(NamedTuple):
-    """Record (possibly partial) of a game."""
-
-    states: Mapping[int, State] = field(default_factory=dict)
-    """States of the game by ply."""
-    views: Mapping[int, Mapping[Role, View]] = field(default_factory=dict)
-    """Views of the state by role by ply."""
-    turns: Mapping[int, Turn] = field(default_factory=dict)
-    """Turns of the game by ply."""
-
-    @property
-    def horizon(self) -> int:
-        """Maximum ply associated with either states, views or turns."""
-        return max(
-            max(self.states.keys(), default=0),
-            max(self.views.keys(), default=0),
-            max(self.turns.keys(), default=0),
-        )
-
-    def get_state_assertions(self) -> Iterator[clingo_ast.AST]:
-        """Get the clingo assertions for the states of the game.
-
-        Yields:
-            Clingo assertions for the states of the game
-
-        """
-        for ply, state in self.states.items():
-            current_time = clingo_helper.create_symbolic_term(clingo.Number(ply))
-            yield from get_assertions(state, name="holds_at", post_arguments=(current_time,))
-
-    def get_view_assertions(self) -> Iterator[clingo_ast.AST]:
-        """Get the clingo assertions for the views of the game.
-
-        Yields:
-            Clingo assertions for the views of the game
-
-        """
-        for ply, views in self.views.items():
-            current_time = clingo_helper.create_symbolic_term(clingo.Number(ply))
-            for role, view in views.items():
-                role_ast = role.as_clingo_ast()
-                yield from get_assertions(
-                    view,
-                    name="sees_at",
-                    pre_arguments=(role_ast,),
-                    post_arguments=(current_time,),
-                )
-
-    def get_turn_assertions(self) -> Iterator[clingo_ast.AST]:
-        """Get the clingo assertions for the turns of the game.
-
-        Yields:
-            Clingo assertions for the turns of the game
-
-        """
-        for ply, turn in self.turns.items():
-            current_time = clingo_helper.create_symbolic_term(clingo.Number(ply))
-            for role, move in turn.items():
-                role_ast = role.as_clingo_ast()
-                move_ast = move.as_clingo_ast()
-                yield clingo_helper.create_rule(
-                    body=(
-                        clingo_helper.create_literal(
-                            sign=clingo_ast.Sign.Negation,
-                            atom=clingo_helper.create_atom(
-                                clingo_helper.create_function(
-                                    name="does_at",
-                                    arguments=(role_ast, move_ast, current_time),
-                                ),
-                            ),
-                        ),
-                    ),
-                )
-
-
-class DevelopmentStep(NamedTuple):
-    """Describes a possible state and a turn that leads to the next state."""
-
-    state: State
-    """State of that step."""
-    turn: Optional[Turn]
-    """Turn of that step, None if ambiguous."""
-
-
-_Development = Sequence[DevelopmentStep]
-Development = NewType("Development", _Development)
-"""A sequence of development steps."""
 
 
 def development_from_symbols(symbols: Sequence[clingo.Symbol]) -> Development:
@@ -300,6 +130,31 @@ class Interpreter:
 
         """
         raise NotImplementedError
+
+    def get_all_next_states(self, current: Union[State, View]) -> Iterator[Tuple[Turn, State]]:
+        """Yields all possible follow states from the given state or view.
+
+        Args:
+            current: View or state to get follow states from
+
+        Yields:
+            Pairs of turns and states
+
+        """
+        if self.is_terminal(current):
+            return
+        roles_in_control = Interpreter.get_roles_in_control(current)
+        all_role_move_pairs = set()
+        for role in roles_in_control:
+            legal_moves = self.get_legal_moves_by_role(current, role)
+            role_move_pairs = set()
+            for move in legal_moves:
+                role_move_pairs.add((role, move))
+            all_role_move_pairs.add(frozenset(role_move_pairs))
+        for turn_role_move_pairs in itertools.product(*all_role_move_pairs):
+            turn = Turn(frozenset(turn_role_move_pairs))
+            next_state = self.get_next_state(current, *turn.as_plays())
+            yield turn, next_state
 
     def get_sees(self, current: Union[State, View]) -> Mapping[Role, View]:
         """Return each role's view of the state.
@@ -497,6 +352,8 @@ class ClingoInterpreter(Interpreter):
         "Associated time argument of the temporal ASP rule (default for dynamic '__time', default for static None)."
         is_static: NotRequired[bool]
         "Whether the temporal ASP rule is static (default False)."
+        program: NotRequired[str]
+        "Associated program of the temporal ASP rule (default for dynamic 'dynamic', default for static 'static')."
 
     @dataclass(frozen=True)
     class ClingoASTRules:
@@ -510,11 +367,7 @@ class ClingoInterpreter(Interpreter):
         goal_rules: Sequence[clingo_ast.AST] = field(default_factory=tuple)
         terminal_rules: Sequence[clingo_ast.AST] = field(default_factory=tuple)
 
-        static_rules: Sequence[clingo_ast.AST] = field(default_factory=tuple)
-        dynamic_rules: Sequence[clingo_ast.AST] = field(default_factory=tuple)
-
-        static_program: ClassVar[clingo_ast.AST] = clingo_helper.PROGRAM_STATIC
-        dynamic_program: ClassVar[clingo_ast.AST] = clingo_helper.PROGRAM_DYNAMIC
+        dynamic_rules: Sequence[Tuple[clingo_ast.AST, Sequence[clingo_ast.AST]]] = field(default_factory=tuple)
 
         dynamic_pick_plays: ClassVar[Callable[[int], clingo_ast.AST]] = staticmethod(
             clingo_helper.create_pick_move_rule,
@@ -535,18 +388,36 @@ class ClingoInterpreter(Interpreter):
             legal_rules = tuple(sentence.as_clingo_ast() for sentence in ruleset.legal_rules)
             goal_rules = tuple(sentence.as_clingo_ast() for sentence in ruleset.goal_rules)
             terminal_rules = tuple(sentence.as_clingo_ast() for sentence in ruleset.terminal_rules)
-            static_rules_list = [cls.static_program]
-            dynamic_rules_list = [cls.dynamic_program]
             temporal_classification = ClingoInterpreter.ClingoASTRules.build_temporal_classification(ruleset)
+            dynamic_rules_map: MutableMapping[str, MutableSequence[clingo_ast.AST]] = collections.defaultdict(list)
+            dynamic_rules_map["statemachine"] = []
+
+            program_parameters_map: MutableMapping[str, Set[clingo_ast.AST]] = collections.defaultdict(set)
+            program_parameters_map["statemachine"] = {clingo_helper.create_id("__time")}
+
             for sentence in ruleset.rules:
                 rule = ClingoInterpreter.ClingoASTRules.sentence_to_rule(sentence, temporal_classification)
                 is_static = temporal_classification[sentence.head.signature].get("is_static", False)
-                if not is_static:
-                    dynamic_rules_list.append(rule)
-                else:
-                    static_rules_list.append(rule)
-            static_rules = tuple(static_rules_list)
-            dynamic_rules = tuple(dynamic_rules_list)
+                program = temporal_classification[sentence.head.signature].get(
+                    "program",
+                    "static" if is_static else "dynamic",
+                )
+                time_param = temporal_classification[sentence.head.signature].get(
+                    "time",
+                    None if is_static else "__time",
+                )
+                if isinstance(time_param, str):
+                    parameter = clingo_helper.create_id(time_param)
+                    program_parameters_map[program].add(parameter)
+                dynamic_rules_map[program].append(rule)
+
+            mutable_dynamic_rules = []
+            for program, rules in dynamic_rules_map.items():
+                parameters = tuple(program_parameters_map[program])
+                mutable_dynamic_rules.append(
+                    (clingo_helper.create_program(program, parameters=parameters), tuple(rules)),
+                )
+            dynamic_rules = tuple(mutable_dynamic_rules)
 
             return cls(
                 roles_rules=roles_rules,
@@ -556,7 +427,6 @@ class ClingoInterpreter(Interpreter):
                 legal_rules=legal_rules,
                 goal_rules=goal_rules,
                 terminal_rules=terminal_rules,
-                static_rules=static_rules,
                 dynamic_rules=dynamic_rules,
             )
 
@@ -578,6 +448,7 @@ class ClingoInterpreter(Interpreter):
                 gdl.Relation.Signature("next", 1): ClingoInterpreter.TemporalClassification(
                     name="holds_at",
                     timeshift=1,
+                    program="statemachine",
                 ),
                 gdl.Relation.Signature("true", 1): ClingoInterpreter.TemporalClassification(
                     name="holds_at",
@@ -982,7 +853,11 @@ class ClingoInterpreter(Interpreter):
         try:
             yield from self._get_development_model(ctl, record)
         except InterpreterError:
-            log.debug("Error while getting developments. Solving the following rules: %s", " ".join(rules))
+            log.debug(
+                "Error while getting developments. Solving the following rules until the horizon %d:\n%s",
+                record.horizon,
+                "\n".join(rules),
+            )
             raise
 
     def _get_development_model(self, ctl: clingo.Control, record: Record) -> Iterator[Development]:
@@ -990,7 +865,8 @@ class ClingoInterpreter(Interpreter):
             (
                 ("base", ()),
                 ("static", ()),
-                *(("dynamic", (clingo.Number(__time),)) for __time in range(0, record.horizon)),
+                *(("dynamic", (clingo.Number(__time),)) for __time in range(0, record.horizon + 1)),
+                *(("statemachine", (clingo.Number(__time),)) for __time in range(0, record.horizon)),
             ),
         )
         # Disables mypy. Because contract guarantees that handle is not SolveResult when called with yield_=True or
@@ -1027,24 +903,26 @@ class ClingoInterpreter(Interpreter):
             for rule in record.get_state_assertions():
                 ast_builder.add(rule)
                 rules.append(str(rule))
-            for rule in record.get_view_assertions():
-                ast_builder.add(rule)
-                rules.append(str(rule))
+            if self.has_incomplete_information:
+                for rule in record.get_view_assertions():
+                    ast_builder.add(rule)
+                    rules.append(str(rule))
             for rule in record.get_turn_assertions():
                 ast_builder.add(rule)
                 rules.append(str(rule))
-            for rule in self._rules.static_rules:
-                ast_builder.add(rule)
-                rules.append(str(rule))
-            for rule in self._rules.dynamic_rules:
-                ast_builder.add(rule)
-                rules.append(str(rule))
-            horizon = record.horizon
-            assert_type(horizon, int)
-            assert isinstance(horizon, int)
-            rule = ClingoInterpreter.ClingoASTRules.dynamic_pick_plays(horizon)
-            ast_builder.add(rule)
-            rules.append(str(rule))
+            for program, dynamic_rules in self._rules.dynamic_rules:
+                ast_builder.add(program)
+                rules.append(str(program))
+                for rule in dynamic_rules:
+                    ast_builder.add(rule)
+                    rules.append(str(rule))
+                if program == clingo_helper.PROGRAM_STATEMACHINE:
+                    horizon = record.horizon
+                    assert_type(horizon, int)
+                    assert isinstance(horizon, int)
+                    rule = ClingoInterpreter.ClingoASTRules.dynamic_pick_plays(horizon)
+                    ast_builder.add(rule)
+                    rules.append(str(rule))
         return ctl, rules
 
     def _get_model(self, ctl: clingo.Control) -> Iterator[clingo.Symbol]:
@@ -1150,8 +1028,6 @@ class ClingoInterpreter(Interpreter):
                     head = play.as_clingo_symbol()
                     backend.add_rule(head=(head,))
                     asp_rules.append(f"{head}.")
-
-        log.debug("Created control object with the following rules: %s", " ".join(asp_rules))
 
         return ctl
 

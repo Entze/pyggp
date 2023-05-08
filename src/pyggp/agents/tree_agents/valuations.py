@@ -1,14 +1,27 @@
 """Valuations for tree agents."""
-import abc
-from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Protocol, TypeVar
 
 from typing_extensions import Self
 
+_U = TypeVar("_U")
 
-@dataclass(frozen=True)
-class Valuation(abc.ABC):
-    """Base class for all valuations."""
+
+class Valuation(Protocol[_U]):
+    """Protocol for valuations."""
+
+    utility: _U
+
+    @classmethod
+    def from_utility(cls, utility: _U) -> Self:
+        """Constructs a valuation from a utility.
+
+        Args:
+            utility: Utility
+
+        Returns:
+            Valuation
+
+        """
 
     def __lt__(self, other: Any) -> bool:
         """Less than comparison operator.
@@ -20,10 +33,6 @@ class Valuation(abc.ABC):
             True if the other object is a valuation and is less than the other, False otherwise
 
         """
-        if not isinstance(other, Valuation):
-            return False
-        comp = self.compare(other)
-        return comp == "<"
 
     def __le__(self, other: Any) -> bool:
         """Less than or equal to comparison operator.
@@ -35,10 +44,6 @@ class Valuation(abc.ABC):
             True if the other object is a valuation and is less than or equal to the other, False otherwise
 
         """
-        if not isinstance(other, Valuation):
-            return False
-        comp = self.compare(other)
-        return comp == "<" or comp == "=="
 
     def __gt__(self, other: Any) -> bool:
         """Greater than comparison operator.
@@ -50,10 +55,6 @@ class Valuation(abc.ABC):
             True if the other object is not a valuation or is greater than the other, False otherwise
 
         """
-        if not isinstance(other, Valuation):
-            return True
-        comp = self.compare(other)
-        return comp == ">"
 
     def __ge__(self, other: Any) -> bool:
         """Greater than or equal to comparison operator.
@@ -65,44 +66,14 @@ class Valuation(abc.ABC):
             True if the other object is not a valuation or is greater than or equal to the other, False otherwise
 
         """
-        if not isinstance(other, Valuation):
-            return True
-        comp = self.compare(other)
-        return comp == ">" or comp == "=="
 
-    def __rich__(self) -> str:
-        """Rich representation of the valuation.
-
-        Returns:
-            Rich representation of the valuation
-
-        """
-        if hasattr(self, "__str__"):
-            return self.__str__()
-        return self.__repr__()
-
-    @abc.abstractmethod
-    def compare(self, other: Self) -> Literal["<", "==", ">"]:
-        """Compares this valuation to another.
+    def propagate(self, utility: _U) -> Self:
+        """Combines the information from this valuation with a utility.
 
         Args:
-            other: Other valuation to compare to
+            utility: Immediate utility of a node or state
 
         Returns:
-            "<", "==", or ">" if this valuation is less than, equal to, or greater than the other
+            Updated valuation
 
         """
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def propagate(self, other: Self) -> Self:
-        """Combines the information from this valuation with another.
-
-        Args:
-            other: Other valuation to combine with
-
-        Returns:
-            New valuation that combines the information from this valuation with the other
-
-        """
-        raise NotImplementedError

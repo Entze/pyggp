@@ -189,3 +189,4 @@ def create_pick_move_rule(horizon: int) -> clingo_ast.AST:
 
 PROGRAM_STATIC = create_program(name="static")
 PROGRAM_DYNAMIC = create_program(name="dynamic", parameters=(create_id("__time"),))
+PROGRAM_STATEMACHINE = create_program(name="statemachine", parameters=(create_id("__time"),))

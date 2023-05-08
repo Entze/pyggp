@@ -4,6 +4,7 @@ import pyggp.game_description_language as gdl
 import pytest
 from pyggp.actors import LocalActor
 from pyggp.agents import Agent
+from pyggp.engine_primitives import Move, Role, State, View
 from pyggp.exceptions.actor_exceptions import AgentIsNoneLocalActorError
 from pyggp.gameclocks import (
     DEFAULT_NO_TIMEOUT_CONFIGURATION,
@@ -11,7 +12,6 @@ from pyggp.gameclocks import (
     DEFAULT_START_CLOCK_CONFIGURATION,
     GameClock,
 )
-from pyggp.interpreters import Move, Role, State, View
 
 
 @mock.patch.object(Agent, "__abstractmethods__", set())

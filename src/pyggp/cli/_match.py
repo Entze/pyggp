@@ -23,6 +23,7 @@ from pyggp.cli._common import (
     load_ruleset,
     parse_registry,
 )
+from pyggp.engine_primitives import RANDOM, Role
 from pyggp.exceptions.cli_exceptions import RulesetNotFoundCLIError
 from pyggp.exceptions.match_exceptions import DidNotFinishMatchError, DidNotStartMatchError
 from pyggp.gameclocks import (
@@ -31,7 +32,7 @@ from pyggp.gameclocks import (
     DEFAULT_START_CLOCK_CONFIGURATION,
     GameClock,
 )
-from pyggp.interpreters import RANDOM, ClingoInterpreter, Interpreter, Role
+from pyggp.interpreters import ClingoInterpreter, Interpreter
 from pyggp.match import Match
 from pyggp.visualizers import SimpleVisualizer, Visualizer
 

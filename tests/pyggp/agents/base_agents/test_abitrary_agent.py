@@ -3,8 +3,8 @@ from unittest import mock
 import pyggp.game_description_language as gdl
 import pytest
 from pyggp.agents import ArbitraryAgent
+from pyggp.engine_primitives import Move, State, View
 from pyggp.exceptions.agent_exceptions import InterpreterIsNoneInterpreterAgentError, RoleIsNoneAgentError
-from pyggp.interpreters import Move, State, View
 
 
 def test_calculate_move() -> None:

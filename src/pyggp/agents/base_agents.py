@@ -3,7 +3,7 @@ import abc
 import contextlib
 import logging
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Optional, Type
 
@@ -12,9 +12,10 @@ import rich.prompt
 from rich import print
 
 import pyggp.game_description_language as gdl
+from pyggp.engine_primitives import Move, Role, View
 from pyggp.exceptions.agent_exceptions import InterpreterIsNoneInterpreterAgentError, RoleIsNoneAgentError
 from pyggp.gameclocks import GameClock
-from pyggp.interpreters import ClingoInterpreter, Interpreter, Move, Role, View
+from pyggp.interpreters import ClingoInterpreter, Interpreter
 
 if TYPE_CHECKING:
     # TODO: Remove this once Python 3.8 is no longer supported.
@@ -129,10 +130,10 @@ class InterpreterAgent(Agent, abc.ABC):
     # region Attributes and Properties
 
     role: Optional[Role] = None
-    ruleset: Optional[gdl.Ruleset] = None
+    ruleset: Optional[gdl.Ruleset] = field(default=None, repr=False)
     startclock_config: Optional[GameClock.Configuration] = None
     playclock_config: Optional[GameClock.Configuration] = None
-    interpreter: Optional[Interpreter] = None
+    interpreter: Optional[Interpreter] = field(default=None, repr=False)
 
     # endregion
 
