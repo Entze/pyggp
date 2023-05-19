@@ -30,7 +30,7 @@ import pyggp.game_description_language as gdl
 from pyggp._logging import format_timedelta
 from pyggp.actors import Actor
 from pyggp.engine_primitives import Move, Role, State, Turn, View
-from pyggp.exceptions.actor_exceptions import ActorError, PlayclockIsNoneActorError, TimeoutActorError
+from pyggp.exceptions.actor_exceptions import ActorError, TimeoutActorError
 from pyggp.exceptions.match_exceptions import (
     DidNotFinishMatchError,
     DidNotStartMatchError,
@@ -323,8 +323,7 @@ class _PlayProcessor(_SignalProcessor[Move, "_PlayProcessor.PlayArgs", Turn]):
 
     def _get_timeout(self, role: Role) -> float:
         actor = self.role_actor_map[role]
-        if actor.playclock is None:
-            raise PlayclockIsNoneActorError
+        assert actor.playclock is not None, "Assumption: playclock is not None (should have been set in send_start)"
         return actor.playclock.get_timeout()
 
     def _get_exception(self, role: Role, inner_exception: ActorError) -> MatchError:

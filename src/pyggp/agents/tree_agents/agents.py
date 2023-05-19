@@ -2,7 +2,7 @@ import collections
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Final, MutableMapping, Optional, Set, Tuple, TypeVar
+from typing import TYPE_CHECKING, Final, MutableMapping, Optional, Set, Tuple, TypeVar
 
 import pyggp.game_description_language as gdl
 from pyggp._logging import compact_inflect, format_amount, format_timedelta
@@ -22,7 +22,6 @@ from pyggp.agents.tree_agents.nodes import (
     PerfectInformationNode,
     VisibleInformationSetNode,
 )
-from pyggp.agents.tree_agents.valuations import Valuation
 from pyggp.engine_primitives import Move, Role, State, Turn, View
 from pyggp.exceptions.agent_exceptions import (
     InterpreterIsNoneInterpreterAgentError,
@@ -31,6 +30,9 @@ from pyggp.exceptions.agent_exceptions import (
 from pyggp.gameclocks import GameClock
 from pyggp.interpreters import Interpreter
 from pyggp.repeaters import Repeater
+
+if TYPE_CHECKING:
+    from pyggp.agents.tree_agents.valuations import Valuation
 
 log = logging.getLogger("pyggp")
 
@@ -153,7 +155,7 @@ class MCTSAgent(InterpreterAgent):
             valuation_factory=NormalizedUtilityValuation.from_utility,
         )
 
-        assert 0 <= utility <= 1, f"Assumption: 0 <= utility <= 1 (utility is normalized)"
+        assert 0 <= utility <= 1, "Assumption: 0 <= utility <= 1 (utility is normalized)"
 
         # Backpropagation
         while node.parent is not None:
