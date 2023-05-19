@@ -442,15 +442,15 @@ class HiddenInformationSetNode(_AbstractInformationSetNode[_U, Turn], Generic[_U
             if (self.possible_turns is None or turn in self.possible_turns) and state in self.possible_states
         }
 
+    # Disables ARG002 (Unused method argument). Because: Implements a base class method.
     def gather_records(
         self,
         possible_states_record: MutableMapping[int, FrozenSet[State]],
-        # Disables ARG002 (Unused method argument). Because: Implements a base class method.
         view_record: MutableMapping[int, Mapping[Role, View]],  # noqa: ARG002
         possible_turns_record: MutableMapping[int, FrozenSet[Turn]],
         rmm_record: MutableMapping[int, Mapping[Role, Move]],  # noqa: ARG002
         *,
-        has_incomplete_information: bool = True,
+        has_incomplete_information: bool = True,  # noqa: ARG002
     ) -> None:
         depth = self.depth
         possible_states_record[depth] = frozenset(self.possible_states)

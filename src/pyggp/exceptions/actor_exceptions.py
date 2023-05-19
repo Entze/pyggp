@@ -9,21 +9,6 @@ class ActorError(Exception):
     """Base class for all exceptions regarding actors."""
 
 
-class PlayclockIsNoneActorError(ActorError):
-    """Accessed playclock when it was None."""
-
-    def __init__(self, context: Optional[str] = None) -> None:
-        """Initializes ActorPlayclockIsNone.
-
-        Args:
-            context: Context in which the playclock was accessed
-
-        """
-        context_message = f" during {context}" if context is not None else ""
-        message = f"Accessed playclock when it was None{context_message}"
-        super().__init__(message)
-
-
 class TimeoutActorError(ActorError):
     """Gameclock timed out."""
 
@@ -73,7 +58,3 @@ class IllegalMoveActorError(ActorError):
         move_message = f" {move}" if move is not None else ""
         message = f"Illegal move{move_message}{role_message}{ply_message}"
         super().__init__(message)
-
-
-class AgentIsNoneLocalActorError(ActorError):
-    """Agent is None."""

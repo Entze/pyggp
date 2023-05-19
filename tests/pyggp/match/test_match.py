@@ -6,7 +6,7 @@ import exceptiongroup
 import pyggp.game_description_language as gdl
 import pytest
 from pyggp.engine_primitives import RANDOM, Role, State, View
-from pyggp.exceptions.actor_exceptions import ActorError, PlayclockIsNoneActorError, TimeoutActorError
+from pyggp.exceptions.actor_exceptions import ActorError, TimeoutActorError
 from pyggp.exceptions.match_exceptions import DidNotStartMatchError, IllegalMoveMatchError
 from pyggp.gameclocks import GameClock
 from pyggp.interpreters import Interpreter
@@ -223,28 +223,6 @@ def test_execute_ply_two_player_match(two_player_mock_match: Match) -> None:
     )
     actor_2.send_play.assert_not_called()
     assert not two_player_mock_match.is_finished
-
-
-def test_execute_ply_raises_on_no_playclock(one_player_mock_match: Match) -> None:
-    interpreter = one_player_mock_match.interpreter
-
-    (role,) = one_player_mock_match.role_actor_map.keys()
-    actor = one_player_mock_match.role_actor_map[role]
-
-    actor.playclock = None
-
-    init_state = State(frozenset())
-    one_player_mock_match.states = [init_state]
-    interpreter.get_roles.return_value = frozenset({role})
-    interpreter.get_sees_by_role.return_value = View(init_state)
-    interpreter.is_terminal.return_value = False
-
-    assert not one_player_mock_match.is_finished
-
-    with mock.patch.object(Interpreter, "get_roles_in_control") as get_roles_in_control_mock:
-        get_roles_in_control_mock.return_value = frozenset({role})
-        with pytest.raises(PlayclockIsNoneActorError):
-            one_player_mock_match.execute_ply()
 
 
 def test_execute_ply_raises_on_timeout(one_player_mock_match: Match) -> None:

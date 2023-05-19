@@ -523,7 +523,6 @@ def test_tic_tac_toe(tic_tac_toe_ruleset) -> None:
     interpreter = ClingoInterpreter.from_ruleset(tic_tac_toe_ruleset)
 
     x = Role(gdl.Subrelation(gdl.Relation("x")))
-    o = Role(gdl.Subrelation(gdl.Relation("o")))
 
     init_state = interpreter.get_init_state()
     init_view = interpreter.get_sees_by_role(init_state, role=x)
