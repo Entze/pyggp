@@ -410,7 +410,8 @@ def test_develop_on_perfect_view(ruleset_two_moves_max) -> None:
     assert root.children == expected_children
 
 
-def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:
+# Disables PLR0915 (too many statements). Because: This is a long test and needs a lot of statements.
+def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  # noqa: PLR0915
     role_p1 = Role(gdl.Subrelation(gdl.Relation("p1")))
     role_p2 = Role(gdl.Subrelation(gdl.Relation("p2")))
 

@@ -77,14 +77,14 @@ class Node(Protocol[_U, _K]):
     ) -> _U:
         ...
 
-    def develop(self, interpreter: Interpreter, ply: int, view: View) -> Self:
+    def develop(self, interpreter: Interpreter, ply: int, view: View) -> "Node[_U, Any]":
         ...
 
 
 class _AbstractNode(Node[_U, _K], Generic[_U, _K], abc.ABC):
     @property
     def depth(self) -> int:
-        node = self
+        node: Node[_U, Any] = self
         depth = 0
         while node.parent is not None:
             node = node.parent
@@ -237,8 +237,12 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
         assert self.valuation is not None, "Guarantee: self.valuation is not None"
         return utility
 
-    def develop(self, interpreter: Interpreter, ply: int, view: View) -> Self:
+    def develop(self, interpreter: Interpreter, ply: int, view: View) -> "ImperfectInformationNode[_U]":
         if ply == self.depth:
+            assert isinstance(
+                self,
+                (HiddenInformationSetNode, VisibleInformationSetNode),
+            ), "Requirement: self is ImperfectInformationNode"
             return self
 
         log.debug("Gathering all records")
@@ -283,7 +287,11 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
         return node
 
     def reset_all_records_below(self, max_depth: Optional[int] = None) -> None:
-        stack = [self]
+        assert isinstance(
+            self,
+            (HiddenInformationSetNode, VisibleInformationSetNode),
+        ), "Assumption (ImperfectInformationNode)"
+        stack: MutableSequence[ImperfectInformationNode[_U]] = [self]
         while stack:
             node = stack.pop()
             node.reset_records()
@@ -291,7 +299,11 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
                 stack.extend(node.children.values())
 
     def trim_all_below(self) -> None:
-        stack = [self]
+        assert isinstance(
+            self,
+            (HiddenInformationSetNode, VisibleInformationSetNode),
+        ), "Assumption (ImperfectInformationNode)"
+        stack: MutableSequence[ImperfectInformationNode[_U]] = [self]
         while stack:
             node = stack.pop()
             node.trim()
@@ -304,12 +316,16 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
         view: View,
         *,
         has_incomplete_information: bool = False,
-    ) -> Tuple[ImperfectInformationRecord, Self]:
+    ) -> Tuple[ImperfectInformationRecord, "ImperfectInformationNode[_U]"]:
         possible_states_record: MutableMapping[int, FrozenSet[State]] = {}
         view_record: MutableMapping[int, Mapping[Role, View]] = {ply: {self.role: view}}
         possible_turns_record: MutableMapping[int, FrozenSet[Turn]] = {}
         rmm_record: MutableMapping[int, Mapping[Role, Move]] = {}
-        node = self
+        assert isinstance(
+            self,
+            (HiddenInformationSetNode, VisibleInformationSetNode),
+        ), "Assumption (ImperfectInformationNode)"
+        node: ImperfectInformationNode[_U] = self
 
         stop = False
 
@@ -346,8 +362,12 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
         self,
         interpreter: Interpreter,
         developments: Iterable[Development],
-    ) -> Tuple[Self, Sequence["ImperfectInformationNode[_U]"]]:
-        node = self
+    ) -> Tuple["ImperfectInformationNode[_U]", Sequence["ImperfectInformationNode[_U]"]]:
+        assert isinstance(
+            self,
+            (HiddenInformationSetNode, VisibleInformationSetNode),
+        ), "Assumption (ImperfectInformationNode)"
+        node: ImperfectInformationNode[_U] = self
         visited: MutableSequence[ImperfectInformationNode[_U]] = []
         for development in developments:
             node = self
@@ -466,6 +486,7 @@ class HiddenInformationSetNode(_AbstractInformationSetNode[_U, Turn], Generic[_U
 
     def descend(self, state: State, turn: Turn) -> "ImperfectInformationNode[_U]":
         assert self.children is not None, "Assumption: self.children is not None (tree is expanded)"
+        assert self.possible_turns is not None, "Assumption: self.possible_turns is not None (tree is expanded)"
         assert state in self.possible_states, "Assumption: state in self.possible_states (tree is expanded)"
         assert turn in self.possible_turns, "Assumption: turn in self.possible_turns (tree is expanded)"
         assert (

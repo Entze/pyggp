@@ -92,7 +92,6 @@ class FunctionMonteCarloTreeSearchSelector(
 @dataclass(frozen=True)
 class FunctionSelector(
     _AbstractFunctionMonteCarloTreeSearchSelectorProtocol[_U, _K, _A],
-    Selector[_U, _K],
     Generic[_U, _K, _A],
 ):
     select_func: Callable[[_A], _K]
@@ -102,6 +101,8 @@ class FunctionSelector(
 
 
 def _map_keys_to_valuation(node: Node[_U, _K]) -> Mapping[_K, Tuple[Valuation[_U], ...]]:
+    if node.children is None:
+        return {}
     return {key: (child.valuation,) if child.valuation is not None else () for key, child in node.children.items()}
 
 
@@ -135,13 +136,16 @@ def _map_keys_to_uct(node: MonteCarloTreeSearchNode[_U, _K], exploitation: float
     }
 
 
-random_selector: Selector[Any, Any] = FunctionSelector(select_func=random.choice)
-best_selector: Selector[Any, Any] = FunctionSelector(select_func=_select_maximum, get_keys_func=_map_keys_to_valuation)
-most_selector: MonteCarloTreeSearchSelector[Any, Any] = FunctionMonteCarloTreeSearchSelector(
+random_selector: FunctionSelector[Any, Any, Any] = FunctionSelector(select_func=random.choice)
+best_selector: FunctionSelector[Any, Any, Any] = FunctionSelector(
+    select_func=_select_maximum,
+    get_keys_func=_map_keys_to_valuation,
+)
+most_selector: FunctionMonteCarloTreeSearchSelector[Any, Any, Any] = FunctionMonteCarloTreeSearchSelector(
     select_func=_select_maximum,
     get_keys_func=_map_keys_to_total_playouts,
 )
-uct_selector: MonteCarloTreeSearchSelector[Any, Any] = FunctionMonteCarloTreeSearchSelector(
+uct_selector: FunctionMonteCarloTreeSearchSelector[Any, Any, Any] = FunctionMonteCarloTreeSearchSelector(
     select_func=_select_maximum,
     get_keys_func=_map_keys_to_uct,
 )
