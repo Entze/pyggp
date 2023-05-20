@@ -1,13 +1,13 @@
 from unittest import mock
 
 import pyggp.game_description_language as gdl
-from pyggp.agents import ArbitraryAgent
+from pyggp.agents import RandomAgent
 from pyggp.engine_primitives import Move, Role, State, View
 from pyggp.interpreters import Interpreter
 
 
 def test_calculate_move() -> None:
-    agent = ArbitraryAgent()
+    agent = RandomAgent()
     interpreter = mock.Mock(spec=Interpreter)
     legal_moves = frozenset(
         {

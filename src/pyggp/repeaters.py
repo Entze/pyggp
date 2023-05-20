@@ -2,7 +2,7 @@ import logging
 import math
 import time
 from dataclasses import dataclass
-from typing import Callable, Final, Generic, Tuple, TypeVar
+from typing import Callable, Final, Tuple, TypeVar
 
 from typing_extensions import ParamSpec
 
@@ -17,13 +17,13 @@ log = logging.getLogger("pyggp")
 
 
 @dataclass
-class Repeater(Generic[P]):
-    func: Callable[P, None]
+class Repeater:
+    func: Callable[[], None]
     timeout_ns: int
     max_repeats: int = 1_000_000
     repeat_ratio: float = INV_GOLDEN_RATIO
 
-    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Tuple[int, int]:
+    def __call__(self) -> Tuple[int, int]:
         total_elapsed_ns: int = 0
         elapsed_ns: int = 0
         repeats: int = 1
@@ -33,7 +33,7 @@ class Repeater(Generic[P]):
         while total_elapsed_ns <= self.timeout_ns:
             start_ns = time.monotonic_ns()
             for _ in range(repeats):
-                self.func(*args, **kwargs)
+                self.func()
             elapsed_ns = time.monotonic_ns() - start_ns
             total_elapsed_ns += elapsed_ns
             avg_it_per_ns = repeats / elapsed_ns
