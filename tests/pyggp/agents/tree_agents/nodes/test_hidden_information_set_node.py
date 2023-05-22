@@ -421,6 +421,154 @@ def test_develop_returns_deeper_visible_if_visible_and_hidden_children(mock_inte
     assert child2.view == mock_child2_view
 
 
+def test_develop_returns_minimal_leaf(mock_interpreter, mock_role) -> None:
+    mock_random_role = mock.Mock(spec=Role, name="mock_random_role")
+
+    root_state = mock.Mock(spec=State, name="root_state")
+
+    root_move_1 = mock.Mock(spec=Move, name="root_move_1")
+    root_move_2 = mock.Mock(spec=Move, name="root_move_2")
+
+    root_turn_1 = Turn({mock_random_role: root_move_1})
+    root_turn_2 = Turn({mock_random_role: root_move_2})
+
+    root = HiddenInformationSetNode(
+        role=mock_role,
+        possible_states={root_state},
+    )
+
+    child_state_1 = mock.Mock(spec=State, name="child_state_1")
+    child_state_2 = mock.Mock(spec=State, name="child_state_2")
+
+    state_to_lt = {
+        root_state: Turn({mock_random_role: frozenset({root_move_1, root_move_2})}),
+    }
+
+    state_to_turnstatepair = {
+        root_state: ((root_turn_1, child_state_1), (root_turn_2, child_state_2)),
+    }
+
+    child_state_1_view = mock.Mock(spec=View, name="child_state_1_view")
+    child_state_2_view = mock.Mock(spec=View, name="child_state_2_view")
+
+    state_to_view = {
+        child_state_1: child_state_1_view,
+        child_state_2: child_state_2_view,
+    }
+
+    development_step0 = DevelopmentStep(
+        state=root_state,
+        turn=root_turn_2,
+    )
+    development_step1 = DevelopmentStep(
+        state=child_state_2,
+        turn=None,
+    )
+
+    development = Development((development_step0, development_step1))
+    developments = (development,)
+
+    mock_interpreter.get_legal_moves.side_effect = state_to_lt.get
+    mock_interpreter.get_all_next_states.side_effect = state_to_turnstatepair.get
+    mock_interpreter.get_sees_by_role.side_effect = lambda state, _: state_to_view.get(state)
+    mock_interpreter.get_developments.side_effect = lambda _: iter(developments)
+
+    state_to_roles = {
+        root_state: {mock_random_role},
+        child_state_1: {mock_role},
+        child_state_2: {mock_role},
+    }
+
+    assert root.possible_turns is None
+
+    with mock.patch.object(Interpreter, "get_roles_in_control") as mock_get_roles_in_control:
+        mock_get_roles_in_control.side_effect = state_to_roles.get
+        actual = root.develop(interpreter=mock_interpreter, ply=1, view=child_state_2_view)
+
+    assert root.possible_turns == {root_turn_2}
+    assert actual.possible_states == {child_state_2}
+
+
+def test_develop_on_unexpanded_multiple(mock_interpreter, mock_role) -> None:
+    mock_root_state = mock.Mock(spec=State, name="mock_root_state")
+
+    root = HiddenInformationSetNode(
+        role=mock_role,
+        possible_states={mock_root_state},
+    )
+
+    mock_root_turn1 = mock.Mock(spec=Turn, name="mock_root_turn1")
+    mock_root_turn2 = mock.Mock(spec=Turn, name="mock_root_turn2")
+
+    mock_child1_state1 = mock.Mock(spec=State, name="mock_child_state1")
+    mock_child1_state2 = mock.Mock(spec=State, name="mock_child_state2")
+
+    mock_child1_turn1 = mock.Mock(spec=Turn, name="mock_child1_turn1")
+
+    mock_child2_state1 = mock.Mock(spec=State, name="mock_child2_state1")
+    mock_child2_state2 = mock.Mock(spec=State, name="mock_child2_state2")
+
+    development1_step0 = DevelopmentStep(
+        state=mock_root_state,
+        turn=mock_root_turn1,
+    )
+    development1_step1 = DevelopmentStep(
+        state=mock_child1_state1,
+        turn=mock_child1_turn1,
+    )
+    development1_step2 = DevelopmentStep(
+        state=mock_child2_state1,
+        turn=None,
+    )
+
+    development1 = Development((development1_step0, development1_step1, development1_step2))
+
+    development2_step0 = DevelopmentStep(
+        state=mock_root_state,
+        turn=mock_root_turn2,
+    )
+    development2_step1 = DevelopmentStep(
+        state=mock_child1_state2,
+        turn=mock_child1_turn1,
+    )
+    development2_step2 = DevelopmentStep(
+        state=mock_child2_state2,
+        turn=None,
+    )
+
+    development2 = Development((development2_step0, development2_step1, development2_step2))
+
+    developments = (development1, development2)
+
+    state_to_turnstatepairs = {
+        mock_root_state: ((mock_root_turn1, mock_child1_state1), (mock_root_turn2, mock_child1_state2)),
+        mock_child1_state1: ((mock_child1_turn1, mock_child2_state1),),
+        mock_child1_state2: ((mock_child1_turn1, mock_child2_state2),),
+    }
+
+    mock_interpreter.get_developments.side_effect = lambda _: iter(developments)
+    mock_interpreter.get_all_next_states.side_effect = state_to_turnstatepairs.get
+
+    mock_random_role = mock.Mock(spec=Role, name="mock_random_role")
+    mock_other_role = mock.Mock(spec=Role, name="mock_other_role")
+
+    state_to_rolesincontrol = {
+        mock_root_state: frozenset({mock_random_role}),
+        mock_child1_state1: frozenset({mock_other_role}),
+        mock_child1_state2: frozenset({mock_other_role}),
+        mock_child2_state1: frozenset({mock_role}),
+        mock_child2_state2: frozenset({mock_role}),
+    }
+
+    mock_child2_view = mock.Mock(spec=View, name="mock_child2_view")
+
+    with mock.patch.object(Interpreter, "get_roles_in_control") as mock_get_roles_in_control:
+        mock_get_roles_in_control.side_effect = state_to_rolesincontrol.get
+        actual = root.develop(interpreter=mock_interpreter, ply=2, view=mock_child2_view)
+
+    assert actual.possible_states == {mock_child2_state1, mock_child2_state2}
+
+
 @pytest.fixture()
 def tic_tac_toe_ruleset() -> gdl.Ruleset:
     tic_tac_toe = """
@@ -563,3 +711,87 @@ def test_tic_tac_toe(tic_tac_toe_ruleset) -> None:
     assert tree.view == view
     assert tree.possible_states == {state}
     assert tree.children is None
+
+
+@pytest.fixture()
+def minipoker_ruleset() -> gdl.Ruleset:
+    minipoker = """
+    role(bluffer). role(caller). role(random).
+
+    init(control(random)).
+
+    colour(red). colour(black).
+
+    next(dealt) :- does(random, deal(_C)).
+    next(dealt) :- true(dealt).
+    next(dealt(C)) :- colour(C), does(random, deal(C)).
+    next(dealt(C)) :- colour(C), true(dealt(C)).
+    next(control(bluffer)) :- does(random, deal(_C)).
+    next(resigned(bluffer)) :- does(bluffer, resign).
+    next(resigned(bluffer)) :- true(resigned(bluffer)).
+    next(held(bluffer)) :- does(bluffer, hold).
+    next(held(bluffer)) :- true(held(bluffer)).
+    next(control(caller)) :- does(bluffer, hold).
+    next(resigned(caller)) :- does(caller, resign).
+    next(resigned(caller)) :- true(resigned(caller)).
+    next(called(caller)) :- does(caller, call).
+    next(called(caller)) :- true(called(caller)).
+
+    sees(random, X) :- true(X).
+    sees(Everyone, control(R)) :- role(Everyone), role(R), true(control(R)).
+    sees(Everyone, dealt) :- role(Everyone), true(dealt).
+    sees(Everyone, resigned(R)) :- role(Everyone), role(R), true(resigned(R)).
+    sees(Everyone, held(R)) :- role(Everyone), role(R), true(held(R)).
+    sees(Everyone, called(R)) :- role(Everyone), role(R), true(called(R)).
+    sees(Everyone, dealt(C)) :- role(Everyone), colour(C), true(dealt(C)), true(called(caller)).
+    sees(bluffer, dealt(C)) :- colour(C), true(dealt(C)).
+
+    legal(random, deal(C)) :- colour(C).
+    legal(bluffer, resign) :- true(dealt(red)).
+    legal(bluffer, hold).
+    legal(caller, resign).
+    legal(caller, call).
+
+    goal(bluffer, -10) :- true(resigned(bluffer)).
+    goal(caller, 10) :- true(resigned(bluffer)).
+    goal(bluffer, 4) :- true(resigned(caller)).
+    goal(caller, -4) :- true(resigned(caller)).
+    goal(bluffer, 16) :- true(dealt(black)), true(held(bluffer)), true(called(caller)).
+    goal(caller, -16) :- true(dealt(black)), true(held(bluffer)), true(called(caller)).
+    goal(bluffer, -20) :- true(dealt(red)), true(held(bluffer)), true(called(caller)).
+    goal(caller, 20) :- true(dealt(red)), true(held(bluffer)), true(called(caller)).
+
+    terminal :- true(resigned(bluffer)).
+    terminal :- true(resigned(caller)).
+    terminal :- true(held(bluffer)), true(called(caller)).
+
+    """
+
+    return gdl.transformer.transform(gdl.parser.parse(minipoker))
+
+
+def test_minipoker(minipoker_ruleset) -> None:
+    interpreter = ClingoInterpreter.from_ruleset(minipoker_ruleset)
+
+    caller = Role(gdl.Subrelation(gdl.Relation("caller")))
+
+    init_state = interpreter.get_init_state()
+
+    root = HiddenInformationSetNode(possible_states={init_state}, role=caller)
+
+    control_caller = gdl.Subrelation(gdl.Relation("control", (gdl.Subrelation(gdl.Relation("caller")),)))
+    dealt = gdl.Subrelation(gdl.Relation("dealt"))
+    held_bluffer = gdl.Subrelation(gdl.Relation("held", (gdl.Subrelation(gdl.Relation("bluffer")),)))
+    target_state = State(frozenset({control_caller, dealt, held_bluffer}))
+    view = View(target_state)
+
+    actual = root.develop(interpreter=interpreter, ply=2, view=view)
+
+    dealt_red = gdl.Subrelation(gdl.Relation("dealt", (gdl.Subrelation(gdl.Relation("red")),)))
+    dealt_black = gdl.Subrelation(gdl.Relation("dealt", (gdl.Subrelation(gdl.Relation("black")),)))
+
+    possible_state1 = State(frozenset({control_caller, dealt_red, dealt, held_bluffer}))
+    possible_state2 = State(frozenset({control_caller, dealt_black, dealt, held_bluffer}))
+
+    assert actual.view == view
+    assert actual.possible_states == {possible_state1, possible_state2}

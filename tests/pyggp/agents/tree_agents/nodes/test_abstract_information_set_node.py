@@ -5,7 +5,6 @@ import pytest
 from pyggp.agents.tree_agents.evaluators import Evaluator
 from pyggp.agents.tree_agents.nodes import (
     HiddenInformationSetNode,
-    InformationSetNode,
     _AbstractInformationSetNode,
 )
 from pyggp.agents.tree_agents.valuations import Valuation
@@ -33,7 +32,7 @@ def mock_valuation_factory() -> Callable[[Any], Valuation[Any]]:
     return mock.Mock(spec=Callable[[Any], Valuation[Any]], name="mock_valuation_factory")
 
 
-@mock.patch.object(InformationSetNode, "__abstractmethods__", frozenset())
+@mock.patch.object(_AbstractInformationSetNode, "__abstractmethods__", frozenset())
 def test_evaluate_sets_valuation(mock_interpreter, mock_evaluator, mock_valuation_factory) -> None:
     mock_utility = mock.Mock(name="mock_utility")
     mock_valuation = mock.Mock(spec=Valuation, name="mock_valuation")
@@ -61,7 +60,7 @@ def test_evaluate_sets_valuation(mock_interpreter, mock_evaluator, mock_valuatio
     mock_valuation_factory.assert_called_once_with(mock_utility)
 
 
-@mock.patch.object(InformationSetNode, "__abstractmethods__", frozenset())
+@mock.patch.object(_AbstractInformationSetNode, "__abstractmethods__", frozenset())
 def test_develop_returns_node_as_is_on_same_height(mock_interpreter) -> None:
     parent = _AbstractInformationSetNode()
     parent.parent = None
