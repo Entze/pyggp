@@ -6,7 +6,6 @@ Nodes can be used to represent the game tree.
 import abc
 import logging
 import random
-import time
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -29,7 +28,7 @@ from typing import (
 
 from typing_extensions import Self
 
-from pyggp._logging import format_amount, format_timedelta
+from pyggp._logging import format_sorted_set, log_time
 from pyggp.agents.tree_agents.evaluators import Evaluator
 from pyggp.agents.tree_agents.valuations import Valuation
 from pyggp.engine_primitives import Development, DevelopmentStep, Move, Role, State, Turn, View
@@ -45,7 +44,7 @@ _K = TypeVar("_K")  # , Turn, FrozenDict[State, FrozenSet[Turn]], None, FrozenDi
 class Node(Protocol[_U, _K]):
     valuation: Optional[Valuation[_U]]
     parent: Optional["Node[_U, Any]"]
-    children: Optional[Mapping[_K, "Node[_U, Any]"]]
+    children: Optional[MutableMapping[_K, "Node[_U, Any]"]]
 
     @property
     def depth(self) -> int:
@@ -116,7 +115,7 @@ class PerfectInformationNode(_AbstractNode[_U, Turn], Generic[_U]):
     turn: Optional[Turn] = field(default=None)
     valuation: Optional[Valuation[_U]] = field(default=None)
     parent: Optional[Self] = field(default=None, repr=False, hash=False)
-    children: Optional[Mapping[Turn, Self]] = field(default=None, repr=False, hash=False)
+    children: Optional[MutableMapping[Turn, Self]] = field(default=None, repr=False, hash=False)
 
     def expand(self, interpreter: Interpreter) -> Mapping[Turn, Self]:
         if self.children is None:
@@ -137,7 +136,13 @@ class PerfectInformationNode(_AbstractNode[_U, Turn], Generic[_U]):
         if not self.children or self.turn is None:
             return
 
-        self.children = {turn: child for turn, child in self.children.items() if self.turn == turn}
+        to_delete: MutableSequence[Turn] = []
+        for turn in self.children:
+            if self.turn != turn:
+                to_delete.append(turn)
+
+        for turn in to_delete:
+            del self.children[turn]
 
     def evaluate(
         self,
@@ -214,10 +219,7 @@ class InformationSetNode(Node[_U, Tuple[State, _A]], Protocol[_U, _A]):
     role: Role
     possible_states: Set[State]
     parent: Optional["InformationSetNode[_U, Any]"]
-    children: Optional[Mapping[Tuple[State, _A], "InformationSetNode[_U, Any]"]]
-
-    def descend(self, state: State, turn: Turn) -> "ImperfectInformationNode[_U]":
-        raise NotImplementedError
+    children: Optional[MutableMapping[Tuple[State, _A], "InformationSetNode[_U, Any]"]]
 
 
 class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, _A], Generic[_U, _A], abc.ABC):
@@ -245,42 +247,31 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
             ), "Requirement: self is ImperfectInformationNode"
             return self
 
-        log.debug("Gathering all records")
-        start = time.monotonic_ns()
-        record, root = self.gather_all_records(
-            ply,
-            view,
-            has_incomplete_information=interpreter.has_incomplete_information,
-        )
-        log.debug("Gathered all records in %s", format_timedelta((time.monotonic_ns() - start) * 1e-9))
+        with log_time(log, logging.DEBUG, "Gathering all records", "Gathered all records"):
+            record, root = self.gather_all_records(
+                ply,
+                view,
+                has_incomplete_information=interpreter.has_incomplete_information,
+            )
 
         developments: Iterable[Development] = interpreter.get_developments(record)
 
-        log.debug("Resetting all records")
-        start = time.monotonic_ns()
-        self.reset_all_records_below(max_depth=ply)
-        log.debug("Reset all records in %s", format_timedelta((time.monotonic_ns() - start) * 1e-9))
+        with log_time(log, logging.DEBUG, "Reset all records", "Reset all records"):
+            self.reset_all_records_below(max_depth=ply)
 
-        log.debug("Updating tree")
-        start = time.monotonic_ns()
-        node, visited_nodes = root.update_all_from_developments(interpreter, developments)
-        log.debug(
-            "Updated tree, visited %s nodes in %s",
-            format_amount(len(visited_nodes)),
-            format_timedelta((time.monotonic_ns() - start) * 1e-9),
-        )
+        with log_time(log, logging.DEBUG, "Updating tree", "Updated tree"):
+            node, visited_nodes = root.update_all_from_developments(interpreter, developments)
+
         assert node in visited_nodes, "Guarantee: node in visited_nodes (node was visited)"
 
         assert isinstance(node, VisibleInformationSetNode), "Assumption: providing a view implies visible information"
         assert node.view is None or node.view == view, "Assumption: current.view == view (consistency)"
         node.view = view
 
-        log.debug("Trimming tree")
-        start = time.monotonic_ns()
-        root.trim()
-        for visited in visited_nodes:
-            visited.trim()
-        log.debug("Trimmed tree in %s", format_timedelta((time.monotonic_ns() - start) * 1e-9))
+        with log_time(log, logging.DEBUG, "Trimming tree", "Trimmed tree"):
+            root.trim()
+            for visited in visited_nodes:
+                visited.trim()
 
         assert node.depth == ply, "Guarantee: current.depth == ply (developed the tree to current depth)"
 
@@ -296,18 +287,6 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
             node = stack.pop()
             node.reset_records()
             if node.children is not None and (max_depth is None or node.depth < max_depth):
-                stack.extend(node.children.values())
-
-    def trim_all_below(self) -> None:
-        assert isinstance(
-            self,
-            (HiddenInformationSetNode, VisibleInformationSetNode),
-        ), "Assumption (ImperfectInformationNode)"
-        stack: MutableSequence[ImperfectInformationNode[_U]] = [self]
-        while stack:
-            node = stack.pop()
-            node.trim()
-            if node.children is not None:
                 stack.extend(node.children.values())
 
     def gather_all_records(
@@ -376,17 +355,17 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
                 node.update_from_development_step(development_step)
                 state, turn = development_step
                 if turn is not None:
-                    # TODO: find out if this is the cause for the bug
-                    if node.children is None:
-                        node.expand(interpreter)
-                        assert node.children is not None, "Assumption: node.children is not None"
-                        for child in node.children.values():
+                    if not node.can_descend(state, turn):
+                        (fresh_children, *_) = node._expand_by(interpreter, state)
+                        for child in fresh_children:
                             child.reset_records()
+                    assert node.can_descend(state, turn), "Assumption: node.can_descend(state, turn) (tree is expanded)"
                     node = node.descend(state, turn)
                     visited.append(node)
 
         return node, visited
 
+    @abc.abstractmethod
     def gather_records(
         self,
         possible_states_record: MutableMapping[int, FrozenSet[State]],
@@ -398,13 +377,28 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
     ) -> None:
         raise NotImplementedError
 
+    @abc.abstractmethod
     def reset_records(self) -> None:
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def can_descend(self, state: State, turn: Turn) -> bool:
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def descend(self, state: State, turn: Turn) -> "ImperfectInformationNode[_U]":
         raise NotImplementedError
 
+    @abc.abstractmethod
     def update_from_development_step(self, development_step: DevelopmentStep) -> None:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _expand_by(
+        self,
+        interpreter: Interpreter,
+        state: State,
+    ) -> Tuple[Iterable["ImperfectInformationNode[_U]"], ...]:
         raise NotImplementedError
 
 
@@ -415,7 +409,7 @@ class HiddenInformationSetNode(_AbstractInformationSetNode[_U, Turn], Generic[_U
     possible_turns: Optional[Set[Turn]] = field(default=None, hash=True)
     valuation: Optional[Valuation[_U]] = field(default=None, hash=True)
     parent: Optional["ImperfectInformationNode[_U]"] = field(default=None, repr=False, hash=False)
-    children: Optional[Mapping[Tuple[State, Turn], "ImperfectInformationNode[_U]"]] = field(
+    children: Optional[MutableMapping[Tuple[State, Turn], "ImperfectInformationNode[_U]"]] = field(
         default=None,
         repr=False,
         hash=False,
@@ -423,44 +417,76 @@ class HiddenInformationSetNode(_AbstractInformationSetNode[_U, Turn], Generic[_U
 
     def expand(self, interpreter: Interpreter) -> Mapping[Tuple[State, Turn], "ImperfectInformationNode[_U]"]:
         if self.children is None:
+            self.children = {}
             visible_child: Optional[VisibleInformationSetNode[_U]] = None
             hidden_child: Optional[HiddenInformationSetNode[_U]] = None
-            visible_keys = set()
-            hidden_keys = set()
             for possible_state in self.possible_states:
-                for turn, next_state in interpreter.get_all_next_states(possible_state):
-                    roles_in_control = Interpreter.get_roles_in_control(next_state)
-                    key = (possible_state, turn)
-                    child: ImperfectInformationNode[_U]
-                    if self.role not in roles_in_control:
-                        if hidden_child is None:
-                            hidden_child = HiddenInformationSetNode(role=self.role, parent=self)
-                        child = hidden_child
-                        hidden_keys.add(key)
-                    else:
-                        if visible_child is None:
-                            visible_child = VisibleInformationSetNode(role=self.role, parent=self)
-                        child = visible_child
-                        visible_keys.add(key)
-                    child.possible_states.add(next_state)
+                _, visible_child, hidden_child = self._expand_by(
+                    interpreter,
+                    possible_state,
+                    visible_child=visible_child,
+                    hidden_child=hidden_child,
+                )
 
-            self.children = {
-                key: child
-                for child, keys in zip((visible_child, hidden_child), (visible_keys, hidden_keys))
-                if child is not None
-                for key in keys
-            }
         assert self.children is not None, "Guarantee: self.children is not None (expanded)"
         return self.children
+
+    def _expand_by(
+        self,
+        interpreter: Interpreter,
+        possible_state: State,
+        *,
+        visible_child: Optional["VisibleInformationSetNode[_U]"] = None,
+        hidden_child: Optional["HiddenInformationSetNode[_U]"] = None,
+    ) -> Tuple[
+        Iterable["ImperfectInformationNode[_U]"],
+        Optional["VisibleInformationSetNode[_U]"],
+        Optional["HiddenInformationSetNode[_U]"],
+    ]:
+        if self.children is None:
+            self.children = {}
+        if visible_child is None:
+            for child in self.children.values():
+                if isinstance(child, VisibleInformationSetNode):
+                    visible_child = child
+                    break
+        if hidden_child is None:
+            for child in self.children.values():
+                if isinstance(child, HiddenInformationSetNode):
+                    hidden_child = child
+                    break
+        fresh_nodes = []
+        for turn, next_state in interpreter.get_all_next_states(possible_state):
+            roles_in_control = Interpreter.get_roles_in_control(next_state)
+            key = (possible_state, turn)
+            child: ImperfectInformationNode[_U]
+            if self.role not in roles_in_control:
+                if hidden_child is None:
+                    hidden_child = HiddenInformationSetNode(role=self.role, parent=self)
+                    fresh_nodes.append(hidden_child)
+                child = hidden_child
+            else:
+                if visible_child is None:
+                    visible_child = VisibleInformationSetNode(role=self.role, parent=self)
+                    fresh_nodes.append(visible_child)
+                child = visible_child
+            child.possible_states.add(next_state)
+            self.children[key] = child
+        return fresh_nodes, visible_child, hidden_child
 
     def trim(self) -> None:
         if self.children is None or not self.children:
             return
-        self.children = {
-            (state, turn): child
-            for (state, turn), child in self.children.items()
-            if (self.possible_turns is None or turn in self.possible_turns) and state in self.possible_states
-        }
+
+        to_delete: MutableSequence[Tuple[State, Turn]] = []
+        for state, turn in self.children:
+            if (
+                self.possible_turns is not None and turn not in self.possible_turns
+            ) or state not in self.possible_states:
+                to_delete.append((state, turn))
+
+        for key in to_delete:
+            del self.children[key]
 
     # Disables ARG002 (Unused method argument). Because: Implements a base class method.
     def gather_records(
@@ -484,16 +510,29 @@ class HiddenInformationSetNode(_AbstractInformationSetNode[_U, Turn], Generic[_U
         else:
             self.possible_turns.clear()
 
+    def can_descend(self, state: State, turn: Turn) -> bool:
+        return self.children is not None and (state, turn) in self.children
+
     def descend(self, state: State, turn: Turn) -> "ImperfectInformationNode[_U]":
         assert self.children is not None, "Assumption: self.children is not None (tree is expanded)"
         assert self.possible_turns is not None, "Assumption: self.possible_turns is not None (tree is expanded)"
         assert state in self.possible_states, "Assumption: state in self.possible_states (tree is expanded)"
         assert turn in self.possible_turns, "Assumption: turn in self.possible_turns (tree is expanded)"
+        assert any(s == state for s, _ in self.children), (
+            f"Assumption: (state, _) in self.children (tree is expanded, state={format_sorted_set(state)}, "
+            f"self.children={', '.join(f'({format_sorted_set(s)}, {t})' for s, t in self.children)}"
+        )
+        assert any(
+            t == turn for _, t in self.children
+        ), f"Assumption: (_, turn) in self.children (tree is expanded, turn={turn})"
         assert (
             state,
             turn,
         ) in self.children, (
-            f"Assumption: (state, turn) in self.children (tree is expanded, {set(self.children.keys())})"
+            "Assumption: (state, turn) in self.children "
+            "(tree is expanded, "
+            f"state={format_sorted_set(state)}, "
+            f"turn={turn})"
         )
         return self.children[(state, turn)]
 
@@ -513,7 +552,7 @@ class VisibleInformationSetNode(_AbstractInformationSetNode[_U, Move], Generic[_
     move: Optional[Move] = field(default=None, hash=True)
     valuation: Optional[Valuation[_U]] = field(default=None, hash=True)
     parent: Optional["ImperfectInformationNode[_U]"] = field(default=None, repr=False, hash=False)
-    children: Optional[Mapping[Tuple[State, Move], "ImperfectInformationNode[_U]"]] = field(
+    children: Optional[MutableMapping[Tuple[State, Move], "ImperfectInformationNode[_U]"]] = field(
         default=None,
         repr=False,
         hash=False,
@@ -521,41 +560,19 @@ class VisibleInformationSetNode(_AbstractInformationSetNode[_U, Move], Generic[_
 
     def expand(self, interpreter: Interpreter) -> Mapping[Tuple[State, Move], "ImperfectInformationNode[_U]"]:
         if self.children is None:
-            children: MutableMapping[Tuple[State, Move], ImperfectInformationNode[_U]] = {}
+            self.children = {}
             view_node_map: MutableMapping[View, VisibleInformationSetNode[_U]] = {}
             hidden_children: MutableMapping[Move, HiddenInformationSetNode[_U]] = {}
             for possible_state in self.possible_states:
-                for turn, next_state in interpreter.get_all_next_states(possible_state):
-                    roles_in_control = Interpreter.get_roles_in_control(next_state)
-                    assert self.role in turn, (
-                        "Assumption: "
-                        "VisibleInformationSetNode only contains possible_states where the role is in control"
-                    )
-                    move = turn[self.role]
-                    key = (possible_state, move)
-                    child: ImperfectInformationNode[_U]
-                    if self.role not in roles_in_control:
-                        if move not in hidden_children:
-                            child = HiddenInformationSetNode(role=self.role, parent=self)
-                            hidden_children[move] = child
-                        child = hidden_children[move]
-                    else:
-                        view = interpreter.get_sees_by_role(next_state, self.role)
-                        if view not in view_node_map:
-                            view_node_map[view] = VisibleInformationSetNode(role=self.role, parent=self, view=view)
-                        child = view_node_map[view]
-                    child.possible_states.add(next_state)
-                    children[key] = child
-
-            self.children = children
+                self._expand_by(
+                    interpreter,
+                    possible_state,
+                    view_node_map=view_node_map,
+                    hidden_children=hidden_children,
+                )
 
         assert self.children is not None, "Guarantee: self.children is not None (expanded)"
         if __debug__ and self.view is not None:
-            projected_states = {state for state, _ in self.children}
-            assert projected_states <= self.possible_states, (
-                f"Guarantee: projected_states ({len(projected_states)}) <= "
-                f"self.possible_states ({len(self.possible_states)})"
-            )
             legal_moves = interpreter.get_legal_moves_by_role(self.view, self.role)
             possible_moves = {move for _, move in self.children}
             assert all(move in legal_moves for move in possible_moves), (
@@ -566,15 +583,69 @@ class VisibleInformationSetNode(_AbstractInformationSetNode[_U, Move], Generic[_
             )
         return self.children
 
+    def _expand_by(
+        self,
+        interpreter: Interpreter,
+        possible_state: State,
+        *,
+        view_node_map: Optional[MutableMapping[View, "VisibleInformationSetNode[_U]"]] = None,
+        hidden_children: Optional[MutableMapping[Move, HiddenInformationSetNode[_U]]] = None,
+    ) -> Tuple[Iterable["ImperfectInformationNode[_U]"]]:
+        if self.children is None:
+            self.children = {}
+        if view_node_map is None:
+            view_node_map = {}
+            for (state, _), child in self.children:
+                if not isinstance(child, VisibleInformationSetNode):
+                    continue
+                view = interpreter.get_sees_by_role(state, self.role)
+                if view in view_node_map:
+                    continue
+                view_node_map[view] = child
+        if hidden_children is None:
+            hidden_children = {}
+            for (_, move), child in self.children:
+                if not isinstance(child, HiddenInformationSetNode):
+                    continue
+                if move in hidden_children:
+                    continue
+                hidden_children[move] = child
+        fresh_children = []
+        for turn, next_state in interpreter.get_all_next_states(possible_state):
+            roles_in_control = Interpreter.get_roles_in_control(next_state)
+            assert self.role in turn, f"Assumption: self.role in turn (role={self.role}, turn={turn})"
+            move = turn[self.role]
+            key = (possible_state, move)
+            child: ImperfectInformationNode[_U]
+            if self.role not in roles_in_control:
+                if move not in hidden_children:
+                    child = HiddenInformationSetNode(role=self.role, parent=self)
+                    hidden_children[move] = child
+                    fresh_children.append(child)
+                child = hidden_children[move]
+            else:
+                view = interpreter.get_sees_by_role(next_state, self.role)
+                if view not in view_node_map:
+                    child = VisibleInformationSetNode(role=self.role, parent=self, view=view)
+                    view_node_map[view] = child
+                    fresh_children.append(child)
+                child = view_node_map[view]
+            child.possible_states.add(next_state)
+            self.children[key] = child
+        return (fresh_children,)
+
     def trim(self) -> None:
         if self.children is None or not self.children:
             return
 
-        self.children = {
-            (state, move): child
-            for (state, move), child in self.children.items()
-            if (self.move is None or move == self.move) and state in self.possible_states
-        }
+        to_delete: MutableSequence[Tuple[State, Move]] = []
+
+        for state, move in self.children:
+            if (self.move is not None and move != self.move) or state not in self.possible_states:
+                to_delete.append((state, move))
+
+        for key in to_delete:
+            del self.children[key]
 
     def gather_records(
         self,
@@ -598,6 +669,15 @@ class VisibleInformationSetNode(_AbstractInformationSetNode[_U, Move], Generic[_
 
     def reset_records(self) -> None:
         self.possible_states.clear()
+
+    def can_descend(self, state: State, turn: Turn) -> bool:
+        if self.children is None:
+            return False
+        assert (
+            self.role in turn
+        ), "Assumption: VisibleInformationSetNode only contains possible_states where the role is in control"
+        move = turn[self.role]
+        return (state, move) in self.children
 
     def descend(self, state: State, turn: Turn) -> "ImperfectInformationNode[_U]":
         assert self.children is not None, "Assumption: self.children is not None (tree is expanded)"

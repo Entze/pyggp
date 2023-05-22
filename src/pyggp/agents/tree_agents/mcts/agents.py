@@ -102,7 +102,18 @@ class SingleObserverMonteCarloTreeSearchAgent(InterpreterAgent, Generic[_K], abc
         assert self.evaluator is not None, "Requirement: evaluator is not None"
         assert self.repeater is not None, "Requirement: repeater is not None"
 
-        with log_time(log, level=logging.DEBUG, begin_msg="Developing tree", end_msg="Developed tree"):
+        with log_time(
+            log,
+            level=logging.DEBUG,
+            begin_msg="Developing tree ("
+            f"depth={self.tree.depth}, "
+            f"valuation={self.tree.valuation}, "
+            f"arity={self.tree.arity}, "
+            f"descendant_count={format_amount(self.tree.descendant_count)}"
+            ")",
+            end_msg="Developed tree",
+            abort_msg="Aborted developing tree",
+        ):
             self.tree = self.tree.develop(interpreter=self.interpreter, ply=ply, view=view)
 
         assert self.tree.depth == ply, "Assumption: tree.depth == ply"
@@ -115,8 +126,14 @@ class SingleObserverMonteCarloTreeSearchAgent(InterpreterAgent, Generic[_K], abc
         with log_time(
             log,
             level=logging.DEBUG,
-            begin_msg=f"Searching tree for at most {format_ns(search_time_ns)}",
+            begin_msg="Searching tree ("
+            f"depth={self.tree.depth}, "
+            f"valuation={self.tree.valuation}, "
+            f"arity={self.tree.arity}, "
+            f"descendant_count={format_amount(self.tree.descendant_count)}"
+            f") for at most {format_ns(search_time_ns)}",
             end_msg="Searched tree",
+            abort_msg="Aborted searching tree",
         ):
             it, elapsed_ns = self.repeater()
 
@@ -166,7 +183,7 @@ class SingleObserverMonteCarloTreeSearchAgent(InterpreterAgent, Generic[_K], abc
             utility, total_playouts, nr_of_target_states = options[option]
             msg.append(
                 f"{option}{(' (%d)' % nr_of_target_states) if nr_of_target_states != 1 else ''}: "
-                f"{(utility/total_playouts):.2f} @ {format_amount(total_playouts)}",
+                f"{(utility / total_playouts):.2f} @ {format_amount(total_playouts)}",
             )
         log.debug("\n".join(msg))
 

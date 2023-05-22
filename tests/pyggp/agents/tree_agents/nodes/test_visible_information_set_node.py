@@ -256,13 +256,12 @@ def test_trim_noops_on_trimmed_node(mock_role) -> None:
         children=children,
     )
 
-    expected = children
-    assert id(node.children) == id(expected)
+    assert node.children == children
 
     node.trim()
+    expected = children
 
     assert node.children == expected
-    assert id(node.children) != id(expected)
 
 
 @pytest.fixture()
