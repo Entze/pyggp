@@ -45,12 +45,8 @@ def _evaluate_per_default(*args: Any, default: Any, **kwargs: Any) -> Any:  # no
     return default
 
 
-# Disables mypy. Because: mypy is not able to infer the correct type.
-default_evaluator: Evaluator[Any] = _evaluate_per_default  # type: ignore[assignment]
-
-
-# Disables ARG001 (Unused function argument). Because: It should fit the Evaluator protocol.
 def _evaluate_per_default_factory(
+    # Disables ARG001 (Unused function argument). Because: It should fit the Evaluator protocol.
     *args: Any,  # noqa: ARG001
     default_factory: Callable[[], _U_co],
     **kwargs: Any,  # noqa: ARG001
@@ -69,15 +65,11 @@ def _evaluate_per_default_factory(
     return default_factory()
 
 
-# Disables mypy. Because: mypy is not able to infer the correct type.
-default_factory_evaluator: Evaluator[Any] = _evaluate_per_default_factory  # type: ignore[assignment]
-
-
-# Disables ARG001 (Unused function argument). Because: It should fit the Evaluator protocol.
 def _evaluate_by_goals_to_normalized_utility(
     state: State,
     role: Role,
     interpreter: Interpreter,
+    # Disables ARG001 (Unused function argument). Because: It should fit the Evaluator protocol.
     *args: Any,  # noqa: ARG001
     **kwargs: Any,  # noqa: ARG001
 ) -> float:
@@ -92,6 +84,10 @@ def _evaluate_by_goals_to_normalized_utility(
     return utility
 
 
+# Disables mypy. Because: mypy is not able to infer the correct type.
+default_evaluator: Evaluator[Any] = _evaluate_per_default  # type: ignore[assignment]
+# Disables mypy. Because: mypy is not able to infer the correct type.
+default_factory_evaluator: Evaluator[Any] = _evaluate_per_default_factory  # type: ignore[assignment]
 # Disables mypy. Because: mypy is not able to infer the correct type.
 final_goal_normalized_utility_evaluator: Evaluator[
     float
