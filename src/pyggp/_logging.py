@@ -1,6 +1,9 @@
+import contextlib
 import datetime
+import logging
 import math
-from typing import Final, Mapping, Union
+import time
+from typing import Any, Final, Iterable, Mapping, Optional, Union
 
 import inflection
 
@@ -102,6 +105,10 @@ _LOGARITHM_SYMBOL_MAP: Final[Mapping[int, str]] = {
 }
 
 
+def format_ns(ns: int) -> str:
+    return format_timedelta(ns * 1e-9)
+
+
 def remove_trailing(string: str, *trails: str) -> str:
     for trail in trails:
         while string.endswith(trail):
@@ -117,3 +124,54 @@ def format_amount(amount: Union[float, int]) -> str:
     diminished_amount: float = round(amount / 10 ** (exponent - (exponent % 3)), 2)
     formatted = remove_trailing(f"{diminished_amount:.2f}", "0", ".")
     return f"{formatted}{symbol}"
+
+
+def format_rate(amount: Union[float, int], delta: Union[float, int, datetime.timedelta]) -> str:
+    if delta == 0:
+        return "∞"
+    if isinstance(delta, datetime.timedelta):
+        delta = delta.total_seconds()
+    return format_amount(amount / delta)
+
+
+def format_rate_ns(amount: Union[float, int], delta: int) -> str:
+    return format_rate(amount, delta * 1e-9)
+
+
+def format_iterable(iterable: Iterable[Any], *, pre: str = "{", sep: str = ", ", post: str = "}") -> str:
+    return f"{pre}{sep.join(str(item) for item in iterable)}{post}"
+
+
+def format_sorted_iterable(iterable: Iterable[Any], *, pre: str = "{", sep: str = ", ", post: str = "}") -> str:
+    return format_iterable(sorted(iterable), pre=pre, sep=sep, post=post)
+
+
+def format_set(iterable: Iterable[Any]) -> str:
+    return format_iterable(iterable, pre="{", sep=", ", post="}")
+
+
+def format_sorted_set(iterable: Iterable[Any]) -> str:
+    return format_sorted_iterable(iterable, pre="{", sep=", ", post="}")
+
+
+def format_list(iterable: Iterable[Any]) -> str:
+    return format_iterable(iterable, pre="[", sep=", ", post="]")
+
+
+def format_sorted_list(iterable: Iterable[Any]) -> str:
+    return format_sorted_iterable(iterable, pre="[", sep=", ", post="]")
+
+
+@contextlib.contextmanager
+def log_time(log: logging.Logger, level: int, begin_msg: Optional[str] = None, end_msg: Optional[str] = None) -> None:
+    if begin_msg is not None:
+        log.log(level, begin_msg)
+    start_time: float = time.monotonic()
+    try:
+        yield
+    finally:
+        end_time: float = time.monotonic()
+        if end_msg is not None:
+            log.log(level, "%s (in %s)", end_msg, format_timedelta(end_time - start_time))
+        else:
+            log.log(level, "%s", format_timedelta(end_time - start_time))
