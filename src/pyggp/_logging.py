@@ -177,6 +177,7 @@ class TimeLogger(NoneContextManager):
     level: int = field(default=logging.INFO)
     begin_msg: Optional[str] = field(default=None)
     end_msg: Optional[str] = field(default=None)
+    abort_msg: Optional[str] = field(default=None)
     start_time: Optional[float] = field(default=None, repr=False)
     stop_time: Optional[float] = field(default=None, repr=False)
     delta: Optional[float] = field(default=None, repr=False)
@@ -195,10 +196,16 @@ class TimeLogger(NoneContextManager):
         assert self.start_time is not None, "Assumption: start_time is not None (__enter__ was called)"
         self.stop_time: float = time.monotonic()
         self.delta = self.stop_time - self.start_time
-        if self.end_msg is not None:
-            self.log.log(self.level, "%s (in %s)", self.end_msg, format_timedelta(self.delta))
+        if exc_val is not None:
+            if self.abort_msg is not None:
+                self.log.log(self.level, "%s (after %s)", self.abort_msg, format_timedelta(self.delta))
+            else:
+                self.log.log(self.level, "Aborted after %s", format_timedelta(self.delta))
         else:
-            self.log.log(self.level, "%s", format_timedelta(self.delta))
+            if self.end_msg is not None:
+                self.log.log(self.level, "%s (in %s)", self.end_msg, format_timedelta(self.delta))
+            else:
+                self.log.log(self.level, "in %s", format_timedelta(self.delta))
 
         self.start_time = None
         self.stop_time = None
@@ -209,5 +216,6 @@ def log_time(
     level: int = logging.INFO,
     begin_msg: Optional[str] = None,
     end_msg: Optional[str] = None,
+    abort_msg: Optional[str] = None,
 ) -> TimeLogger:
-    return TimeLogger(log=log, level=level, begin_msg=begin_msg, end_msg=end_msg)
+    return TimeLogger(log=log, level=level, begin_msg=begin_msg, end_msg=end_msg, abort_msg=abort_msg)
