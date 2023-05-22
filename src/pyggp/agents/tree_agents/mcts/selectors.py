@@ -8,33 +8,19 @@ import abc
 import math
 import random
 from dataclasses import dataclass
-from typing import Any, Callable, Final, Generic, Mapping, Optional, Protocol, Tuple, TypeVar
+from typing import Any, Callable, Final, Generic, Mapping, Optional, Protocol, SupportsFloat, Tuple, TypeVar
 
-from pyggp.agents.tree_agents.mcts.nodes import MonteCarloTreeSearchNode
 from pyggp.agents.tree_agents.nodes import Node
 from pyggp.agents.tree_agents.valuations import Valuation
 
 _K = TypeVar("_K")
-_U = TypeVar("_U")
+_U_co = TypeVar("_U_co", bound=SupportsFloat)
 
 
-class MonteCarloTreeSearchSelector(Protocol[_U, _K]):
-    def __call__(self, node: MonteCarloTreeSearchNode[_U, _K]) -> _K:
-        """Selects a key from the children of the given Monte Carlo Tree Search node.
-
-        Args:
-            node: Node
-
-        Returns:
-            Selected key
-
-        """
-
-
-class Selector(MonteCarloTreeSearchSelector[_U, _K], Protocol[_U, _K]):
+class Selector(Protocol[_U_co, _K]):
     """Protocol for selectors."""
 
-    def __call__(self, node: Node[_U, _K]) -> _K:
+    def __call__(self, node: Node[_U_co, _K]) -> _K:
         """Selects a key from the children of the given node.
 
         Args:
@@ -49,58 +35,42 @@ class Selector(MonteCarloTreeSearchSelector[_U, _K], Protocol[_U, _K]):
 _A = TypeVar("_A")
 
 
-class _FunctionMonteCarloTreeSearchSelectorProtocol(MonteCarloTreeSearchSelector[_U, _K], Protocol[_U, _K, _A]):
+class _FunctionSelectorProtocol(Selector[_U_co, _K], Protocol[_U_co, _K, _A]):
     select_func: Callable[[_A], _K]
     """Function to select a key from the given keys."""
-    get_keys_func: Optional[Callable[[MonteCarloTreeSearchNode[_U, _K]], _A]]
+    get_keys_func: Optional[Callable[[Node[_U_co, _K]], _A]]
     """Function to get the keys from the given node."""
 
 
-class _FunctionSelectorProtocol(Selector[_U, _K], Protocol[_U, _K, _A]):
-    select_func: Callable[[_A], _K]
-    """Function to select a key from the given keys."""
-    get_keys_func: Optional[Callable[[Node[_U, _K]], _A]]
-    """Function to get the keys from the given node."""
-
-
-class _AbstractFunctionMonteCarloTreeSearchSelectorProtocol(
-    _FunctionMonteCarloTreeSearchSelectorProtocol[_U, _K, _A],
-    Generic[_U, _K, _A],
+class _AbstractFunctionSelectorProtocol(
+    _FunctionSelectorProtocol[_U_co, _K, _A],
+    Generic[_U_co, _K, _A],
     abc.ABC,
 ):
-    def __call__(self, node: MonteCarloTreeSearchNode[_U, _K]) -> _K:
+    def __call__(self, node: Node[_U_co, _K]) -> _K:
         if self.get_keys_func is not None:
             keys = self.get_keys_func(node)
         elif node.children is not None:
-            keys = tuple(node.children.keys())
+            # Disables mypy. Because: tuple(node.children.keys()) is the default should get_keys_func be None.
+            keys = tuple(node.children.keys())  # type: ignore[assignment]
         else:
-            keys = ()
+            # Disables mypy. Because: tuple() is the default should get_keys_func be None and node.children be None.
+            keys = ()  # type: ignore[assignment]
         return self.select_func(keys)
 
 
 @dataclass(frozen=True)
-class FunctionMonteCarloTreeSearchSelector(
-    _AbstractFunctionMonteCarloTreeSearchSelectorProtocol[_U, _K, _A],
-    Generic[_U, _K, _A],
-):
-    select_func: Callable[[_A], _K]
-    """Function to select a key from the given keys."""
-    get_keys_func: Optional[Callable[[MonteCarloTreeSearchNode[_U, _K]], _A]] = None
-    """Function to get the keys from the given node."""
-
-
-@dataclass(frozen=True)
 class FunctionSelector(
-    _AbstractFunctionMonteCarloTreeSearchSelectorProtocol[_U, _K, _A],
-    Generic[_U, _K, _A],
+    _AbstractFunctionSelectorProtocol[_U_co, _K, _A],
+    Generic[_U_co, _K, _A],
 ):
     select_func: Callable[[_A], _K]
     """Function to select a key from the given keys."""
-    get_keys_func: Optional[Callable[[Node[_U, _K]], _A]] = None
+    get_keys_func: Optional[Callable[[Node[_U_co, _K]], _A]] = None
     """Function to get the keys from the given node."""
 
 
-def _map_keys_to_valuation(node: Node[_U, _K]) -> Mapping[_K, Tuple[Valuation[_U], ...]]:
+def _map_keys_to_valuation(node: Node[_U_co, _K]) -> Mapping[_K, Tuple[Valuation[_U_co], ...]]:
     if node.children is None:
         return {}
     return {key: (child.valuation,) if child.valuation is not None else () for key, child in node.children.items()}
@@ -110,12 +80,24 @@ _V = TypeVar("_V")
 
 
 def _select_maximum(key_to_comparable: Mapping[_K, _V]) -> _K:
-    return max(key_to_comparable, key=key_to_comparable.get)
+    def key(key: _K) -> Tuple[_V, ...]:
+        val = key_to_comparable.get(key)
+        if val is None:
+            return ()
+        return (val,)
+
+    return max(key_to_comparable, key=key)
 
 
-def _map_keys_to_total_playouts(node: MonteCarloTreeSearchNode[_U, _K]) -> Mapping[_K, int]:
+def _get_total_playouts(valuation: Valuation[_U_co], default: int = 0) -> int:
+    return getattr(valuation, "total_playouts", default)
+
+
+def _map_keys_to_total_playouts(node: Node[_U_co, _K]) -> Mapping[_K, int]:
+    if node.children is None:
+        return {}
     return {
-        key: child.valuation.total_playouts if child.valuation is not None else 0
+        key: _get_total_playouts(child.valuation) if child.valuation is not None else 0
         for key, child in node.children.items()
     }
 
@@ -123,14 +105,20 @@ def _map_keys_to_total_playouts(node: MonteCarloTreeSearchNode[_U, _K]) -> Mappi
 SQRT_2: Final[float] = math.sqrt(2)
 
 
-def _map_keys_to_uct(node: MonteCarloTreeSearchNode[_U, _K], exploitation: float = SQRT_2) -> Mapping[_K, float]:
+def _map_keys_to_uct(node: Node[_U_co, _K], exploitation: float = SQRT_2) -> Mapping[_K, float]:
+    if node.children is None:
+        return {}
     return {
-        key: child.valuation.utility / child.valuation.total_playouts
-        + exploitation * math.sqrt(math.log(node.valuation.total_playouts) / child.valuation.total_playouts)
+        # Disables mypy. Because: Utility supports float (don't fight the typechecker).
+        key: child.valuation.utility / _get_total_playouts(child.valuation, default=1)  # type: ignore[operator]
+        + exploitation
+        * math.sqrt(
+            math.log(_get_total_playouts(node.valuation, default=1)) / _get_total_playouts(child.valuation, default=1),
+        )
         if child.valuation is not None
-        and child.valuation.total_playouts > 0
+        and _get_total_playouts(child.valuation) > 0
         and node.valuation is not None
-        and node.valuation.total_playouts > 0
+        and _get_total_playouts(node.valuation) > 0
         else float("inf")
         for key, child in node.children.items()
     }
@@ -141,11 +129,11 @@ best_selector: FunctionSelector[Any, Any, Any] = FunctionSelector(
     select_func=_select_maximum,
     get_keys_func=_map_keys_to_valuation,
 )
-most_selector: FunctionMonteCarloTreeSearchSelector[Any, Any, Any] = FunctionMonteCarloTreeSearchSelector(
+most_selector: FunctionSelector[Any, Any, Any] = FunctionSelector(
     select_func=_select_maximum,
     get_keys_func=_map_keys_to_total_playouts,
 )
-uct_selector: FunctionMonteCarloTreeSearchSelector[Any, Any, Any] = FunctionMonteCarloTreeSearchSelector(
+uct_selector: FunctionSelector[Any, Any, Any] = FunctionSelector(
     select_func=_select_maximum,
     get_keys_func=_map_keys_to_uct,
 )

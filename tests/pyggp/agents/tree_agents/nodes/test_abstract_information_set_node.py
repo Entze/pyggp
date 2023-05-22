@@ -4,6 +4,7 @@ from unittest import mock
 import pytest
 from pyggp.agents.tree_agents.evaluators import Evaluator
 from pyggp.agents.tree_agents.nodes import (
+    HiddenInformationSetNode,
     InformationSetNode,
     _AbstractInformationSetNode,
 )
@@ -67,6 +68,7 @@ def test_develop_returns_node_as_is_on_same_height(mock_interpreter) -> None:
 
     node = _AbstractInformationSetNode()
     node.parent = parent
+    node.__class__ = HiddenInformationSetNode
 
     child = _AbstractInformationSetNode()
     child.parent = node

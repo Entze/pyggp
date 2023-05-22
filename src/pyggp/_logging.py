@@ -3,9 +3,18 @@ import datetime
 import logging
 import math
 import time
-from typing import Any, Final, Iterable, Mapping, Optional, Union
+from dataclasses import dataclass, field
+from types import TracebackType
+from typing import TYPE_CHECKING, Any, Final, Iterable, Mapping, Optional, Type, Union
 
 import inflection
+
+# Disables SIM108 (Use ternary operator instead of if-else block). Because: TYPE_CHECKING is an exception.
+if TYPE_CHECKING:  # noqa: SIM108
+    # TODO: Remove this when python 3.8 is no longer supported.
+    NoneContextManager = contextlib.AbstractContextManager[None]
+else:
+    NoneContextManager = contextlib.AbstractContextManager
 
 
 def inflect(noun: str, count: int = 0) -> str:
@@ -162,16 +171,43 @@ def format_sorted_list(iterable: Iterable[Any]) -> str:
     return format_sorted_iterable(iterable, pre="[", sep=", ", post="]")
 
 
-@contextlib.contextmanager
-def log_time(log: logging.Logger, level: int, begin_msg: Optional[str] = None, end_msg: Optional[str] = None) -> None:
-    if begin_msg is not None:
-        log.log(level, begin_msg)
-    start_time: float = time.monotonic()
-    try:
-        yield
-    finally:
-        end_time: float = time.monotonic()
-        if end_msg is not None:
-            log.log(level, "%s (in %s)", end_msg, format_timedelta(end_time - start_time))
+@dataclass
+class TimeLogger(NoneContextManager):
+    log: logging.Logger
+    level: int = field(default=logging.INFO)
+    begin_msg: Optional[str] = field(default=None)
+    end_msg: Optional[str] = field(default=None)
+    start_time: Optional[float] = field(default=None, repr=False)
+    stop_time: Optional[float] = field(default=None, repr=False)
+    delta: Optional[float] = field(default=None, repr=False)
+
+    def __enter__(self) -> None:
+        if self.begin_msg is not None:
+            self.log.log(self.level, self.begin_msg)
+        self.start_time = time.monotonic()
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
+        assert self.start_time is not None, "Assumption: start_time is not None (__enter__ was called)"
+        self.stop_time: float = time.monotonic()
+        self.delta = self.stop_time - self.start_time
+        if self.end_msg is not None:
+            self.log.log(self.level, "%s (in %s)", self.end_msg, format_timedelta(self.delta))
         else:
-            log.log(level, "%s", format_timedelta(end_time - start_time))
+            self.log.log(self.level, "%s", format_timedelta(self.delta))
+
+        self.start_time = None
+        self.stop_time = None
+
+
+def log_time(
+    log: logging.Logger,
+    level: int = logging.INFO,
+    begin_msg: Optional[str] = None,
+    end_msg: Optional[str] = None,
+) -> TimeLogger:
+    return TimeLogger(log=log, level=level, begin_msg=begin_msg, end_msg=end_msg)

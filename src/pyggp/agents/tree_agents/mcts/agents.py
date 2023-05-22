@@ -10,16 +10,16 @@ from pyggp._logging import format_amount, format_ns, format_rate_ns, log_time
 from pyggp.agents import InterpreterAgent
 from pyggp.agents.tree_agents.evaluators import Evaluator, final_goal_normalized_utility_evaluator
 from pyggp.agents.tree_agents.mcts.evaluators import LightPlayoutEvaluator
-from pyggp.agents.tree_agents.mcts.nodes import MonteCarloTreeSearchNode
 from pyggp.agents.tree_agents.mcts.selectors import (
-    MonteCarloTreeSearchSelector,
-    best_selector,
+    Selector,
+    most_selector,
     uct_selector,
 )
 from pyggp.agents.tree_agents.mcts.valuations import NormalizedUtilityValuation
 from pyggp.agents.tree_agents.nodes import (
     HiddenInformationSetNode,
     ImperfectInformationNode,
+    Node,
     PerfectInformationNode,
     VisibleInformationSetNode,
 )
@@ -30,7 +30,7 @@ from pyggp.repeaters import Repeater
 
 log = logging.getLogger("pyggp")
 
-_K = TypeVar("_K", Turn, Tuple[State, Turn], Tuple[State, Move])
+_K = TypeVar("_K")
 
 ONE_S_IN_NS: Final[int] = 1_000_000_000
 MAX_LOGGED_OPTIONS: Final[int] = 5
@@ -38,9 +38,9 @@ MAX_LOGGED_OPTIONS: Final[int] = 5
 
 @dataclass
 class SingleObserverMonteCarloTreeSearchAgent(InterpreterAgent, Generic[_K], abc.ABC):
-    tree: Optional[MonteCarloTreeSearchNode[float, _K]] = field(default=None, repr=False)
-    selector: Optional[MonteCarloTreeSearchSelector[float, _K]] = field(default=None, repr=False)
-    chooser: Optional[MonteCarloTreeSearchSelector[float, _K]] = field(default=None, repr=False)
+    tree: Optional[Node[float, _K]] = field(default=None, repr=False)
+    selector: Optional[Selector[float, _K]] = field(default=None, repr=False)
+    chooser: Optional[Selector[float, _K]] = field(default=None, repr=False)
     evaluator: Optional[Evaluator[float]] = field(default=None, repr=False)
     repeater: Optional[Repeater] = field(default=None, repr=False)
 
@@ -52,19 +52,25 @@ class SingleObserverMonteCarloTreeSearchAgent(InterpreterAgent, Generic[_K], abc
         playclock_config: GameClock.Configuration,
     ) -> None:
         super().prepare_match(role, ruleset, startclock_config, playclock_config)
+        assert self.interpreter is not None, "Assumption: interpreter is not None"
+        assert self.role is not None, "Assumption: role is not None"
 
         self.tree = self._get_root()
 
         self.selector = uct_selector
-        self.chooser = best_selector
+        self.chooser = most_selector
         self.evaluator = LightPlayoutEvaluator(self.role, final_goal_normalized_utility_evaluator)
         self.repeater = Repeater(func=self.step, timeout_ns=playclock_config.delay_ns)
 
     @abc.abstractmethod
-    def _get_root(self) -> MonteCarloTreeSearchNode[float, _K]:
+    def _get_root(self) -> Node[float, _K]:
         raise NotImplementedError
 
     def step(self) -> None:
+        assert self.tree is not None, "Requirement: tree is not None"
+        assert self.selector is not None, "Requirement: selector is not None"
+        assert self.interpreter is not None, "Requirement: interpreter is not None"
+        assert self.evaluator is not None, "Requirement: evaluator is not None"
         node = self.tree
 
         while node.children:
@@ -80,6 +86,7 @@ class SingleObserverMonteCarloTreeSearchAgent(InterpreterAgent, Generic[_K], abc
         )
 
         while node.parent is not None:
+            assert node.parent is not None, "Condition: node.parent is not None"
             node = node.parent
             if node.valuation is not None:
                 node.valuation = node.valuation.propagate(utility)
@@ -96,7 +103,9 @@ class SingleObserverMonteCarloTreeSearchAgent(InterpreterAgent, Generic[_K], abc
         assert self.repeater is not None, "Requirement: repeater is not None"
 
         with log_time(log, level=logging.DEBUG, begin_msg="Developing tree", end_msg="Developed tree"):
-            self.tree.develop(interpreter=self.interpreter, ply=ply, view=view)
+            self.tree = self.tree.develop(interpreter=self.interpreter, ply=ply, view=view)
+
+        assert self.tree.depth == ply, "Assumption: tree.depth == ply"
 
         total_time_ns -= time.monotonic_ns()
 
@@ -117,13 +126,15 @@ class SingleObserverMonteCarloTreeSearchAgent(InterpreterAgent, Generic[_K], abc
 
         key = self.chooser(self.tree)
 
-        self._progress_tree(key)
         move = self._get_move_from_key(key)
+        assert self.tree.children is not None, "Assumption: tree.children is not None (tree is expanded)"
+        self.tree = self.tree.children[key]
         log.info("Chose %s (%s)", move, self.tree.valuation)
 
-        return self._get_move_from_key(key)
+        return move
 
     def _get_search_time_ns(self, total_time_ns: int, slack: float = 0.99) -> int:
+        assert self.playclock_config is not None, "Requirement: playclock_config is not None"
         effective_delay_ns: int = max(
             0,
             self.playclock_config.delay_ns - ONE_S_IN_NS,
@@ -145,13 +156,17 @@ class SingleObserverMonteCarloTreeSearchAgent(InterpreterAgent, Generic[_K], abc
         if log.level > logging.DEBUG:
             return
         options = self._get_options()
-        sorted_moves = sorted(options, key=options.get, reverse=True)
-        msg = [f"Options (out of {len(options)}:"]
+
+        def key(move: Move) -> Union[Tuple[float, int, int], Tuple[()]]:
+            return options.get(move, ())
+
+        sorted_moves = sorted(options, key=key, reverse=True)
+        msg = [f"Options (out of {len(options)}):"]
         for option in sorted_moves[:MAX_LOGGED_OPTIONS]:
             utility, total_playouts, nr_of_target_states = options[option]
             msg.append(
                 f"{option}{(' (%d)' % nr_of_target_states) if nr_of_target_states != 1 else ''}: "
-                f"{utility:.2f} @ {format_amount(total_playouts)}",
+                f"{(utility/total_playouts):.2f} @ {format_amount(total_playouts)}",
             )
         log.debug("\n".join(msg))
 
@@ -163,20 +178,13 @@ class SingleObserverMonteCarloTreeSearchAgent(InterpreterAgent, Generic[_K], abc
     def _get_move_from_key(self, key: _K) -> Move:
         raise NotImplementedError
 
-    def _progress_tree(self, key: _K) -> None:
-        assert self.tree is not None, "Requirement: tree is not None"
-        assert self.tree.children is not None, "Assumption: tree.children is not None"
-        assert key in self.tree.children, "Assumption: key in tree.children"
-
-        self.tree = self.tree.children[key]
-
 
 @dataclass
 class MCTSAgent(SingleObserverMonteCarloTreeSearchAgent[Turn]):
-    tree: Optional[PerfectInformationNode[float]] = field(default=None, repr=False)  # type: ignore[override]
+    tree: Optional[PerfectInformationNode[float]] = field(default=None, repr=False)
     evaluator: Optional[LightPlayoutEvaluator[float]] = field(default=None, repr=False)
 
-    def _get_root(self) -> PerfectInformationNode[float]:  # type: ignore[override]
+    def _get_root(self) -> PerfectInformationNode[float]:
         assert self.interpreter is not None, "Requirement: interpreter is not None"
         init_state = self.interpreter.get_init_state()
 
@@ -190,7 +198,7 @@ class MCTSAgent(SingleObserverMonteCarloTreeSearchAgent[Turn]):
         return {
             self._get_move_from_key(key): (
                 child.valuation.utility if child.valuation is not None else 0.0,
-                child.valuation.total_playouts if child.valuation is not None else 0,
+                getattr(child.valuation, "total_playouts", 0) if child.valuation is not None else 0,
                 1,
             )
             for key, child in self.tree.children.items()
@@ -198,16 +206,15 @@ class MCTSAgent(SingleObserverMonteCarloTreeSearchAgent[Turn]):
 
     def _get_move_from_key(self, key: Turn) -> Move:
         assert self.role is not None, "Requirement: role is not None"
-        assert self.role in key, "Assumption: role in key"
+        assert self.role in key, f"Assumption: role in key, (role={self.role}, key={key}"
         return key[self.role]
 
 
 _A = TypeVar("_A", Turn, Move)
-_Edge = Union[Turn, Move]
 
 
 @dataclass
-class SOISMCTSAgent(SingleObserverMonteCarloTreeSearchAgent[Tuple[State, _Edge]]):
+class SingleObserverInformationSetMCTSAgent(SingleObserverMonteCarloTreeSearchAgent[Tuple[State, _A]]):
     tree: Optional[ImperfectInformationNode[float]] = field(default=None, repr=False)  # type: ignore[assignment]
     evaluator: Optional[LightPlayoutEvaluator[float]] = field(default=None, repr=False)
 
@@ -245,7 +252,7 @@ class SOISMCTSAgent(SingleObserverMonteCarloTreeSearchAgent[Tuple[State, _Edge]]
             move_to_ps[move].update(child.possible_states)
         return {move: (move_to_utility[move], move_to_tp[move], len(move_to_ps[move])) for move in move_to_utility}
 
-    def _get_move_from_key(self, key: Tuple[State, _Edge]) -> Move:
+    def _get_move_from_key(self, key: Tuple[State, _A]) -> Move:
         state, edge = key
         if isinstance(edge, Turn):
             assert self.role is not None, "Requirement: role is not None"
