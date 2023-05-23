@@ -109,13 +109,13 @@ ARGS: Final[ArgConfig] = dict(
         black=Args(
             static_opts=("--check",),
             allow_targets=ALL_TARGETS,
-            default_targets=("src", "tests", "noxfile.py"),
+            default_targets=("src", "tests", "prof", "noxfile.py"),
         ),
         ruff=Args(
             static_opts=("check",),
             allow_opts=("--show-fixes", "--statistics"),
             allow_targets=ALL_TARGETS,
-            default_targets=("src", "tests", "noxfile.py"),
+            default_targets=("src", "tests", "prof", "noxfile.py"),
         ),
     ),
     typecheck=dict(
@@ -136,7 +136,7 @@ ARGS: Final[ArgConfig] = dict(
     fix=dict(
         black=Args(
             allow_targets=ALL_TARGETS,
-            default_targets=("src", "tests", "noxfile.py"),
+            default_targets=("src", "tests", "prof", "noxfile.py"),
         ),
         docformatter=Args(
             static_opts=(
@@ -149,7 +149,7 @@ ARGS: Final[ArgConfig] = dict(
         ruff=Args(
             static_opts=("check", "--extend-select", "D", "--fix-only", "--exit-zero"),
             allow_targets=ALL_TARGETS,
-            default_targets=("src", "tests", "noxfile.py"),
+            default_targets=("src", "tests", "prof", "noxfile.py"),
         ),
     ),
     coverage=dict(

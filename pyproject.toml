@@ -213,6 +213,7 @@ target-version = "py38"
 "src/pyggp/game_description_language/grammar.py" = ["D102"] # Visitor pattern, documentation redundant
 "tests/*" = ["D", "SLF", "INP", "PLR2004", "FBT001", "PLR0913", "ANN001"]
 "noxfile.py" = ["D", "C408"]
+"prof/*" = ["D", "INP001", "T201"]
 
 [tool.ruff.flake8-quotes]
 inline-quotes = "double"
