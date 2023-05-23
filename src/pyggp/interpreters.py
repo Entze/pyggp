@@ -3,6 +3,7 @@ import collections
 import functools
 import itertools
 import logging
+import operator
 import time
 from dataclasses import dataclass, field
 from typing import (
@@ -18,9 +19,11 @@ from typing import (
     Set,
     Tuple,
     TypedDict,
+    TypeVar,
     Union,
 )
 
+import cachetools
 import clingo
 import clingo.ast as clingo_ast
 import clingox.backend as clingox_backend
@@ -28,6 +31,17 @@ from typing_extensions import NotRequired, Self, assert_type
 
 import pyggp._clingo as clingo_helper
 import pyggp.game_description_language as gdl
+from pyggp._caching import (
+    get_goals_sizeof,
+    get_legal_moves_sizeof,
+    get_next_state_sizeof,
+    get_roles_in_control_sizeof,
+    get_sees_sizeof,
+    hashedkey,
+    hashedmethodkey,
+    is_terminal_sizeof,
+    size_str_to_int,
+)
 from pyggp.engine_primitives import Development, DevelopmentStep, Move, Play, Role, State, Turn, View
 from pyggp.exceptions.interpreter_exceptions import (
     InterpreterError,
@@ -82,7 +96,27 @@ def development_from_symbols(symbols: Sequence[clingo.Symbol]) -> Development:
     )
 
 
-@dataclass
+_K = TypeVar("_K")
+_V = TypeVar("_V")
+
+
+def _get_lru_cache_factory(
+    max_size: int,
+    getsizeof: Optional[Callable[[_V], int]] = None,
+) -> Callable[[], cachetools.Cache[_K, _V]]:
+    def get_lru_cache() -> cachetools.Cache[_K, _V]:
+        return cachetools.LRUCache(max_size, getsizeof)
+
+    return get_lru_cache
+
+
+_get_roles_in_control_cache: cachetools.Cache[Tuple[int], FrozenSet[Role]] = cachetools.LRUCache(
+    maxsize=500_000,
+    getsizeof=get_roles_in_control_sizeof,
+)
+
+
+@dataclass(frozen=True)
 class Interpreter:
     """An interpreter for a GDL ruleset.
 
@@ -297,6 +331,12 @@ class Interpreter:
         raise NotImplementedError
 
     @staticmethod
+    @cachetools.cached(
+        cache=_get_roles_in_control_cache,
+        # Disables arg-type. Because: hashedkey depends on the arguments of the wrapped function.
+        key=hashedkey,  # type: ignore[arg-type]
+        info=True,
+    )
     def get_roles_in_control(current: Union[State, View]) -> FrozenSet[Role]:
         """Return the roles in control from the given state or view.
 
@@ -331,7 +371,7 @@ class Interpreter:
         return {role: ranking.index(goal) for role, goal in goals.items()}
 
 
-@dataclass
+@dataclass(frozen=True)
 class ClingoInterpreter(Interpreter):
     """An interpreter for a GDL ruleset_resource using clingo.
 
@@ -612,29 +652,128 @@ class ClingoInterpreter(Interpreter):
     solve_timeout: float = 10.0
     """Timeout for all model queries in seconds."""
     _rules: ClingoASTRules = field(default_factory=ClingoASTRules, repr=False)
+    _get_next_state_cache: cachetools.Cache[Tuple[int, Tuple[int, ...]], State] = field(
+        default_factory=_get_lru_cache_factory(500_000, getsizeof=get_next_state_sizeof),
+        repr=False,
+        hash=False,
+    )
+    _get_sees_cache: cachetools.Cache[Tuple[int], View] = field(
+        default_factory=_get_lru_cache_factory(500_000, getsizeof=get_sees_sizeof),
+        repr=False,
+        hash=False,
+    )
+    _get_legal_moves_cache: cachetools.Cache[Tuple[int], Mapping[Role, FrozenSet[Move]]] = field(
+        default_factory=_get_lru_cache_factory(500_000, getsizeof=get_legal_moves_sizeof),
+        repr=False,
+        hash=False,
+    )
+    _get_goals_cache: cachetools.Cache[Tuple[int], Mapping[Role, Optional[int]]] = field(
+        default_factory=_get_lru_cache_factory(500_000, getsizeof=get_goals_sizeof),
+        repr=False,
+        hash=False,
+    )
+    _is_terminal_cache: cachetools.Cache[Tuple[int], bool] = field(
+        default_factory=_get_lru_cache_factory(500_000, getsizeof=is_terminal_sizeof),
+        repr=False,
+        hash=False,
+    )
 
     # endregion
 
     # region Constructors
 
     @classmethod
-    def from_ruleset(cls, ruleset: gdl.Ruleset, *, model_timeout: float = 8.0, solve_timeout: float = 10.0) -> Self:
+    def from_ruleset(
+        cls,
+        ruleset: gdl.Ruleset,
+        *,
+        model_timeout: float = 8.0,
+        solve_timeout: float = 10.0,
+        cache_size: Union[int, float, str, None] = None,
+        get_next_state_cache_quota: float = 0.55,
+        get_sees_cache_quota: float = 0.2,
+        get_legal_moves_cache_quota: float = 0.1,
+        get_goals_cache_quota: float = 0.1,
+        is_terminal_cache_quota: float = 0.05,
+    ) -> Self:
         """Create a ClingoInterpreter from a ruleset.
 
         Args:
             ruleset: Ruleset to create the interpreter from
             model_timeout: Timeout for the model query in seconds (default: 8.0)
             solve_timeout: Timeout for total solve call in seconds (default: 10.0)
+            cache_size: Size of the cache in bytes (default: 1GB)
+            get_next_state_cache_quota: Quota of the cache for get_next_state (default: 0.55)
+            get_sees_cache_quota: Quota of the cache for get_sees (default: 0.2)
+            get_legal_moves_cache_quota: Quota of the cache for get_legal_moves (default: 0.1)
+            get_goals_cache_quota: Quota of the cache for get_goals (default: 0.1)
+            is_terminal_cache_quota: Quota of the cache for is_terminal (default: 0.05)
 
         Returns:
             ClingoInterpreter
 
         """
+        if cache_size is None:
+            cache_size = 1_000_000_000
+        elif isinstance(cache_size, str):
+            cache_size = size_str_to_int(cache_size)
+        elif isinstance(cache_size, float):
+            cache_size = int(cache_size)
+        assert isinstance(cache_size, int), "Assumption: cache_size is an int"
+
+        if not ruleset.sees_rules:
+            get_sees_cache_quota = 0.0
+
+        total_quota = (
+            get_next_state_cache_quota
+            + get_sees_cache_quota
+            + get_legal_moves_cache_quota
+            + get_goals_cache_quota
+            + is_terminal_cache_quota
+        )
+        get_next_state_cache_quota /= total_quota
+        get_sees_cache_quota /= total_quota
+        get_legal_moves_cache_quota /= total_quota
+        get_goals_cache_quota /= total_quota
+        is_terminal_cache_quota /= total_quota
+
+        get_next_state_cache_size = int(cache_size * get_next_state_cache_quota)
+        get_sees_cache_size = int(cache_size * get_sees_cache_quota)
+        get_legal_moves_cache_size = int(cache_size * get_legal_moves_cache_quota)
+        get_goals_cache_size = int(cache_size * get_goals_cache_quota)
+        is_terminal_cache_size = int(cache_size * is_terminal_cache_quota)
+
+        get_next_state_cache: cachetools.Cache[Tuple[int, Tuple[int, ...]], State] = cachetools.LRUCache(
+            maxsize=get_next_state_cache_size,
+            getsizeof=get_next_state_sizeof,
+        )
+        get_sees_cache: cachetools.Cache[Tuple[int], View] = cachetools.LRUCache(
+            maxsize=get_sees_cache_size,
+            getsizeof=get_sees_sizeof,
+        )
+        get_legal_moves_cache: cachetools.Cache[Tuple[int], Mapping[Role, FrozenSet[Move]]] = cachetools.LRUCache(
+            maxsize=get_legal_moves_cache_size,
+            getsizeof=get_legal_moves_sizeof,
+        )
+        get_goals_cache: cachetools.Cache[Tuple[int], Mapping[Role, Optional[int]]] = cachetools.LRUCache(
+            maxsize=get_goals_cache_size,
+            getsizeof=get_goals_sizeof,
+        )
+        is_terminal_cache: cachetools.Cache[Tuple[int], bool] = cachetools.LRUCache(
+            maxsize=is_terminal_cache_size,
+            getsizeof=is_terminal_sizeof,
+        )
+
         return cls(
             ruleset=ruleset,
             model_timeout=model_timeout,
             solve_timeout=solve_timeout,
             _rules=ClingoInterpreter.ClingoASTRules.from_ruleset(ruleset),
+            _get_next_state_cache=get_next_state_cache,
+            _get_sees_cache=get_sees_cache,
+            _get_legal_moves_cache=get_legal_moves_cache,
+            _get_goals_cache=get_goals_cache,
+            _is_terminal_cache=is_terminal_cache,
         )
 
     # endregion
@@ -689,6 +828,7 @@ class ClingoInterpreter(Interpreter):
             raise UnsatInitInterpreterError from unsat
         return state
 
+    @cachetools.cachedmethod(cache=operator.attrgetter("_get_next_state_cache"), key=hashedmethodkey)
     def get_next_state(self, current: Union[State, View], *plays: Play) -> State:
         """Return the next state of the game.
 
@@ -722,6 +862,7 @@ class ClingoInterpreter(Interpreter):
             raise UnsatNextInterpreterError from unsat
         return state
 
+    @cachetools.cachedmethod(cache=operator.attrgetter("_get_sees_cache"))
     def get_sees(self, current: Union[State, View]) -> Mapping[Role, View]:
         """Return each role's view of the state.
 
@@ -755,6 +896,7 @@ class ClingoInterpreter(Interpreter):
                 sees[role].add(gdl.Subrelation.from_clingo_symbol(symbol.arguments[1]))
         return {role: View(State(frozenset(subrelations))) for role, subrelations in sees.items()}
 
+    @cachetools.cachedmethod(cache=operator.attrgetter("_get_legal_moves_cache"))
     def get_legal_moves(self, current: Union[State, View]) -> Mapping[Role, FrozenSet[Move]]:
         """Return the legal moves for each role.
 
@@ -786,6 +928,7 @@ class ClingoInterpreter(Interpreter):
                 legal_moves_mutable[role].add(Move(gdl.Subrelation.from_clingo_symbol(symbol.arguments[1])))
         return {role: frozenset(moves) for role, moves in legal_moves_mutable.items()}
 
+    @cachetools.cachedmethod(cache=operator.attrgetter("_get_goals_cache"))
     def get_goals(self, current: Union[State, View]) -> Mapping[Role, Optional[int]]:
         """Return the goals for each role.
 
@@ -819,6 +962,7 @@ class ClingoInterpreter(Interpreter):
                 goals_mutable[role] = symbol.arguments[1].number
         return {role: goals_mutable.get(role) for role in self.get_roles()}
 
+    @cachetools.cachedmethod(cache=operator.attrgetter("_is_terminal_cache"))
     def is_terminal(self, current: Union[State, View]) -> bool:
         """Check if the given state is terminal.
 

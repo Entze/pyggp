@@ -2,12 +2,21 @@ import tqdm
 from pyggp.agents import MCTSAgent
 from pyggp.game_description_language.subrelations import Subrelation
 from pyggp.gameclocks import DEFAULT_START_CLOCK_CONFIGURATION, GameClock
-from pyggp.interpreters import Interpreter
+from pyggp.interpreters import ClingoInterpreter, Interpreter
 
-from prof.prof_caches import cache_info
+from prof.prof_caches import LRUCacheWithInfo, cache_info
 from prof.prof_common_tic_tac_toe import tic_tac_toe_init_view, tic_tac_toe_ruleset, tic_tac_toe_x
 
-agent = MCTSAgent()
+interpreter = ClingoInterpreter(
+    _rules=ClingoInterpreter.ClingoASTRules.from_ruleset(tic_tac_toe_ruleset),
+    _get_next_state_cache=LRUCacheWithInfo(maxsize=100_000),
+    _get_sees_cache=LRUCacheWithInfo(maxsize=100_000),
+    _get_legal_moves_cache=LRUCacheWithInfo(maxsize=100_000),
+    _get_goals_cache=LRUCacheWithInfo(maxsize=100_000),
+    _is_terminal_cache=LRUCacheWithInfo(maxsize=100_000),
+)
+
+agent = MCTSAgent(interpreter=interpreter)
 
 with agent:
     agent.prepare_match(
@@ -20,8 +29,8 @@ with agent:
     agent.calculate_move(0, 0, tic_tac_toe_init_view)
 
     print()
-    print("subrelation_as_clingo_symbol_cache: ", cache_info(Subrelation._as_clingo_symbol_cache))
-    print("Subrelation.from_clingo_symbol: ", cache_info(Subrelation.as_clingo_symbol))
+    print("Subrelation._as_clingo_symbol_cache: ", cache_info(Subrelation._as_clingo_symbol_cache))
+    print("Subrelation.from_clingo_sybmol: ", cache_info(Subrelation.as_clingo_symbol))
     print("interpreter._get_next_state_cache: ", cache_info(agent.interpreter._get_next_state_cache))
     print("interpreter._get_sees_cache: ", cache_info(agent.interpreter._get_sees_cache))
     print("interpreter._get_legal_moves_cache: ", cache_info(agent.interpreter._get_legal_moves_cache))
@@ -38,11 +47,11 @@ with agent:
     Interpreter.get_roles_in_control.cache_clear()
     print()
 
-    for _ in tqdm.trange(100_000):
+    for _ in tqdm.trange(1_000_000):
         agent.step()
-    print()
 
-print("subrelation_as_clingo_symbol: ", cache_info(Subrelation._as_clingo_symbol_cache))
+print()
+print("Subrelation._as_clingo_symbol_cache: ", cache_info(Subrelation._as_clingo_symbol_cache))
 print("Subrelation.from_clingo_sybmol: ", cache_info(Subrelation.as_clingo_symbol))
 print("interpreter._get_next_state_cache: ", cache_info(agent.interpreter._get_next_state_cache))
 print("interpreter._get_sees_cache: ", cache_info(agent.interpreter._get_sees_cache))

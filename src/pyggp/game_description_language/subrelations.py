@@ -1,11 +1,18 @@
 """Provides all subrelations of GDL."""
+import operator
 from dataclasses import dataclass, field
-from typing import NamedTuple, Optional, Sequence, Union
+from typing import ClassVar, NamedTuple, Optional, Sequence, Union
 
+import cachetools
+import cachetools.keys as cachetools_keys
 import clingo
 import clingo.ast as clingo_ast
 from typing_extensions import Self
 
+from pyggp._caching import (
+    as_clingo_symbol_sizeof,
+    from_clingo_symbol_sizeof,
+)
 from pyggp._clingo import create_function, create_symbolic_term, create_variable
 
 
@@ -602,6 +609,10 @@ class Subrelation:
 
     symbol: Symbol = field(default_factory=Relation)
     "Symbol of the subrelation."
+    _as_clingo_symbol_cache: ClassVar[cachetools.LRUCache[Self, clingo.Symbol]] = cachetools.LRUCache(
+        maxsize=500_000,
+        getsizeof=as_clingo_symbol_sizeof,
+    )
 
     @property
     def infix_str(self) -> str:
@@ -638,6 +649,7 @@ class Subrelation:
     # region Constructors
 
     @classmethod
+    @cachetools.cached(cache=cachetools.LRUCache(maxsize=500_000, getsizeof=from_clingo_symbol_sizeof), info=True)
     def from_clingo_symbol(cls, symbol: clingo.Symbol) -> Self:
         """Create a subrelation from a clingo symbol.
 
@@ -756,6 +768,7 @@ class Subrelation:
         """
         return isinstance(self.symbol, Relation) and self.symbol.matches_signature(name, arity)
 
+    @cachetools.cachedmethod(cache=operator.attrgetter("_as_clingo_symbol_cache"), key=cachetools_keys.hashkey)
     def as_clingo_symbol(self) -> clingo.Symbol:
         """Convert to semantically equivalent clingo symbol.
 

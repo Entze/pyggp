@@ -31,6 +31,8 @@ rich = ">=13.3.1,<13.4.0"
 inflection = ">=0.5.1,<0.6.0"
 lark = ">=1.1.5,<1.2.0"
 tqdm = ">=4.65.0,<4.66.0"
+cachetools = ">=5.3.0,<5.4.0"
+types-cachetools = ">=5.3.0.5,<5.4.0.0"
 
 
 [tool.poetry.group.ci]
@@ -213,7 +215,7 @@ target-version = "py38"
 "src/pyggp/game_description_language/grammar.py" = ["D102"] # Visitor pattern, documentation redundant
 "tests/*" = ["D", "SLF", "INP", "PLR2004", "FBT001", "PLR0913", "ANN001"]
 "noxfile.py" = ["D", "C408"]
-"prof/*" = ["D", "INP001", "T201"]
+"prof/*" = ["D", "INP001", "T201", "SLF001", "ANN"]
 
 [tool.ruff.flake8-quotes]
 inline-quotes = "double"
