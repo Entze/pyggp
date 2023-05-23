@@ -201,11 +201,10 @@ class TimeLogger(NoneContextManager):
                 self.log.log(self.level, "%s (after %s)", self.abort_msg, format_timedelta(self.delta))
             else:
                 self.log.log(self.level, "Aborted after %s", format_timedelta(self.delta))
+        elif self.end_msg is not None:
+            self.log.log(self.level, "%s (in %s)", self.end_msg, format_timedelta(self.delta))
         else:
-            if self.end_msg is not None:
-                self.log.log(self.level, "%s (in %s)", self.end_msg, format_timedelta(self.delta))
-            else:
-                self.log.log(self.level, "in %s", format_timedelta(self.delta))
+            self.log.log(self.level, "in %s", format_timedelta(self.delta))
 
         self.start_time = None
         self.stop_time = None
