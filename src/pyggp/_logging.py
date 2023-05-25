@@ -147,6 +147,10 @@ def format_rate_ns(amount: Union[float, int], delta: int) -> str:
     return format_rate(amount, delta * 1e-9)
 
 
+def format_percent(value: float) -> str:
+    return f"{remove_trailing(f'{value * 100:.2f}')}%"
+
+
 def format_iterable(iterable: Iterable[Any], *, pre: str = "{", sep: str = ", ", post: str = "}") -> str:
     return f"{pre}{sep.join(str(item) for item in iterable)}{post}"
 

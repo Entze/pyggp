@@ -1,9 +1,10 @@
 """Evaluators for the MCTS agents."""
 import random
-from dataclasses import dataclass
-from typing import Any, TypeVar
+from dataclasses import dataclass, field
+from typing import Any, Optional, TypeVar
 
 from pyggp.agents.tree_agents.evaluators import Evaluator
+from pyggp.books import Book
 from pyggp.engine_primitives import Role, State, Turn
 from pyggp.interpreters import Interpreter
 
@@ -18,6 +19,9 @@ class LightPlayoutEvaluator(Evaluator[_U_co]):
     "Role."
     final_state_evaluator: Evaluator[_U_co]
     "Evaluator for the final state."
+    book: Optional[Book[_U_co]] = field(default=None, repr=False)
+    accesses: int = field(default=0, repr=False)
+    hits: int = field(default=0, repr=False)
 
     # Disables override checks. Because: Typecheckers cannot infer that *args includes any arguments.
     # noinspection PyMethodOverriding
@@ -25,10 +29,12 @@ class LightPlayoutEvaluator(Evaluator[_U_co]):
         self,
         state: State,
         interpreter: Interpreter,
+        role: Optional[Role] = None,
         *args: Any,
         **kwargs: Any,
     ) -> _U_co:
-        while not interpreter.is_terminal(state):
+        self.accesses += 1
+        while not interpreter.is_terminal(state) and (self.book is None or state not in self.book):
             roles_in_control = Interpreter.get_roles_in_control(state)
             role_move_pairing = []
 
@@ -39,5 +45,9 @@ class LightPlayoutEvaluator(Evaluator[_U_co]):
 
             turn = Turn(frozenset(role_move_pairing))
             state = interpreter.get_next_state(state, *turn.as_plays())
+
+        if self.book is not None and state in self.book:
+            self.hits += 1
+            return self.book[state]
 
         return self.final_state_evaluator(state, *args, role=self.role, interpreter=interpreter, **kwargs)

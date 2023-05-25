@@ -4,6 +4,7 @@ import pyggp.game_description_language as gdl
 import pytest
 from pyggp.agents.tree_agents.nodes import (
     HiddenInformationSetNode,
+    ImperfectInformationNode,
     InformationSetNode,
     VisibleInformationSetNode,
 )
@@ -43,6 +44,7 @@ def test_expand_to_visible_nodes(mock_interpreter) -> None:
         role=mock_role1,
         parent=node,
         possible_states={mock_child1_state1, mock_child1_state2},
+        depth=node.depth + 1,
     )
 
     mock_child2_view = mock.Mock(spec=State, name="mock_child2_view")
@@ -53,6 +55,7 @@ def test_expand_to_visible_nodes(mock_interpreter) -> None:
         role=mock_role1,
         parent=node,
         possible_states={mock_child2_state},
+        depth=node.depth + 1,
     )
 
     children = {
@@ -112,6 +115,7 @@ def test_expand_to_hidden_nodes(mock_interpreter) -> None:
         role=mock_role1,
         parent=node,
         possible_states={mock_child1_state1, mock_child1_state2, mock_child1_state3},
+        depth=node.depth + 1,
     )
 
     mock_role2 = mock.Mock(spec=Role, name="mock_role2")
@@ -375,6 +379,7 @@ def test_develop_on_perfect_view(ruleset_two_moves_max) -> None:
         role=role_p2,
         possible_states={state1, state2, state3},
         parent=root,
+        depth=root.depth + 1,
     )
 
     move1 = Move(gdl.Subrelation(gdl.Number(1)))
@@ -390,6 +395,7 @@ def test_develop_on_perfect_view(ruleset_two_moves_max) -> None:
         (init_state, turn3): child,
     }
     root.children = children
+    root.visible_child = child
 
     view = View(state2)
 
@@ -400,7 +406,9 @@ def test_develop_on_perfect_view(ruleset_two_moves_max) -> None:
     tree = root.develop(interpreter=interpreter, view=view, ply=1)
 
     expected_children = {
+        (init_state, turn1): child,
         (init_state, turn2): child,
+        (init_state, turn3): child,
     }
 
     assert child.view == view
@@ -436,6 +444,7 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
         role=role_p1,
         possible_states={state_child1_1},
         parent=root,
+        depth=root.depth + 1,
     )
 
     state_child1_2 = State(frozenset({control_p2, t_1_2}))
@@ -444,6 +453,7 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
         role=role_p1,
         possible_states={state_child1_2},
         parent=root,
+        depth=root.depth + 1,
     )
 
     state_child1_3 = State(frozenset({control_p2, t_1_3}))
@@ -452,6 +462,7 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
         role=role_p1,
         possible_states={state_child1_3},
         parent=root,
+        depth=root.depth + 1,
     )
 
     m1 = Move(gdl.Subrelation(gdl.Number(1)))
@@ -479,6 +490,7 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
         role=role_p1,
         possible_states={state_child2_1_1, state_child2_1_2, state_child2_1_3},
         parent=child1_1,
+        depth=child1_1.depth + 1,
     )
 
     turn_child1_1 = Turn({role_p2: m1})
@@ -491,6 +503,7 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
         (state_child1_1, turn_child1_3): child2_1,
     }
     child1_1.children = child1_1_children
+    child1_1.visible_child = child2_1
 
     state_child2_2_1 = State(frozenset({control_p1, t_1_2, t_2_1}))
     state_child2_2_2 = State(frozenset({control_p1, t_1_2, t_2_2}))
@@ -500,6 +513,7 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
         role=role_p1,
         possible_states={state_child2_2_1, state_child2_2_2, state_child2_2_3},
         parent=child1_2,
+        depth=child1_2.depth + 1,
     )
 
     child1_2_children = {
@@ -508,6 +522,7 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
         (state_child1_2, turn_child1_3): child2_2,
     }
     child1_2.children = child1_2_children
+    child1_2.visible_child = child2_2
 
     state_child2_3_1 = State(frozenset({control_p1, t_1_3, t_2_1}))
     state_child2_3_2 = State(frozenset({control_p1, t_1_3, t_2_2}))
@@ -517,6 +532,7 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
         role=role_p1,
         possible_states={state_child2_3_1, state_child2_3_2, state_child2_3_3},
         parent=child1_3,
+        depth=child1_3.depth + 1,
     )
 
     child1_3_children = {
@@ -525,6 +541,7 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
         (state_child1_3, turn_child1_3): child2_3,
     }
     child1_3.children = child1_3_children
+    child1_3.visible_child = child2_3
 
     view = View(state_child2_1_2)
     ply = 2
@@ -534,7 +551,9 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
     tree = child1_1.develop(interpreter=interpreter, view=view, ply=ply)
 
     expected_children = {
+        (state_child1_1, turn_child1_1): child2_1,
         (state_child1_1, turn_child1_2): child2_1,
+        (state_child1_1, turn_child1_3): child2_1,
     }
 
     assert child1_1.children == expected_children
@@ -542,3 +561,195 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
     assert tree.possible_states == {state_child2_1_2}
     assert isinstance(tree, VisibleInformationSetNode)
     assert tree.view == view
+
+
+@pytest.fixture()
+def ruleset_phantom_connect_5_6_4() -> gdl.Ruleset:
+    rules = """
+role(x). role(o).
+
+init(control(x)).
+
+row(1). row(2). row(3). row(4). row(5).
+col(1). col(2). col(3). col(4). col(5). col(6).
+win(4).
+
+succ(0, 1). succ(1, 2). succ(2, 3). succ(3, 4). succ(4, 5). succ(5, 6). succ(6,7). succ(7,8).
+
+next(control(R1)) :-
+    role(R1), role(R2), distinct(R1,R2), row(Row), col(Col),
+    true(control(R2)),
+    not true(cell(Row, Col, _Role)),
+    does(R2, cell(Row, Col)).
+
+next(control(R)) :-
+    role(R), row(Row), col(Col),
+    true(control(R)),
+    true(cell(Row, Col, _Role)),
+    does(R, cell(Row, Col)).
+
+next(cell(Row,Col,Role)) :-
+    row(Row), col(Col), role(Role),
+    true(cell(Row,Col,Role)).
+
+next(cell(Row,Col,Role)) :-
+    row(Row), col(Col), role(Role),
+    not true(cell(Row,Col,_Role)),
+    does(Role, cell(Row, Col)).
+
+next(revealed(Role, cell(Row,Col))) :-
+    role(Role), row(Row), col(Col),
+    true(revealed(Role, cell(Row,Col))).
+
+next(revealed(Role, cell(Row,Col))) :-
+    role(Role), row(Row), col(Col),
+    does(Role, cell(Row, Col)).
+
+sees(Everyone, control(Role)) :-
+    role(Everyone), role(Role),
+    true(control(Role)).
+
+sees(Role1, revealed(Role2, cell(Row, Col))) :-
+    role(Role1), role(Role2), row(Row), col(Col),
+    true(revealed(Role1, cell(Row,Col))),
+    true(revealed(Role2, cell(Row,Col))).
+
+sees(Role1, cell(Row,Col,Role2)) :-
+    role(Role1), row(Row), col(Col), role(Role2),
+    true(revealed(Role1, cell(Row,Col))),
+    true(cell(Row,Col,Role2)).
+
+legal(Role, cell(Row, Col)) :-
+    role(Role), row(Row), col(Col),
+    not true(revealed(Role, cell(Row,Col))).
+
+open :-
+    row(Row), col(Col),
+    not true(cell(Row,Col,_)).
+
+connects(Role, Row1, Col, Row2, Col, 2) :-
+    role(Role), row(Row1), row(Row2), col(Col),
+    succ(Row1, Row2),
+    true(cell(Row1,Col,Role)),
+    true(cell(Row2,Col,Role)).
+
+connects(Role, Row1, Col, Row2, Col, N) :-
+    role(Role), row(Row1), row(Row2), col(Col),
+    row(Row0),
+    succ(M, N), succ(Row0, Row1), succ(Row1, Row2),
+    true(cell(Row1,Col,Role)),
+    true(cell(Row2,Col,Role)),
+    connects(Role, Row0, Col, Row1, Col, M).
+
+
+connects(Role, Row, Col1, Row, Col2, 2) :-
+    role(Role), row(Row), col(Col1), col(Col2),
+    succ(Col1, Col2),
+    true(cell(Row,Col1,Role)),
+    true(cell(Row,Col2,Role)).
+
+connects(Role, Row, Col1, Row, Col2, N) :-
+    role(Role), row(Row), col(Col1), col(Col2),
+    col(Col0),
+    succ(M, N), succ(Col0, Col1), succ(Col1, Col2),
+    true(cell(Row,Col1,Role)),
+    true(cell(Row,Col2,Role)),
+    connects(Role, Row, Col0, Row, Col1, M).
+
+
+connects(Role, Row1, Col1, Row2, Col2, 2) :-
+    role(Role), row(Row1), row(Row2), col(Col1), col(Col2),
+    succ(Row1, Row2), succ(Col1, Col2),
+    true(cell(Row1,Col1,Role)),
+    true(cell(Row2,Col2,Role)).
+
+connects(Role, Row1, Col1, Row2, Col2, N) :-
+    role(Role), row(Row1), row(Row2), col(Col1), col(Col2),
+    row(Row0), col(Col0),
+    succ(M, N),
+    succ(Row0, Row1), succ(Row1, Row2),
+    succ(Col0, Col1), succ(Col1, Col2),
+    true(cell(Row1,Col1,Role)),
+    true(cell(Row2,Col2,Role)),
+    connects(Role, Row0, Col0, Row1, Col1, M).
+
+
+connects(Role, Row2, Col1, Row1, Col2, 2) :-
+    role(Role), row(Row1), row(Row2), col(Col1), col(Col2),
+    succ(Row1, Row2), succ(Col1, Col2),
+    true(cell(Row1,Col2,Role)),
+    true(cell(Row2,Col1,Role)).
+
+connects(Role, Row3, Col1, Row2, Col2, N) :-
+    role(Role),
+    row(Row1), row(Row2), row(Row3),
+    col(Col1), col(Col2), col(Col3),
+    succ(M, N),
+    succ(Row1, Row2), succ(Row2, Row3),
+    succ(Col1, Col2), succ(Col2, Col3),
+    true(cell(Row3,Col1,Role)),
+    true(cell(Row2,Col2,Role)),
+    connects(Role, Row2, Col2, Row1, Col3, M).
+
+
+line(Role) :-
+    role(Role),
+    connects(Role, _Row1, _Col1, _Row2, _Col2, N),
+    win(N).
+
+goal(Role1, 0) :-
+    role(Role1), role(Role2), distinct(Role1, Role2),
+    line(Role2).
+
+goal(Role1, 50) :-
+    role(Role1), role(Role2), distinct(Role1, Role2),
+    not open,
+    not line(Role1),
+    not line(Role2).
+
+goal(Role1, 100) :-
+    role(Role1),
+    line(Role1).
+
+terminal :-
+    not open.
+
+terminal :-
+    line(_Role).
+    """
+    return gdl.transformer.transform(gdl.parser.parse(rules))
+
+
+def test_phantom_connect_5_6_4_revealing(ruleset_phantom_connect_5_6_4) -> None:
+    interpreter = ClingoInterpreter.from_ruleset(ruleset_phantom_connect_5_6_4)
+
+    x = Role(gdl.Subrelation(gdl.Relation("x")))
+    o = Role(gdl.Subrelation(gdl.Relation("o")))
+
+    init_state = interpreter.get_init_state()
+    state_0 = init_state
+    view_0 = interpreter.get_sees_by_role(state_0, x)
+
+    tree_x: ImperfectInformationNode[float] = VisibleInformationSetNode(possible_states={state_0}, role=x)
+    tree_o: ImperfectInformationNode[float] = HiddenInformationSetNode(possible_states={state_0}, role=o)
+
+    tree_x = tree_x.develop(interpreter, 0, view_0)
+
+    cell_1_1 = Move(
+        gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(1)), gdl.Subrelation(gdl.Number(1)))))
+    )
+    state_1 = interpreter.get_next_state(state_0, *Turn({x: cell_1_1}).as_plays())
+    view_1 = interpreter.get_sees_by_role(state_1, o)
+    tree_x.move = cell_1_1
+
+    tree_o = tree_o.develop(interpreter, 1, view_1)
+
+    state_2 = interpreter.get_next_state(state_1, *Turn({o: cell_1_1}).as_plays())
+    view_2 = interpreter.get_sees_by_role(state_2, o)
+    tree_o.move = cell_1_1
+
+    tree_o = tree_o.develop(interpreter, 2, view_2)
+
+    tree_o.expand(interpreter)
+
+    assert tree_o.children

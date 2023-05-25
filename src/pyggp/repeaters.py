@@ -2,15 +2,14 @@ import logging
 import math
 import time
 from dataclasses import dataclass
-from typing import Callable, Final, Tuple, TypeVar
+from typing import Callable, Final, Optional, Tuple, TypeVar
 
 from typing_extensions import ParamSpec
-
-from pyggp._logging import format_amount, format_timedelta
 
 P = ParamSpec("P")
 T = TypeVar("T")
 
+ONE_S_IN_NS: Final[int] = 1_000_000_000
 INV_GOLDEN_RATIO: Final[float] = 2.0 / (1.0 + math.sqrt(5.0))
 
 log = logging.getLogger("pyggp")
@@ -20,34 +19,21 @@ log = logging.getLogger("pyggp")
 class Repeater:
     func: Callable[[], None]
     timeout_ns: int
-    max_repeats: int = 1_000_000
-    repeat_ratio: float = INV_GOLDEN_RATIO
+    shortcircuit: Optional[Callable[[], bool]] = None
 
     def __call__(self) -> Tuple[int, int]:
-        total_elapsed_ns: int = 0
-        elapsed_ns: int = 0
-        repeats: int = 1
+        if self.timeout_ns == 0:
+            return 0, 0
         calls: int = 0
-        start_ns: int = 0
-        avg_it_per_ns: float = 0.0
-        while total_elapsed_ns <= self.timeout_ns:
-            start_ns = time.monotonic_ns()
-            for _ in range(repeats):
-                self.func()
-            elapsed_ns = time.monotonic_ns() - start_ns
-            total_elapsed_ns += elapsed_ns
-            avg_it_per_ns = repeats / elapsed_ns
-            log.debug(
-                "%s it in %s (%s it/s)",
-                format_amount(repeats),
-                format_timedelta(elapsed_ns / 1e9),
-                format_amount(avg_it_per_ns * 1e9),
-            )
-            calls += repeats
-            repeats = min(
-                self.max_repeats,
-                repeats * 2,
-                max(1, repeats // 10, int(avg_it_per_ns * (self.repeat_ratio * (self.timeout_ns - total_elapsed_ns)))),
-            )
+        start_ns: int = time.monotonic_ns()
+        end_ns = time.monotonic_ns() + self.timeout_ns
+        last_delta_ns = 0
+        while time.monotonic_ns() + (3 * last_delta_ns) < end_ns and (
+            self.shortcircuit is None or not self.shortcircuit()
+        ):
+            last_delta_ns = time.monotonic_ns()
+            self.func()
+            last_delta_ns = time.monotonic_ns() - last_delta_ns
+            calls += 1
 
-        return calls, total_elapsed_ns
+        return calls, (time.monotonic_ns() - start_ns)

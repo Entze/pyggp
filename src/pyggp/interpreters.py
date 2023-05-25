@@ -38,7 +38,6 @@ from pyggp._caching import (
     get_roles_in_control_sizeof,
     get_sees_sizeof,
     hashedkey,
-    hashedmethodkey,
     is_terminal_sizeof,
     size_str_to_int,
 )
@@ -62,36 +61,43 @@ from pyggp.records import Record
 log: logging.Logger = logging.getLogger("pyggp")
 
 
-def development_from_symbols(symbols: Sequence[clingo.Symbol]) -> Development:
+def development_from_symbols(symbols: Sequence[clingo.Symbol], bounds: Optional[Tuple[int, int]] = None) -> Development:
     """Create a development from clingo symbols.
 
     Args:
         symbols: Clingo symbols
+        bounds: (offset, horizon) bounds on the development
 
     Returns:
         Development
 
     """
+    offset, horizon = bounds if bounds is not None else (None, None)
     ply_state_map: MutableMapping[int, Set[gdl.Subrelation]] = collections.defaultdict(set)
     ply_turn_map: MutableMapping[int, MutableMapping[Role, Move]] = collections.defaultdict(dict)
     for symbol in symbols:
         if symbol.match("holds_at", 2):
             subrelation = gdl.Subrelation.from_clingo_symbol(symbol.arguments[0])
             ply = symbol.arguments[1].number
-            ply_state_map[ply].add(subrelation)
+            if bounds is None or offset <= ply <= horizon:
+                ply_state_map[ply].add(subrelation)
         elif symbol.match("does_at", 3):
             role = Role(gdl.Subrelation.from_clingo_symbol(symbol.arguments[0]))
             move = Move(gdl.Subrelation.from_clingo_symbol(symbol.arguments[1]))
             ply = symbol.arguments[2].number
-            ply_turn_map[ply][role] = move
-    assert list(range(0, len(ply_state_map))) == sorted(ply_state_map.keys())
+            if bounds is None or offset <= ply <= horizon:
+                ply_turn_map[ply][role] = move
+    if bounds is None:
+        offset = 0
+        horizon = len(ply_state_map)
+    assert list(range(offset, horizon + 1)) == sorted(ply_state_map.keys())
     return Development(
         tuple(
             DevelopmentStep(
                 state=State(frozenset(ply_state_map[ply])),
                 turn=Turn(ply_turn_map[ply]) if ply_turn_map[ply] else None,
             )
-            for ply in range(0, len(ply_state_map))
+            for ply in range(offset, horizon + 1)
         ),
     )
 
@@ -110,8 +116,8 @@ def _get_lru_cache_factory(
     return get_lru_cache
 
 
-_get_roles_in_control_cache: cachetools.Cache[Tuple[int], FrozenSet[Role]] = cachetools.LRUCache(
-    maxsize=500_000,
+_get_roles_in_control_cache: cachetools.Cache[State, FrozenSet[Role]] = cachetools.LRUCache(
+    maxsize=50_000_000,
     getsizeof=get_roles_in_control_sizeof,
 )
 
@@ -652,27 +658,27 @@ class ClingoInterpreter(Interpreter):
     solve_timeout: float = 10.0
     """Timeout for all model queries in seconds."""
     _rules: ClingoASTRules = field(default_factory=ClingoASTRules, repr=False)
-    _get_next_state_cache: cachetools.Cache[Tuple[int, Tuple[int, ...]], State] = field(
+    _get_next_state_cache: cachetools.Cache[Tuple[Union[State, View], Tuple[Play, ...]], State] = field(
         default_factory=_get_lru_cache_factory(500_000, getsizeof=get_next_state_sizeof),
         repr=False,
         hash=False,
     )
-    _get_sees_cache: cachetools.Cache[Tuple[int], View] = field(
+    _get_sees_cache: cachetools.Cache[Union[State, View], View] = field(
         default_factory=_get_lru_cache_factory(500_000, getsizeof=get_sees_sizeof),
         repr=False,
         hash=False,
     )
-    _get_legal_moves_cache: cachetools.Cache[Tuple[int], Mapping[Role, FrozenSet[Move]]] = field(
+    _get_legal_moves_cache: cachetools.Cache[Union[State, View], Mapping[Role, FrozenSet[Move]]] = field(
         default_factory=_get_lru_cache_factory(500_000, getsizeof=get_legal_moves_sizeof),
         repr=False,
         hash=False,
     )
-    _get_goals_cache: cachetools.Cache[Tuple[int], Mapping[Role, Optional[int]]] = field(
+    _get_goals_cache: cachetools.Cache[Union[State, View], Mapping[Role, Optional[int]]] = field(
         default_factory=_get_lru_cache_factory(500_000, getsizeof=get_goals_sizeof),
         repr=False,
         hash=False,
     )
-    _is_terminal_cache: cachetools.Cache[Tuple[int], bool] = field(
+    _is_terminal_cache: cachetools.Cache[Union[State, View], bool] = field(
         default_factory=_get_lru_cache_factory(500_000, getsizeof=is_terminal_sizeof),
         repr=False,
         hash=False,
@@ -690,11 +696,11 @@ class ClingoInterpreter(Interpreter):
         model_timeout: float = 8.0,
         solve_timeout: float = 10.0,
         cache_size: Union[int, float, str, None] = None,
-        get_next_state_cache_quota: float = 0.55,
-        get_sees_cache_quota: float = 0.2,
-        get_legal_moves_cache_quota: float = 0.1,
-        get_goals_cache_quota: float = 0.1,
-        is_terminal_cache_quota: float = 0.05,
+        get_next_state_cache_quota: float = 0.4,
+        get_sees_cache_quota: float = 0.25,
+        get_legal_moves_cache_quota: float = 0.25,
+        get_goals_cache_quota: float = 0.075,
+        is_terminal_cache_quota: float = 0.025,
     ) -> Self:
         """Create a ClingoInterpreter from a ruleset.
 
@@ -743,23 +749,29 @@ class ClingoInterpreter(Interpreter):
         get_goals_cache_size = int(cache_size * get_goals_cache_quota)
         is_terminal_cache_size = int(cache_size * is_terminal_cache_quota)
 
-        get_next_state_cache: cachetools.Cache[Tuple[int, Tuple[int, ...]], State] = cachetools.LRUCache(
+        get_next_state_cache: cachetools.Cache[
+            Tuple[Union[State, View], Tuple[Play, ...]],
+            State,
+        ] = cachetools.LRUCache(
             maxsize=get_next_state_cache_size,
             getsizeof=get_next_state_sizeof,
         )
-        get_sees_cache: cachetools.Cache[Tuple[int], View] = cachetools.LRUCache(
+        get_sees_cache: cachetools.Cache[Union[State, View], View] = cachetools.LRUCache(
             maxsize=get_sees_cache_size,
             getsizeof=get_sees_sizeof,
         )
-        get_legal_moves_cache: cachetools.Cache[Tuple[int], Mapping[Role, FrozenSet[Move]]] = cachetools.LRUCache(
+        get_legal_moves_cache: cachetools.Cache[
+            Union[State, View],
+            Mapping[Role, FrozenSet[Move]],
+        ] = cachetools.LRUCache(
             maxsize=get_legal_moves_cache_size,
             getsizeof=get_legal_moves_sizeof,
         )
-        get_goals_cache: cachetools.Cache[Tuple[int], Mapping[Role, Optional[int]]] = cachetools.LRUCache(
+        get_goals_cache: cachetools.Cache[Union[State, View], Mapping[Role, Optional[int]]] = cachetools.LRUCache(
             maxsize=get_goals_cache_size,
             getsizeof=get_goals_sizeof,
         )
-        is_terminal_cache: cachetools.Cache[Tuple[int], bool] = cachetools.LRUCache(
+        is_terminal_cache: cachetools.Cache[Union[State, View], bool] = cachetools.LRUCache(
             maxsize=is_terminal_cache_size,
             getsizeof=is_terminal_sizeof,
         )
@@ -828,7 +840,7 @@ class ClingoInterpreter(Interpreter):
             raise UnsatInitInterpreterError from unsat
         return state
 
-    @cachetools.cachedmethod(cache=operator.attrgetter("_get_next_state_cache"), key=hashedmethodkey)
+    @cachetools.cachedmethod(cache=operator.attrgetter("_get_next_state_cache"))
     def get_next_state(self, current: Union[State, View], *plays: Play) -> State:
         """Return the next state of the game.
 
@@ -958,7 +970,9 @@ class ClingoInterpreter(Interpreter):
             if symbol.match("goal", 2):
                 role = Role(gdl.Subrelation.from_clingo_symbol(symbol.arguments[0]))
                 if role in goals_mutable:
-                    raise MultipleGoalsInterpreterError
+                    goals = {role: [goal] for role, goal in goals_mutable.items()}
+                    goals[role].append(symbol.arguments[1].number)
+                    raise MultipleGoalsInterpreterError(goals)
                 goals_mutable[role] = symbol.arguments[1].number
         return {role: goals_mutable.get(role) for role in self.get_roles()}
 
@@ -1009,8 +1023,8 @@ class ClingoInterpreter(Interpreter):
             (
                 ("base", ()),
                 ("static", ()),
-                *(("dynamic", (clingo.Number(__time),)) for __time in range(0, record.horizon + 1)),
-                *(("statemachine", (clingo.Number(__time),)) for __time in range(0, record.horizon)),
+                *(("dynamic", (clingo.Number(__time),)) for __time in range(record.offset, record.horizon + 1)),
+                *(("statemachine", (clingo.Number(__time),)) for __time in range(record.offset, record.horizon)),
             ),
         )
         # Disables mypy. Because contract guarantees that handle is not SolveResult when called with yield_=True or
@@ -1025,7 +1039,7 @@ class ClingoInterpreter(Interpreter):
             if model is None:
                 raise UnsatDevelopmentsInterpreterError
             symbols = model.symbols(shown=True)
-            yield development_from_symbols(symbols)
+            yield development_from_symbols(symbols, (record.offset, record.horizon))
             while model is not None:
                 handle.resume()
                 done = handle.wait(self.model_timeout)
@@ -1035,7 +1049,7 @@ class ClingoInterpreter(Interpreter):
                 model = handle.model()
                 if model is not None:
                     symbols = model.symbols(shown=True)
-                    yield development_from_symbols(symbols)
+                    yield development_from_symbols(symbols, (record.offset, record.horizon))
 
     def _get_development_ctl(self, record: Record) -> Tuple[clingo.Control, Sequence[str]]:
         ctl = clingo.Control()
@@ -1085,7 +1099,8 @@ class ClingoInterpreter(Interpreter):
             model = handle.model()
             if model is None:
                 raise ClingoInterpreter.Unsat
-            yield from model.symbols(shown=True)
+            symbols = model.symbols(shown=True)
+            yield from symbols
             handle.resume()
             __start = time.monotonic()
             done = handle.wait(self.solve_timeout - total_wait_time)
@@ -1095,7 +1110,21 @@ class ClingoInterpreter(Interpreter):
                 raise SolveTimeoutInterpreterError
             model = handle.model()
             if model is not None:
-                raise MoreThanOneModelInterpreterError
+                all_symbols = [symbols]
+                symbols = model.symbols(shown=True)
+                all_symbols.append(symbols)
+                while model is not None and total_wait_time < self.solve_timeout:
+                    __start = time.monotonic()
+                    handle.resume()
+                    done = handle.wait(total_wait_time)
+                    total_wait_time += time.monotonic() - __start
+                    if done:
+                        model = handle.model()
+                        if model is not None:
+                            symbols = model.symbols(shown=True)
+                            all_symbols.append(symbols)
+
+                raise MoreThanOneModelInterpreterError(all_symbols)
 
     # endregion
 

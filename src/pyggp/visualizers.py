@@ -125,7 +125,10 @@ class SimpleVisualizer(Visualizer):
             print("Match aborted!")
 
         if self.utilities:
-            self._draw_utility()
+            if len(self.utilities) > 1:
+                self._draw_utility()
+            else:
+                print(self.utilities)
 
     def _draw_ply(self, ply: int) -> None:
         if ply >= len(self.states) or self.states[ply] is None:

@@ -102,9 +102,9 @@ def test_expand(mock_interpreter) -> None:
     node = PerfectInformationNode(state=mock_state)
 
     mock_child_state_1 = mock.Mock(spec=State)
-    child1 = PerfectInformationNode(state=mock_child_state_1, parent=node)
+    child1 = PerfectInformationNode(state=mock_child_state_1, parent=node, depth=node.depth + 1)
     mock_child_state_2 = mock.Mock(spec=State)
-    child2 = PerfectInformationNode(state=mock_child_state_2, parent=node)
+    child2 = PerfectInformationNode(state=mock_child_state_2, parent=node, depth=node.depth + 1)
     mock_turn_1 = mock.Mock(spec=Turn)
     mock_turn_2 = mock.Mock(spec=Turn)
 
@@ -158,25 +158,25 @@ def test_develop(mock_interpreter) -> None:
 
     mock_parent_state = mock.Mock(spec=State)
     mock_parent_turn = mock.Mock(spec=Turn)
-    parent = PerfectInformationNode(state=mock_parent_state, turn=mock_parent_turn, parent=root)
+    parent = PerfectInformationNode(state=mock_parent_state, turn=mock_parent_turn, parent=root, depth=root.depth + 1)
 
     root.children = {
         mock_root_turn: parent,
     }
 
     mock_state = mock.Mock(spec=State)
-    node = PerfectInformationNode(state=mock_state, parent=parent)
+    node = PerfectInformationNode(state=mock_state, parent=parent, depth=parent.depth + 1)
 
     parent.children = {
         mock_parent_turn: node,
     }
 
     mock_child_1_state = mock.Mock(spec=State)
-    child1 = PerfectInformationNode(state=mock_child_1_state, parent=node)
+    child1 = PerfectInformationNode(state=mock_child_1_state, parent=node, depth=node.depth + 1)
     mock_turn_1 = mock.Mock(spec=Turn)
 
     mock_child_2_state = mock.Mock(spec=State)
-    child2 = PerfectInformationNode(state=mock_child_2_state, parent=node)
+    child2 = PerfectInformationNode(state=mock_child_2_state, parent=node, depth=node.depth + 1)
     mock_turn_2 = mock.Mock(spec=Turn)
 
     node.children = {
@@ -194,6 +194,6 @@ def test_develop(mock_interpreter) -> None:
     mock_interpreter.get_developments.return_value = iter(developments)
     mock_interpreter.get_all_next_states.return_value = iter(())
 
-    center = node.develop(mock_interpreter, 3, View(mock_child_1_state))
+    center = root.develop(mock_interpreter, 3, View(mock_child_1_state))
 
     assert center == child1
