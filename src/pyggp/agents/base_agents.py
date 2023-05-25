@@ -179,6 +179,7 @@ class InterpreterAgent(_AbstractAgent, abc.ABC):
 
         """
         super().prepare_match(role, ruleset, startclock_config, playclock_config)
+        log.debug("Setting role, ruleset, startclock_config, playclock_config, and interpreter")
         self.role = role
         self.ruleset = ruleset
         self.startclock_config = startclock_config
@@ -194,6 +195,7 @@ class InterpreterAgent(_AbstractAgent, abc.ABC):
 
         """
         super().conclude_match(view)
+        log.debug("Deleting role, ruleset, startclock_config, playclock_config, and interpreter")
         self.role = None
         self.ruleset = None
         self.startclock_config = None

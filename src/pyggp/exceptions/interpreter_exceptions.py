@@ -1,4 +1,10 @@
 """Exceptions regarding interpreters."""
+from typing import Iterable, Mapping, Optional, Sequence
+
+import clingo
+
+from pyggp._logging import format_list, format_sorted_set
+from pyggp.engine_primitives import Role
 
 
 class InterpreterError(Exception):
@@ -20,9 +26,23 @@ class SolveTimeoutInterpreterError(TimeoutInterpreterError):
 class InvalidGDLInterpreterError(InterpreterError):
     """Base class for all exceptions regarding invalid GDL passed to an interpreter."""
 
+    def __init__(self, reason: Optional[str] = None) -> None:
+        message = "Invalid GDL"
+        if reason is not None:
+            message = f"Invalid GDL: {reason}"
+        super().__init__(message)
+
 
 class MoreThanOneModelInterpreterError(InvalidGDLInterpreterError):
     """More than one model was found in a context where only one is allowed."""
+
+    def __init__(self, models: Optional[Iterable[Sequence[clingo.Symbol]]] = None) -> None:
+        context: str = "More than one model found"
+        models_str: str = ""
+        if models is not None:
+            models_str = ":\n" + "\n".join(format_sorted_set(model) for model in models)
+        reason: str = f"{context}{models_str}"
+        super().__init__(reason)
 
 
 class UnsatInterpreterError(InvalidGDLInterpreterError):
@@ -63,6 +83,14 @@ class UnexpectedRoleInterpreterError(InvalidGDLInterpreterError):
 
 class MultipleGoalsInterpreterError(InvalidGDLInterpreterError):
     """Multiple goals for a role found."""
+
+    def __init__(self, goals: Optional[Mapping[Role, Sequence[Optional[int]]]] = None) -> None:
+        context: str = "Multiple goals found"
+        goals_str: str = ""
+        if goals is not None:
+            goals_str = ":\n" + "\n".join(f"{role}: {format_list(goals[role])}" for role in sorted(goals.keys()))
+        reason: str = f"{context}{goals_str}"
+        super().__init__(reason)
 
 
 class GoalNotIntegerInterpreterError(InvalidGDLInterpreterError):

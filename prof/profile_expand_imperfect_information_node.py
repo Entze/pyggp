@@ -1,9 +1,7 @@
 from pyggp.agents.tree_agents.nodes import VisibleInformationSetNode
-from pyggp.game_description_language.subrelations import Subrelation
-from pyggp.interpreters import Interpreter
 from tqdm import tqdm
 
-from prof.prof_caches import cache_info
+from prof.prof_caches import clear_caches, print_cache_info
 from prof.prof_common_tic_tac_toe import (
     tic_tac_toe_init_state,
     tic_tac_toe_init_view,
@@ -20,22 +18,8 @@ tree = VisibleInformationSetNode(
 stack = [tree]
 
 print()
-print("Subrelation._as_clingo_symbol_cache: ", cache_info(Subrelation._as_clingo_symbol_cache))
-print("Subrelation.from_clingo_sybmol: ", cache_info(Subrelation.as_clingo_symbol))
-print("interpreter._get_next_state_cache: ", cache_info(tic_tac_toe_interpreter._get_next_state_cache))
-print("interpreter._get_sees_cache: ", cache_info(tic_tac_toe_interpreter._get_sees_cache))
-print("interpreter._get_legal_moves_cache: ", cache_info(tic_tac_toe_interpreter._get_legal_moves_cache))
-print("interpreter._get_goals_cache: ", cache_info(tic_tac_toe_interpreter._get_goals_cache))
-print("interpreter._is_terminal_cache: ", cache_info(tic_tac_toe_interpreter._is_terminal_cache))
-print("Interpreter.get_roles_in_control:", cache_info(Interpreter.get_roles_in_control))
-Subrelation._as_clingo_symbol_cache.clear()
-Subrelation.from_clingo_symbol.cache_clear()
-tic_tac_toe_interpreter._get_next_state_cache.clear()
-tic_tac_toe_interpreter._get_sees_cache.clear()
-tic_tac_toe_interpreter._get_legal_moves_cache.clear()
-tic_tac_toe_interpreter._get_goals_cache.clear()
-tic_tac_toe_interpreter._is_terminal_cache.clear()
-Interpreter.get_roles_in_control.cache_clear()
+print_cache_info(tic_tac_toe_interpreter)
+clear_caches(tic_tac_toe_interpreter)
 print()
 
 MAX_DEPTH = 10
@@ -60,15 +44,8 @@ with tqdm(total=1) as pbar:
         node.expand(tic_tac_toe_interpreter)
         if node.depth < MAX_DEPTH:
             pbar.total += node.arity
-            stack.extend(node.unique_children)
+            stack.extend(node.children.values())
         pbar.update(1)
 
 print()
-print("Subrelation._as_clingo_symbol_cache: ", cache_info(Subrelation._as_clingo_symbol_cache))
-print("Subrelation.from_clingo_sybmol: ", cache_info(Subrelation.as_clingo_symbol))
-print("interpreter._get_next_state_cache: ", cache_info(tic_tac_toe_interpreter._get_next_state_cache))
-print("interpreter._get_sees_cache: ", cache_info(tic_tac_toe_interpreter._get_sees_cache))
-print("interpreter._get_legal_moves_cache: ", cache_info(tic_tac_toe_interpreter._get_legal_moves_cache))
-print("interpreter._get_goals_cache: ", cache_info(tic_tac_toe_interpreter._get_goals_cache))
-print("interpreter._is_terminal_cache: ", cache_info(tic_tac_toe_interpreter._is_terminal_cache))
-print("Interpreter.get_roles_in_control:", cache_info(Interpreter.get_roles_in_control))
+print_cache_info(tic_tac_toe_interpreter)

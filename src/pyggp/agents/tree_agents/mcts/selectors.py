@@ -12,6 +12,7 @@ from typing import Any, Callable, Final, Generic, Mapping, Optional, Protocol, S
 
 from pyggp.agents.tree_agents.nodes import Node
 from pyggp.agents.tree_agents.valuations import Valuation
+from pyggp.engine_primitives import Role, State
 
 _K = TypeVar("_K")
 _U_co = TypeVar("_U_co", bound=SupportsFloat)
@@ -20,7 +21,7 @@ _U_co = TypeVar("_U_co", bound=SupportsFloat)
 class Selector(Protocol[_U_co, _K]):
     """Protocol for selectors."""
 
-    def __call__(self, node: Node[_U_co, _K]) -> _K:
+    def __call__(self, node: Node[_U_co, _K], *args: Any, **kwargs: Any) -> _K:
         """Selects a key from the children of the given node.
 
         Args:
@@ -38,7 +39,7 @@ _A = TypeVar("_A")
 class _FunctionSelectorProtocol(Selector[_U_co, _K], Protocol[_U_co, _K, _A]):
     select_func: Callable[[_A], _K]
     """Function to select a key from the given keys."""
-    get_keys_func: Optional[Callable[[Node[_U_co, _K]], _A]]
+    get_keys_func: Optional[Callable[[Node[_U_co, _K], ...], _A]]
     """Function to get the keys from the given node."""
 
 
@@ -47,9 +48,9 @@ class _AbstractFunctionSelectorProtocol(
     Generic[_U_co, _K, _A],
     abc.ABC,
 ):
-    def __call__(self, node: Node[_U_co, _K]) -> _K:
+    def __call__(self, node: Node[_U_co, _K], *args: Any, **kwargs: Any) -> _K:
         if self.get_keys_func is not None:
-            keys = self.get_keys_func(node)
+            keys = self.get_keys_func(node, *args, **kwargs)
         elif node.children is not None:
             # Disables mypy. Because: tuple(node.children.keys()) is the default should get_keys_func be None.
             keys = tuple(node.children.keys())  # type: ignore[assignment]
@@ -66,11 +67,15 @@ class FunctionSelector(
 ):
     select_func: Callable[[_A], _K]
     """Function to select a key from the given keys."""
-    get_keys_func: Optional[Callable[[Node[_U_co, _K]], _A]] = None
+    get_keys_func: Optional[Callable[[Node[_U_co, _K], ...], _A]] = None
     """Function to get the keys from the given node."""
 
 
-def _map_keys_to_valuation(node: Node[_U_co, _K]) -> Mapping[_K, Tuple[Valuation[_U_co], ...]]:
+def _map_keys_to_valuation(
+    node: Node[_U_co, _K],
+    *args: Any,
+    **kwargs: Any,
+) -> Mapping[_K, Tuple[Valuation[_U_co], ...]]:
     if node.children is None:
         return {}
     return {key: (child.valuation,) if child.valuation is not None else () for key, child in node.children.items()}
@@ -93,11 +98,11 @@ def _get_total_playouts(valuation: Valuation[_U_co], default: int = 0) -> int:
     return getattr(valuation, "total_playouts", default)
 
 
-def _map_keys_to_total_playouts(node: Node[_U_co, _K]) -> Mapping[_K, int]:
+def _map_keys_to_total_playouts(node: Node[_U_co, _K], default: int = 0, *args: Any, **kwargs: Any) -> Mapping[_K, int]:
     if node.children is None:
         return {}
     return {
-        key: _get_total_playouts(child.valuation) if child.valuation is not None else 0
+        key: _get_total_playouts(child.valuation, default=default) if child.valuation is not None else default
         for key, child in node.children.items()
     }
 
@@ -105,23 +110,43 @@ def _map_keys_to_total_playouts(node: Node[_U_co, _K]) -> Mapping[_K, int]:
 SQRT_2: Final[float] = math.sqrt(2)
 
 
-def _map_keys_to_uct(node: Node[_U_co, _K], exploitation: float = SQRT_2) -> Mapping[_K, float]:
-    if node.children is None:
-        return {}
-    return {
-        # Disables mypy. Because: Utility supports float (don't fight the typechecker).
-        key: child.valuation.utility / _get_total_playouts(child.valuation, default=1)  # type: ignore[operator]
-        + exploitation
-        * math.sqrt(
-            math.log(_get_total_playouts(node.valuation, default=1)) / _get_total_playouts(child.valuation, default=1),
+@dataclass(frozen=True)
+class UCTSelector(Selector[_U_co, _K]):
+    role: Role
+    exploration_constant: float = SQRT_2
+
+    def __call__(self, node: Node[_U_co, _K], state: Optional[State] = None, *args: Any, **kwargs: Any) -> _K:
+        parent_total_playouts: int = (
+            node.valuation.total_playouts
+            if node.valuation is not None and hasattr(node.valuation, "total_playouts")
+            else 0
         )
-        if child.valuation is not None
-        and _get_total_playouts(child.valuation) > 0
-        and node.valuation is not None
-        and _get_total_playouts(node.valuation) > 0
-        else float("inf")
-        for key, child in node.children.items()
-    }
+        key_to_win_ratio: Mapping[_K, float] = {
+            key: child.valuation.utility / child.valuation.total_playouts
+            for key, child in node.children.items()
+            if child.valuation is not None
+            and hasattr(child.valuation, "total_playouts")
+            and child.valuation.total_playouts > 0
+        }
+        key_to_exploration_factor: Mapping[_K, float] = {
+            key: math.log(parent_total_playouts) / child.valuation.total_playouts
+            for key, child in node.children.items()
+            if parent_total_playouts > 0 and child.valuation is not None and hasattr(child.valuation, "total_playouts")
+        }
+        if not node.is_in_control(self.role):
+            win_ratio_factor = -1.0
+            win_ratio_offset = 1.0
+        else:
+            win_ratio_factor = 1.0
+            win_ratio_offset = 0.0
+        key_to_uct: Mapping[_K, float] = {
+            key: (win_ratio_factor * key_to_win_ratio.get(key, float("inf") * win_ratio_factor) + win_ratio_offset)
+            + self.exploration_constant * key_to_exploration_factor.get(key, float("inf"))
+            if state is None or state == key[0]
+            else float("-inf")
+            for key in node.children
+        }
+        return max(key_to_uct, key=key_to_uct.get)
 
 
 random_selector: FunctionSelector[Any, Any, Any] = FunctionSelector(select_func=random.choice)
@@ -133,7 +158,7 @@ most_selector: FunctionSelector[Any, Any, Any] = FunctionSelector(
     select_func=_select_maximum,
     get_keys_func=_map_keys_to_total_playouts,
 )
-uct_selector: FunctionSelector[Any, Any, Any] = FunctionSelector(
-    select_func=_select_maximum,
-    get_keys_func=_map_keys_to_uct,
-)
+
+
+def uct_selector(role: Role, exploration_constant: float = SQRT_2) -> UCTSelector:
+    return UCTSelector(role=role, exploration_constant=exploration_constant)

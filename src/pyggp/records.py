@@ -1,6 +1,6 @@
 import abc
 from dataclasses import dataclass, field
-from typing import FrozenSet, Iterator, Mapping, Protocol, Sequence, Union
+from typing import FrozenSet, Iterable, Iterator, Mapping, Protocol, Sequence, Union
 
 import clingo
 from clingo import ast as clingo_ast
@@ -10,6 +10,11 @@ from pyggp.engine_primitives import Move, Role, State, Turn, View
 
 
 class Record(Protocol):
+    @property
+    @abc.abstractmethod
+    def offset(self) -> int:
+        """Earliest ply of the record."""
+
     @property
     @abc.abstractmethod
     def horizon(self) -> int:
@@ -40,7 +45,23 @@ class Record(Protocol):
         """
 
 
-def get_assertions_from_state(
+def get_as_facts(
+    current: Union[State, View],
+    name: str = "true",
+    pre_arguments: Sequence[clingo_ast.AST] = (),
+    post_arguments: Sequence[clingo_ast.AST] = (),
+) -> Iterator[clingo_ast.AST]:
+    symbols = (
+        clingo_helper.create_function(name=name, arguments=(*pre_arguments, elem.as_clingo_ast(), *post_arguments))
+        for elem in current
+    )
+    atoms = (clingo_helper.create_atom(symbol=symbol) for symbol in symbols)
+    literals = (clingo_helper.create_literal(atom=atom) for atom in atoms)
+    facts = (clingo_helper.create_rule(head=literal) for literal in literals)
+    yield from facts
+
+
+def get_as_assertions(
     current: Union[State, View],
     name: str = "true",
     pre_arguments: Sequence[clingo_ast.AST] = (),
@@ -54,30 +75,18 @@ def get_assertions_from_state(
         pre_arguments: Arguments before the subrelation
         post_arguments: Arguments after the subrelation
 
-    Returns:
-        Iterator of clingo assertions
+    Yields:
+        clingo assertions
 
     """
-    return (
-        clingo_helper.create_rule(
-            body=(
-                clingo_helper.create_literal(
-                    sign=clingo_ast.Sign.Negation,
-                    atom=clingo_helper.create_atom(
-                        clingo_helper.create_function(
-                            name=name,
-                            arguments=(
-                                *pre_arguments,
-                                subrelation.as_clingo_ast(),
-                                *post_arguments,
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        )
-        for subrelation in current
+    symbols = (
+        clingo_helper.create_function(name=name, arguments=(*pre_arguments, elem.as_clingo_ast(), *post_arguments))
+        for elem in current
     )
+    atoms = (clingo_helper.create_atom(symbol=symbol) for symbol in symbols)
+    literals = (clingo_helper.create_literal(atom=atom, sign=clingo_ast.Sign.Negation) for atom in atoms)
+    assertions = (clingo_helper.create_rule(body=(literal,)) for literal in literals)
+    yield from assertions
 
 
 @dataclass(frozen=True)
@@ -90,6 +99,10 @@ class PerfectInformationRecord(Record):
     """Views of the state by role by ply."""
     turns: Mapping[int, Turn] = field(default_factory=dict)
     """Turns of the game by ply."""
+
+    @property
+    def offset(self) -> int:
+        return min(self.states.keys(), default=0)
 
     @property
     def horizon(self) -> int:
@@ -107,9 +120,14 @@ class PerfectInformationRecord(Record):
             Clingo assertions for the states of the game
 
         """
+        if self.offset > 0:
+            current_time = clingo_helper.create_symbolic_term(clingo.Number(self.offset))
+            state = self.states[self.offset]
+            yield from get_as_facts(state, name="holds_at", post_arguments=(current_time,))
+
         for ply, state in self.states.items():
             current_time = clingo_helper.create_symbolic_term(clingo.Number(ply))
-            yield from get_assertions_from_state(
+            yield from get_as_assertions(
                 state,
                 name="holds_at",
                 post_arguments=(current_time,),
@@ -126,7 +144,7 @@ class PerfectInformationRecord(Record):
             current_time = clingo_helper.create_symbolic_term(clingo.Number(ply))
             for role, view in views.items():
                 role_ast = role.as_clingo_ast()
-                yield from get_assertions_from_state(
+                yield from get_as_assertions(
                     view,
                     name="sees_at",
                     pre_arguments=(role_ast,),
@@ -145,6 +163,105 @@ class PerfectInformationRecord(Record):
             yield from turn.get_assertions(current_time)
 
 
+def _get_indirect_state_assertions(ply: int, possible_states: Iterable[State]) -> Iterator[clingo_ast.AST]:
+    state_literals = []
+    ply_number = clingo_helper.create_symbolic_term(clingo.Number(ply))
+    for n, state in enumerate(possible_states):
+        state_number = clingo_helper.create_symbolic_term(clingo.Number(n))
+        state_atom = clingo_helper.create_atom(
+            clingo_helper.create_function(
+                name="__state",
+                arguments=(
+                    ply_number,
+                    state_number,
+                ),
+            ),
+        )
+        state_literal = clingo_helper.create_literal(atom=state_atom)
+        state_literals.append(state_literal)
+        yield from _pin_state_indirectly(ply_number, state, state_literal)
+
+    yield from _choose_state(state_literals)
+
+
+def _pin_state_indirectly(
+    ply_number: clingo_ast.AST,
+    state: State,
+    state_literal: clingo_ast.AST,
+) -> Iterator[clingo_ast.AST]:
+    temporal_symbols = (
+        clingo_helper.create_function(name="holds_at", arguments=(elem.as_clingo_ast(), ply_number)) for elem in state
+    )
+    atoms = (clingo_helper.create_atom(temporal_symbol) for temporal_symbol in temporal_symbols)
+    literals = (clingo_helper.create_literal(sign=clingo_ast.Sign.Negation, atom=atom) for atom in atoms)
+    bodies = ((state_literal, literal) for literal in literals)
+    rules = (clingo_helper.create_rule(body=body) for body in bodies)
+    yield from rules
+
+
+_left_guard = clingo_helper.create_guard(
+    comparison=clingo_ast.ComparisonOperator.LessEqual,
+    term=clingo_helper.create_symbolic_term(clingo.Number(1)),
+)
+_right_guard = clingo_helper.create_guard(
+    comparison=clingo_ast.ComparisonOperator.LessEqual,
+    term=clingo_helper.create_symbolic_term(clingo.Number(1)),
+)
+
+
+def _choose_state(state_literals: Iterable[clingo_ast.AST]) -> Iterator[clingo_ast.AST]:
+    conditional_literals = tuple(
+        clingo_helper.create_conditional_literal(
+            literal=state_literal,
+        )
+        for state_literal in state_literals
+    )
+    choice_aggregate = clingo_helper.create_aggregate(
+        left_guard=_left_guard,
+        elements=conditional_literals,
+        right_guard=_right_guard,
+    )
+    choice_rule = clingo_helper.create_rule(head=choice_aggregate)
+
+    yield choice_rule
+
+
+def _get_direct_state_assertions(ply: int, possible_states: Iterable[State]) -> Iterator[clingo_ast.AST]:
+    state_literals = []
+    ply_number = clingo_helper.create_symbolic_term(clingo.Number(ply))
+    for n, state in enumerate(possible_states):
+        state_number = clingo_helper.create_symbolic_term(clingo.Number(n))
+        state_atom = clingo_helper.create_atom(
+            clingo_helper.create_function(
+                name="__state",
+                arguments=(
+                    ply_number,
+                    state_number,
+                ),
+            ),
+        )
+        state_literal = clingo_helper.create_literal(atom=state_atom)
+        state_literals.append(state_literal)
+        yield from _pin_state_directly(ply_number, state, state_literal)
+
+    yield from _choose_state(state_literals)
+
+
+def _pin_state_directly(
+    ply_number: clingo_ast.AST,
+    state: State,
+    state_literal: clingo_ast.AST,
+) -> Iterator[clingo_ast.AST]:
+    body = (state_literal,)
+    temporal_symbols = (
+        clingo_helper.create_function(name="holds_at", arguments=(elem.as_clingo_ast(), ply_number)) for elem in state
+    )
+    atoms = (clingo_helper.create_atom(temporal_symbol) for temporal_symbol in temporal_symbols)
+    heads = (clingo_helper.create_literal(atom=atom) for atom in atoms)
+    rules = (clingo_helper.create_rule(head=head, body=body) for head in heads)
+    yield from rules
+
+
 @dataclass(frozen=True)
 class ImperfectInformationRecord(Record):
     possible_states: Mapping[int, FrozenSet[State]] = field(default_factory=dict)
@@ -153,10 +270,12 @@ class ImperfectInformationRecord(Record):
     views: Mapping[int, Mapping[Role, View]] = field(default_factory=dict)
     """Views of the state by role by ply."""
 
-    possible_turns: Mapping[int, FrozenSet[Turn]] = field(default_factory=dict)
-    """Possible turns of the game by ply."""
-
     role_move_map: Mapping[int, Mapping[Role, Move]] = field(default_factory=dict)
+    """Known moves by role by ply."""
+
+    @property
+    def offset(self) -> int:
+        return min(self.possible_states.keys(), default=0)
 
     @property
     def horizon(self) -> int:
@@ -164,7 +283,7 @@ class ImperfectInformationRecord(Record):
         return max(
             max(self.possible_states.keys(), default=0),
             max(self.views.keys(), default=0),
-            max(self.possible_turns.keys(), default=0),
+            max(self.role_move_map.keys(), default=0),
         )
 
     def get_state_assertions(self) -> Iterator[clingo_ast.AST]:
@@ -174,14 +293,13 @@ class ImperfectInformationRecord(Record):
             Clingo assertions for the states of the game
 
         """
-        for ply, states in self.possible_states.items():
-            current_time = clingo_helper.create_symbolic_term(clingo.Number(ply))
-            common = State(frozenset.intersection(*states))
-            yield from get_assertions_from_state(
-                common,
-                name="holds_at",
-                post_arguments=(current_time,),
-            )
+        if self.offset > 0:
+            yield from _get_direct_state_assertions(self.offset, self.possible_states[self.offset])
+
+        for ply, possible_states in self.possible_states.items():
+            if ply == self.offset:
+                continue
+            yield from _get_indirect_state_assertions(ply, possible_states)
 
     def get_view_assertions(self) -> Iterator[clingo_ast.AST]:
         """Get the clingo assertions for the views of the game.
@@ -194,7 +312,7 @@ class ImperfectInformationRecord(Record):
             current_time = clingo_helper.create_symbolic_term(clingo.Number(ply))
             for role, view in views.items():
                 role_ast = role.as_clingo_ast()
-                yield from get_assertions_from_state(
+                yield from get_as_assertions(
                     view,
                     name="sees_at",
                     pre_arguments=(role_ast,),
@@ -208,16 +326,6 @@ class ImperfectInformationRecord(Record):
             Clingo assertions for the turns of the game
 
         """
-        for ply, turns in self.possible_turns.items():
-            current_time = clingo_helper.create_symbolic_term(clingo.Number(ply))
-
-            first_turn = next(iter(turns))
-            common_pairs = set(first_turn.items())
-            for turn in turns:
-                common_pairs.intersection_update(turn.items())
-            common = Turn(common_pairs)
-            yield from common.get_assertions(current_time)
-
         for ply, role_move_map in self.role_move_map.items():
             current_time = clingo_helper.create_symbolic_term(clingo.Number(ply))
             turn = Turn(role_move_map.items())

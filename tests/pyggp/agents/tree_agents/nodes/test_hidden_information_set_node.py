@@ -30,6 +30,7 @@ def test_expand_to_visible_nodes(mock_interpreter) -> None:
     node = HiddenInformationSetNode(
         role=mock_role1,
         possible_states={mock_state1, mock_state2},
+        depth=0,
     )
 
     mock_child_state1 = mock.Mock(spec=State, name="mock_child_state1")
@@ -40,6 +41,7 @@ def test_expand_to_visible_nodes(mock_interpreter) -> None:
         role=mock_role1,
         parent=node,
         possible_states={mock_child_state1, mock_child_state2, mock_child_state3},
+        depth=1,
     )
 
     mock_turn1 = mock.Mock(spec=Turn, name="mock_turn1")
@@ -76,6 +78,7 @@ def test_expand_to_hidden_nodes(mock_interpreter) -> None:
     node = HiddenInformationSetNode(
         role=mock_role1,
         possible_states={mock_state1, mock_state2},
+        depth=0,
     )
 
     mock_child_state1 = mock.Mock(spec=State, name="mock_child_state1")
@@ -86,6 +89,7 @@ def test_expand_to_hidden_nodes(mock_interpreter) -> None:
         role=mock_role1,
         parent=node,
         possible_states={mock_child_state1, mock_child_state2, mock_child_state3},
+        depth=1,
     )
 
     mock_turn1 = mock.Mock(spec=Turn, name="mock_turn1")
@@ -182,7 +186,6 @@ def test_trim_removes_unreachable_children(mock_role) -> None:
     node = HiddenInformationSetNode(
         role=mock_role,
         possible_states={mock_state1},
-        possible_turns={mock_turn1},
         children=children,
     )
 
@@ -190,108 +193,9 @@ def test_trim_removes_unreachable_children(mock_role) -> None:
 
     node.trim()
 
-    expected = {(mock_state1, mock_turn1): mock_child1}
+    expected = {(mock_state1, mock_turn1): mock_child1, (mock_state1, mock_turn2): mock_child2}
 
     assert node.children == expected
-
-
-def test_develop_prunes_possible_states_in_unambiguous_visible_child(mock_interpreter, mock_role) -> None:
-    mock_root_state = mock.Mock(spec=State, name="mock_root_state")
-
-    mock_root_turn1 = mock.Mock(spec=Turn, name="mock_root_turn1")
-    mock_root_turn2 = mock.Mock(spec=Turn, name="mock_root_turn2")
-
-    root = HiddenInformationSetNode(
-        role=mock_role,
-        possible_states={mock_root_state},
-        possible_turns={mock_root_turn1, mock_root_turn2},
-    )
-
-    mock_node1_state1 = mock.Mock(spec=State, name="mock_node1_state1")
-    mock_node1_state2 = mock.Mock(spec=State, name="mock_node1_state2")
-
-    node1 = VisibleInformationSetNode(
-        role=mock_role,
-        possible_states={mock_node1_state1, mock_node1_state2},
-        parent=root,
-    )
-
-    root.children = {
-        (mock_root_state, mock_root_turn1): node1,
-        (mock_root_state, mock_root_turn2): node1,
-    }
-
-    mock_node1_state1_view = mock.Mock(spec=View, name="mock_node1_view")
-
-    development1_step0 = DevelopmentStep(state=mock_root_state, turn=mock_root_turn1)
-    development1_step1 = DevelopmentStep(state=mock_node1_state1, turn=None)
-
-    development1 = Development((development1_step0, development1_step1))
-
-    developments_seq = (development1,)
-
-    mock_interpreter.get_developments.side_effect = lambda _: iter(developments_seq)
-
-    assert node1.view is None
-    assert node1.possible_states == {mock_node1_state1, mock_node1_state2}
-
-    current = root.develop(interpreter=mock_interpreter, ply=1, view=mock_node1_state1_view)
-
-    assert current is node1
-    assert node1.view == mock_node1_state1_view
-    assert node1.possible_states == {mock_node1_state1}
-
-
-def test_develop_keeps_possible_states_in_ambiguous_visible_child(mock_interpreter, mock_role) -> None:
-    mock_root_state = mock.Mock(spec=State, name="mock_root_state")
-
-    mock_root_turn1 = mock.Mock(spec=Turn, name="mock_root_turn1")
-    mock_root_turn2 = mock.Mock(spec=Turn, name="mock_root_turn2")
-
-    root = HiddenInformationSetNode(
-        role=mock_role,
-        possible_states={mock_root_state},
-        possible_turns={mock_root_turn1, mock_root_turn2},
-    )
-
-    mock_node1_state1 = mock.Mock(spec=State, name="mock_node1_state1")
-    mock_node1_state2 = mock.Mock(spec=State, name="mock_node1_state2")
-
-    node1 = VisibleInformationSetNode(
-        role=mock_role,
-        possible_states={mock_node1_state1, mock_node1_state2},
-        parent=root,
-    )
-
-    root.children = {
-        (mock_root_state, mock_root_turn1): node1,
-        (mock_root_state, mock_root_turn2): node1,
-    }
-
-    mock_node1_view = mock.Mock(spec=View, name="mock_node1_view")
-
-    development1_step0 = DevelopmentStep(state=mock_root_state, turn=mock_root_turn1)
-    development1_step1 = DevelopmentStep(state=mock_node1_state1, turn=None)
-
-    development1 = Development((development1_step0, development1_step1))
-
-    development2_step0 = DevelopmentStep(state=mock_root_state, turn=mock_root_turn2)
-    development2_step1 = DevelopmentStep(state=mock_node1_state2, turn=None)
-
-    development2 = Development((development2_step0, development2_step1))
-
-    developments_seq = (development1, development2)
-
-    mock_interpreter.get_developments.side_effect = lambda _: iter(developments_seq)
-
-    assert node1.view is None
-    assert node1.possible_states == {mock_node1_state1, mock_node1_state2}
-
-    current = root.develop(interpreter=mock_interpreter, ply=1, view=mock_node1_view)
-
-    assert current is node1
-    assert node1.view == mock_node1_view
-    assert node1.possible_states == {mock_node1_state1, mock_node1_state2}
 
 
 def test_develop_returns_visible_if_visible_and_hidden_children(mock_interpreter, mock_role) -> None:
@@ -302,7 +206,6 @@ def test_develop_returns_visible_if_visible_and_hidden_children(mock_interpreter
     node = HiddenInformationSetNode(
         role=mock_role,
         possible_states={mock_node_state1, mock_node_state2},
-        possible_turns={mock_node_turn1},
     )
 
     mock_child1_state1 = mock.Mock(spec=State, name="mock_child1_state1")
@@ -312,6 +215,7 @@ def test_develop_returns_visible_if_visible_and_hidden_children(mock_interpreter
         role=mock_role,
         parent=node,
         possible_states={mock_child1_state1, mock_child1_state2},
+        depth=node.depth + 1,
     )
 
     mock_child2_state = mock.Mock(spec=State, name="mock_child2_state")
@@ -320,14 +224,22 @@ def test_develop_returns_visible_if_visible_and_hidden_children(mock_interpreter
         role=mock_role,
         parent=node,
         possible_states={mock_child2_state},
+        depth=node.depth + 1,
     )
 
     node.children = {
         (mock_node_state1, mock_node_turn1): child1,
         (mock_node_state2, mock_node_turn1): child2,
     }
+    node.visible_child = child1
+    node.hidden_child = child2
 
-    mock_child1_view = mock.Mock(spec=View, name="mock_child1_view")
+    mock_child1_view = mock.MagicMock(spec=View, name="mock_child1_view")
+    mock_child1_view.__le__.side_effect = lambda other: other in (
+        mock_child1_view,
+        mock_child1_state1,
+        mock_child1_state2,
+    )
 
     development1_step0 = DevelopmentStep(
         state=mock_node_state1,
@@ -347,78 +259,6 @@ def test_develop_returns_visible_if_visible_and_hidden_children(mock_interpreter
     current = node.develop(interpreter=mock_interpreter, ply=1, view=mock_child1_view)
 
     assert current is child1
-    assert node.possible_turns == {mock_node_turn1}
-
-
-def test_develop_returns_deeper_visible_if_visible_and_hidden_children(mock_interpreter, mock_role) -> None:
-    mock_node_state = mock.Mock(spec=State, name="mock_node_state")
-    mock_turn1_a = mock.Mock(spec=Turn, name="mock_turn1_a")
-    mock_turn1_b = mock.Mock(spec=Turn, name="mock_turn1_b")
-
-    node = HiddenInformationSetNode(
-        role=mock_role,
-        possible_states={mock_node_state},
-        possible_turns={mock_turn1_a, mock_turn1_b},
-    )
-
-    mock_child1_a_state = mock.Mock(spec=State, name="mock_child1_a_state")
-
-    child1_a = HiddenInformationSetNode(
-        role=mock_role,
-        parent=node,
-        possible_states={mock_child1_a_state},
-    )
-
-    mock_child1_b_state = mock.Mock(spec=State, name="mock_child1_b_state")
-
-    child1_b = VisibleInformationSetNode(
-        role=mock_role,
-        parent=node,
-        possible_states={mock_child1_b_state},
-    )
-
-    node.children = {
-        (mock_node_state, mock_turn1_a): child1_a,
-        (mock_node_state, mock_turn1_b): child1_b,
-    }
-
-    mock_child2_state = mock.Mock(spec=State, name="mock_child2_state")
-
-    child2 = VisibleInformationSetNode(
-        parent=child1_a,
-        role=mock_role,
-        possible_states={mock_child2_state},
-    )
-
-    mock_move2 = mock.Mock(spec=Move, name="mock_move2")
-    turn2 = Turn({mock_role: mock_move2})
-
-    child1_a.children = {
-        (mock_child1_a_state, turn2): child2,
-    }
-
-    development1_step0 = DevelopmentStep(
-        state=mock_node_state,
-        turn=mock_turn1_a,
-    )
-    development1_step1 = DevelopmentStep(state=mock_child1_a_state, turn=turn2)
-    development1_step2 = DevelopmentStep(
-        state=mock_child2_state,
-        turn=None,
-    )
-
-    development1 = Development((development1_step0, development1_step1, development1_step2))
-
-    developments_seq = (development1,)
-
-    mock_interpreter.get_developments.side_effect = lambda _: iter(developments_seq)
-
-    mock_child2_view = mock.Mock(spec=View, name="mock_child2_view")
-
-    current = node.develop(interpreter=mock_interpreter, ply=2, view=mock_child2_view)
-
-    assert current is child2
-    assert child2.view == mock_child2_view
 
 
 def test_develop_returns_minimal_leaf(mock_interpreter, mock_role) -> None:
@@ -448,8 +288,10 @@ def test_develop_returns_minimal_leaf(mock_interpreter, mock_role) -> None:
         root_state: ((root_turn_1, child_state_1), (root_turn_2, child_state_2)),
     }
 
-    child_state_1_view = mock.Mock(spec=View, name="child_state_1_view")
-    child_state_2_view = mock.Mock(spec=View, name="child_state_2_view")
+    child_state_1_view = mock.MagicMock(spec=View, name="child_state_1_view")
+    child_state_1_view.__le__.side_effect = lambda other: other in (child_state_1_view, child_state_1)
+    child_state_2_view = mock.MagicMock(spec=View, name="child_state_2_view")
+    child_state_2_view.__le__.side_effect = lambda other: other in (child_state_2_view, child_state_2)
 
     state_to_view = {
         child_state_1: child_state_1_view,
@@ -479,94 +321,11 @@ def test_develop_returns_minimal_leaf(mock_interpreter, mock_role) -> None:
         child_state_2: {mock_role},
     }
 
-    assert root.possible_turns is None
-
     with mock.patch.object(Interpreter, "get_roles_in_control") as mock_get_roles_in_control:
         mock_get_roles_in_control.side_effect = state_to_roles.get
         actual = root.develop(interpreter=mock_interpreter, ply=1, view=child_state_2_view)
 
-    assert root.possible_turns == {root_turn_2}
     assert actual.possible_states == {child_state_2}
-
-
-def test_develop_on_unexpanded_multiple(mock_interpreter, mock_role) -> None:
-    mock_root_state = mock.Mock(spec=State, name="mock_root_state")
-
-    root = HiddenInformationSetNode(
-        role=mock_role,
-        possible_states={mock_root_state},
-    )
-
-    mock_root_turn1 = mock.Mock(spec=Turn, name="mock_root_turn1")
-    mock_root_turn2 = mock.Mock(spec=Turn, name="mock_root_turn2")
-
-    mock_child1_state1 = mock.Mock(spec=State, name="mock_child_state1")
-    mock_child1_state2 = mock.Mock(spec=State, name="mock_child_state2")
-
-    mock_child1_turn1 = mock.Mock(spec=Turn, name="mock_child1_turn1")
-
-    mock_child2_state1 = mock.Mock(spec=State, name="mock_child2_state1")
-    mock_child2_state2 = mock.Mock(spec=State, name="mock_child2_state2")
-
-    development1_step0 = DevelopmentStep(
-        state=mock_root_state,
-        turn=mock_root_turn1,
-    )
-    development1_step1 = DevelopmentStep(
-        state=mock_child1_state1,
-        turn=mock_child1_turn1,
-    )
-    development1_step2 = DevelopmentStep(
-        state=mock_child2_state1,
-        turn=None,
-    )
-
-    development1 = Development((development1_step0, development1_step1, development1_step2))
-
-    development2_step0 = DevelopmentStep(
-        state=mock_root_state,
-        turn=mock_root_turn2,
-    )
-    development2_step1 = DevelopmentStep(
-        state=mock_child1_state2,
-        turn=mock_child1_turn1,
-    )
-    development2_step2 = DevelopmentStep(
-        state=mock_child2_state2,
-        turn=None,
-    )
-
-    development2 = Development((development2_step0, development2_step1, development2_step2))
-
-    developments = (development1, development2)
-
-    state_to_turnstatepairs = {
-        mock_root_state: ((mock_root_turn1, mock_child1_state1), (mock_root_turn2, mock_child1_state2)),
-        mock_child1_state1: ((mock_child1_turn1, mock_child2_state1),),
-        mock_child1_state2: ((mock_child1_turn1, mock_child2_state2),),
-    }
-
-    mock_interpreter.get_developments.side_effect = lambda _: iter(developments)
-    mock_interpreter.get_all_next_states.side_effect = state_to_turnstatepairs.get
-
-    mock_random_role = mock.Mock(spec=Role, name="mock_random_role")
-    mock_other_role = mock.Mock(spec=Role, name="mock_other_role")
-
-    state_to_rolesincontrol = {
-        mock_root_state: frozenset({mock_random_role}),
-        mock_child1_state1: frozenset({mock_other_role}),
-        mock_child1_state2: frozenset({mock_other_role}),
-        mock_child2_state1: frozenset({mock_role}),
-        mock_child2_state2: frozenset({mock_role}),
-    }
-
-    mock_child2_view = mock.Mock(spec=View, name="mock_child2_view")
-
-    with mock.patch.object(Interpreter, "get_roles_in_control") as mock_get_roles_in_control:
-        mock_get_roles_in_control.side_effect = state_to_rolesincontrol.get
-        actual = root.develop(interpreter=mock_interpreter, ply=2, view=mock_child2_view)
-
-    assert actual.possible_states == {mock_child2_state1, mock_child2_state2}
 
 
 @pytest.fixture()
