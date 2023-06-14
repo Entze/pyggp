@@ -1,6 +1,6 @@
 import pyggp.game_description_language as gdl
 from pyggp.agents.tree_agents.nodes import HiddenInformationSetNode, VisibleInformationSetNode
-from pyggp.engine_primitives import Move, Play, Turn
+from pyggp.engine_primitives import Move, Turn
 
 from prof.prof_common_phantom_connect_5_6_4 import (
     phantom_connect_5_6_4_init_state,
