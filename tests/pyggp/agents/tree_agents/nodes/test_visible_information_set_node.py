@@ -736,7 +736,7 @@ def test_phantom_connect_5_6_4_revealing(ruleset_phantom_connect_5_6_4) -> None:
     tree_x = tree_x.develop(interpreter, 0, view_0)
 
     cell_1_1 = Move(
-        gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(1)), gdl.Subrelation(gdl.Number(1)))))
+        gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(1)), gdl.Subrelation(gdl.Number(1))))),
     )
     state_1 = interpreter.get_next_state(state_0, *Turn({x: cell_1_1}).as_plays())
     view_1 = interpreter.get_sees_by_role(state_1, o)
