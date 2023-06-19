@@ -527,7 +527,7 @@ class Match:
             self.utilities = processor.role_utility_map
             turn = processor.process()
             executor.shutdown(wait=False)
-        next_state = self.interpreter.get_next_state(current_state, *turn.as_plays())
+        next_state = self.interpreter.get_next_state(current_state, turn)
         self.states.append(next_state)
 
     def conclude(self) -> None:

@@ -738,13 +738,13 @@ def test_phantom_connect_5_6_4_revealing(ruleset_phantom_connect_5_6_4) -> None:
     cell_1_1 = Move(
         gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(1)), gdl.Subrelation(gdl.Number(1))))),
     )
-    state_1 = interpreter.get_next_state(state_0, *Turn({x: cell_1_1}).as_plays())
+    state_1 = interpreter.get_next_state(state_0, Turn({x: cell_1_1}))
     view_1 = interpreter.get_sees_by_role(state_1, o)
     tree_x.move = cell_1_1
 
     tree_o = tree_o.develop(interpreter, 1, view_1)
 
-    state_2 = interpreter.get_next_state(state_1, *Turn({o: cell_1_1}).as_plays())
+    state_2 = interpreter.get_next_state(state_1, Turn({o: cell_1_1}))
     view_2 = interpreter.get_sees_by_role(state_2, o)
     tree_o.move = cell_1_1
 

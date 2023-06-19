@@ -67,7 +67,7 @@ def create_comparison(term: Optional[clingo_ast.AST] = None, guards: Sequence[cl
 def create_atom(symbol: Optional[clingo_ast.AST] = None) -> clingo_ast.AST:
     if symbol is None:
         symbol = create_function()
-    return clingo_ast.SymbolicAtom(symbol)
+    return clingo_ast.SymbolicAtom(symbol=symbol)
 
 
 def create_function(
@@ -190,3 +190,58 @@ def create_pick_move_rule(horizon: int) -> clingo_ast.AST:
 PROGRAM_STATIC = create_program(name="static")
 PROGRAM_DYNAMIC = create_program(name="dynamic", parameters=(create_id("__time"),))
 PROGRAM_STATEMACHINE = create_program(name="statemachine", parameters=(create_id("__time"),))
+
+
+def create_external(
+    atom: Optional[clingo_ast.AST] = None,
+    body: Sequence[clingo_ast.AST] = (),
+    external_type: Optional[clingo_ast.AST] = None,
+) -> clingo_ast.AST:
+    if atom is None:
+        atom = create_atom()
+    if external_type is None:
+        external_type = create_symbolic_term(symbol=clingo.Function("false"))
+    assert atom.ast_type == clingo_ast.ASTType.SymbolicAtom
+    assert external_type.ast_type == clingo_ast.ASTType.SymbolicTerm
+    assert external_type.symbol.type == clingo.SymbolType.Function
+    assert external_type.symbol.name in ("false", "true", "free")
+    return clingo_ast.External(
+        location=_loc,
+        atom=atom,
+        body=body,
+        external_type=external_type,
+    )
+
+
+V = create_variable("V")
+
+EXTERNAL_TRUE_INIT = create_external(
+    atom=create_atom(symbol=create_function(name="true", arguments=(V,))),
+    body=(create_literal(atom=create_atom(create_function(name="init", arguments=(V,)))),),
+)
+
+EXTERNAL_TRUE_NEXT = create_external(
+    atom=create_atom(symbol=create_function(name="true", arguments=(V,))),
+    body=(create_literal(atom=create_atom(create_function(name="next", arguments=(V,)))),),
+)
+
+EXTERNAL_DOES_ROLE_LEGAL = create_external(
+    atom=create_atom(symbol=create_function(name="does", arguments=(Role, Move))),
+    body=(
+        create_literal(atom=create_atom(create_function(name="role", arguments=(Role,)))),
+        create_literal(atom=create_atom(create_function(name="legal", arguments=(Role, Move)))),
+    ),
+)
+
+
+def create_show_signature(name: str, arity: int = 0, positive=1) -> clingo_ast.AST:
+    return clingo_ast.ShowSignature(location=_loc, name=name, arity=arity, positive=positive)
+
+
+SHOW_ROLE = create_show_signature(name="role", arity=1)
+SHOW_INIT = create_show_signature(name="init", arity=1)
+SHOW_NEXT = create_show_signature(name="next", arity=1)
+SHOW_SEES = create_show_signature(name="sees", arity=2)
+SHOW_LEGAL = create_show_signature(name="legal", arity=2)
+SHOW_GOAL = create_show_signature(name="goal", arity=2)
+SHOW_TERMINAL = create_show_signature(name="terminal", arity=0)

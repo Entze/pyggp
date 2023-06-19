@@ -43,8 +43,8 @@ class LightPlayoutEvaluator(Evaluator[_U_co]):
                 move = random.choice(tuple(legal_moves))
                 role_move_pairing.append((role, move))
 
-            turn = Turn(frozenset(role_move_pairing))
-            state = interpreter.get_next_state(state, *turn.as_plays())
+            turn = Turn(role_move_pairing)
+            state = interpreter.get_next_state(state, turn)
 
         if self.book is not None and state in self.book:
             self.hits += 1

@@ -21,6 +21,8 @@ builder = BookBuilder(
     interpreter=gravity_connect_7_6_4_interpreter,
     role=gravity_connect_7_6_4_yellow,
     evaluator=final_goal_normalized_utility_evaluator,
+    min_value=0.0,
+    max_value=1.0,
 )
 
 for _ in trange(5_000):

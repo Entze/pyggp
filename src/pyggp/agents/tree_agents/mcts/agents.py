@@ -25,7 +25,7 @@ from pyggp.agents.tree_agents.evaluators import Evaluator, final_goal_normalized
 from pyggp.agents.tree_agents.mcts.evaluators import LightPlayoutEvaluator
 from pyggp.agents.tree_agents.mcts.selectors import (
     Selector,
-    uct_selector,
+    UCTSelector,
 )
 from pyggp.agents.tree_agents.mcts.valuations import NormalizedUtilityValuation
 from pyggp.agents.tree_agents.nodes import (
@@ -109,7 +109,7 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
 
         self.tree = self._get_root()
 
-        self.selector = uct_selector(self.role)
+        self.selector = UCTSelector(self.role)
 
         self.repeater = Repeater(func=self.step, timeout_ns=playclock_config.delay_ns, shortcircuit=self._can_lookup)
 
@@ -358,8 +358,8 @@ class MultiObserverMonteCarloTreeSearchAgent(MonteCarloTreeSearchAgent[_K]):
 
 @dataclass
 class MultiObserverInformationSetMCTSAgent(
-    AbstractMCTSAgent[_Action],
-    MultiObserverMonteCarloTreeSearchAgent[_Action],
+    AbstractMCTSAgent[Tuple[State, _Action]],
+    MultiObserverMonteCarloTreeSearchAgent[Tuple[State, _Action]],
     abc.ABC,
 ):
     trees: Optional[MutableMapping[Role, ImperfectInformationNode[float]]] = field(default=None, repr=False)
@@ -380,7 +380,7 @@ class MultiObserverInformationSetMCTSAgent(
         super().prepare_match(role, ruleset, startclock_config, playclock_config)
         self.roles = self.interpreter.get_roles()
         self.trees = self._get_roots()
-        self.selectors = {role: uct_selector(role) for role in self.roles}
+        self.selectors = {role: UCTSelector(role) for role in self.roles}
         self.repeater = Repeater(
             func=self.step,
             timeout_ns=playclock_config.delay_ns + playclock_config.total_time_ns,
@@ -454,7 +454,7 @@ class MultiObserverInformationSetMCTSAgent(
                     key: Tuple[State, Turn] = (determinization, turn)
                     next_nodes[role] = node.children[key]
             nodes = next_nodes
-            determinization = self.interpreter.get_next_state(determinization, *turn.as_plays())
+            determinization = self.interpreter.get_next_state(determinization, turn)
         return nodes, determinization
 
     def _recenter_trees(self, determinization: State) -> MutableMapping[Role, ImperfectInformationNode[float]]:

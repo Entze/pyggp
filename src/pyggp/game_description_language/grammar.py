@@ -141,3 +141,17 @@ class TreeToGDLTransformer(lark.Transformer[lark.Token, GDL]):
 
 
 transformer = TreeToGDLTransformer()
+
+
+def parse(string: str) -> Ruleset:
+    """Parse a string into a ruleset.
+
+    Args:
+        string: string to parse
+
+    Returns:
+        Ruleset representing string
+
+    """
+    tree = parser.parse(string)
+    return transformer.transform(tree)

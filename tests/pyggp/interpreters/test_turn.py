@@ -8,10 +8,10 @@ from pyggp.game_description_language import Number, Relation, Subrelation
 @pytest.mark.parametrize(
     ("mapping", "expected"),
     [
-        ({}, Turn(frozenset())),
+        ({}, Turn()),
         (
             {Role(Subrelation(Relation("x"))): Move(Subrelation(Relation("move")))},
-            Turn(frozenset({(Role(Subrelation(Relation("x"))), Move(Subrelation(Relation("move"))))})),
+            Turn({(Role(Subrelation(Relation("x"))), Move(Subrelation(Relation("move"))))}),
         ),
         (
             {
@@ -19,12 +19,10 @@ from pyggp.game_description_language import Number, Relation, Subrelation
                 Role(Subrelation(Relation("y"))): Move(Subrelation(Number(2))),
             },
             Turn(
-                frozenset(
-                    {
-                        (Role(Subrelation(Relation("x"))), Move(Subrelation(Number(1)))),
-                        (Role(Subrelation(Relation("y"))), Move(Subrelation(Number(2)))),
-                    },
-                ),
+                {
+                    (Role(Subrelation(Relation("x"))), Move(Subrelation(Number(1)))),
+                    (Role(Subrelation(Relation("y"))), Move(Subrelation(Number(2)))),
+                },
             ),
         ),
     ],
@@ -38,7 +36,7 @@ def test_dunder_init(mapping: Mapping[Role, Move], expected: Turn) -> None:
     ("turn", "role", "expected"),
     [
         (
-            Turn(frozenset({(Role(Subrelation(Relation("x"))), Move(Subrelation(Relation("move"))))})),
+            Turn({(Role(Subrelation(Relation("x"))), Move(Subrelation(Relation("move"))))}),
             Role(Subrelation(Relation("x"))),
             Move(Subrelation(Relation("move"))),
         ),
@@ -52,7 +50,7 @@ def test_dunder_get_item(turn: Turn, role: Role, expected: Move) -> None:
 @pytest.mark.parametrize(
     ("turn", "role"),
     [
-        (Turn(frozenset()), Role(Subrelation(Relation("x")))),
+        (Turn(), Role(Subrelation(Relation("x")))),
     ],
 )
 def test_dunder_get_item_raises_key_error(turn: Turn, role: Role) -> None:
@@ -65,8 +63,8 @@ def test_dunder_get_item_raises_key_error(turn: Turn, role: Role) -> None:
 @pytest.mark.parametrize(
     ("turn", "expected"),
     [
-        (Turn(frozenset()), 0),
-        (Turn(frozenset({(Role(Subrelation(Relation("x"))), Move(Subrelation(Relation("move"))))})), 1),
+        (Turn(), 0),
+        (Turn({(Role(Subrelation(Relation("x"))), Move(Subrelation(Relation("move"))))}), 1),
     ],
 )
 def test_dunder_len(turn: Turn, expected: int) -> None:
@@ -77,9 +75,9 @@ def test_dunder_len(turn: Turn, expected: int) -> None:
 @pytest.mark.parametrize(
     ("turn", "expected"),
     [
-        (Turn(frozenset()), ()),
+        (Turn(), ()),
         (
-            Turn(frozenset({(Role(Subrelation(Relation("x"))), Move(Subrelation(Relation("move"))))})),
+            Turn({(Role(Subrelation(Relation("x"))), Move(Subrelation(Relation("move"))))}),
             ((Role(Subrelation(Relation("x")))),),
         ),
     ],
@@ -92,7 +90,7 @@ def test_dunder_iter(turn: Turn, expected: tuple) -> None:
 @pytest.mark.parametrize(
     ("turn", "expected"),
     [
-        (Turn(frozenset()), frozenset()),
+        (Turn(), frozenset()),
         (
             Turn(frozenset({(Role(Subrelation(Relation("x"))), Move(Subrelation(Relation("move"))))})),
             frozenset(

@@ -116,6 +116,7 @@ class UCTSelector(Selector[_U_co, _K]):
     exploration_constant: float = SQRT_2
 
     def __call__(self, node: Node[_U_co, _K], state: Optional[State] = None, *args: Any, **kwargs: Any) -> _K:
+        assert node.children is not None, "Requirement: node.children is not None"
         parent_total_playouts: int = (
             node.valuation.total_playouts
             if node.valuation is not None and hasattr(node.valuation, "total_playouts")
@@ -158,7 +159,3 @@ most_selector: FunctionSelector[Any, Any, Any] = FunctionSelector(
     select_func=_select_maximum,
     get_keys_func=_map_keys_to_total_playouts,
 )
-
-
-def uct_selector(role: Role, exploration_constant: float = SQRT_2) -> UCTSelector:
-    return UCTSelector(role=role, exploration_constant=exploration_constant)
