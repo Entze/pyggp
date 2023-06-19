@@ -89,9 +89,9 @@ class BookBuilder(Generic[_U_co]):
                 move = random.choice(tuple(legal_moves))
                 role_move_pairing.append((role, move))
 
-            turn = Turn(frozenset(role_move_pairing))
+            turn = Turn(role_move_pairing)
             penultimate_state = final_state
-            final_state = self.interpreter.get_next_state(final_state, *turn.as_plays())
+            final_state = self.interpreter.get_next_state(final_state, turn)
         assert final_state in self.book or self.interpreter.is_terminal(final_state), "Condition: final_state is final"
         if penultimate_state is not None:
             self._queue.append(BookBuilder.Seed(penultimate_state))

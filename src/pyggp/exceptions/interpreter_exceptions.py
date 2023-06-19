@@ -73,6 +73,10 @@ class UnsatGoalInterpreterError(UnsatInterpreterError):
     """Rules for goal are unsatisfiable."""
 
 
+class UnsatTerminalInterpreterError(UnsatInterpreterError):
+    """Rules for terminal are unsatisfiable."""
+
+
 class UnsatDevelopmentsInterpreterError(UnsatInterpreterError):
     """Rules for developments are unsatisfiable."""
 

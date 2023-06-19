@@ -234,10 +234,10 @@ def test_select_moves_nodes_to_compatible_branch(mock_interpreter) -> None:
     mock_interpreter.get_developments.side_effect = lambda _: iter(developments)
 
     stateplays_to_state = {
-        (child1_red_state, tuple(turn2_call.as_plays())): child2_red_call_state,
+        (child1_red_state, turn2_call): child2_red_call_state,
     }
 
-    mock_interpreter.get_next_state.side_effect = lambda state, *plays: stateplays_to_state[(state, plays)]
+    mock_interpreter.get_next_state.side_effect = lambda state, turn: stateplays_to_state[(state, turn)]
 
     view_to_legal_moves_by_role = {
         root_view: {
