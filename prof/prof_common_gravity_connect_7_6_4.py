@@ -138,7 +138,7 @@ terminal :-
 
 gravity_connect_7_6_4_ruleset = gdl.transformer.transform(gdl.parser.parse(gravity_connect_7_6_4_rules_str))
 
-gravity_connect_7_6_4_interpreter = ClingoInterpreter.from_ruleset(gravity_connect_7_6_4_ruleset)
+gravity_connect_7_6_4_interpreter = ClingoInterpreter.from_ruleset(gravity_connect_7_6_4_ruleset, cache_size="16GiB")
 
 gravity_connect_7_6_4_init_state = gravity_connect_7_6_4_interpreter.get_init_state()
 gravity_connect_7_6_4_init_view = View(gravity_connect_7_6_4_init_state)

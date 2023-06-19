@@ -123,19 +123,19 @@ class _ConstProtocol(Protocol[_V_co]):
         ...
 
 
-get_next_state_sizeof: Callable[[Sized], int] = functools.partial(weighted_len, factor=SUBRELATION_SIZE)
-get_sees_sizeof: Callable[[Sized], int] = functools.partial(weighted_len, factor=SUBRELATION_SIZE)
-get_legal_moves_sizeof: Callable[[Mapping[Any, Sized]], int] = functools.partial(
+next_sizeof: Callable[[Sized], int] = functools.partial(weighted_len, factor=SUBRELATION_SIZE)
+sees_sizeof: Callable[[Sized], int] = functools.partial(weighted_len, factor=SUBRELATION_SIZE)
+legal_sizeof: Callable[[Mapping[Any, Sized]], int] = functools.partial(
     flatmaplen,
     key_factor=SUBRELATION_SIZE,
     value_factor=SUBRELATION_SIZE,
 )
-get_goals_sizeof: Callable[[Mapping[Any, Optional[int]]], int] = functools.partial(
+goal_sizeof: Callable[[Mapping[Any, Optional[int]]], int] = functools.partial(
     weighted_map_len,
     key_factor=SUBRELATION_SIZE,
     value_factor=INT_SIZE,
 )
-is_terminal_sizeof: _ConstProtocol[int] = functools.partial(const, BOOL_SIZE)
+terminal_sizeof: _ConstProtocol[int] = functools.partial(const, BOOL_SIZE)
 get_roles_in_control_sizeof: Callable[[Sized], int] = functools.partial(weighted_len, factor=SUBRELATION_SIZE)
 from_clingo_symbol_sizeof: _ConstProtocol[int] = functools.partial(const, SUBRELATION_SIZE)
 

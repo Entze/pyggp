@@ -157,7 +157,7 @@ terminal :-
 
 phantom_connect_5_6_4_ruleset = gdl.transformer.transform(gdl.parser.parse(phantom_connect_5_6_4_rules_str))
 
-phantom_connect_5_6_4_interpreter = ClingoInterpreter.from_ruleset(phantom_connect_5_6_4_ruleset)
+phantom_connect_5_6_4_interpreter = ClingoInterpreter.from_ruleset(phantom_connect_5_6_4_ruleset, cache_size="16GiB")
 
 phantom_connect_5_6_4_init_state = phantom_connect_5_6_4_interpreter.get_init_state()
 

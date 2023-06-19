@@ -98,7 +98,7 @@ terminal :-
 
 tic_tac_toe_ruleset = gdl.transformer.transform(gdl.parser.parse(tic_tac_toe_rules_str))
 
-tic_tac_toe_interpreter = ClingoInterpreter.from_ruleset(tic_tac_toe_ruleset)
+tic_tac_toe_interpreter = ClingoInterpreter.from_ruleset(tic_tac_toe_ruleset, cache_size="16GiB")
 
 tic_tac_toe_init_state = tic_tac_toe_interpreter.get_init_state()
 tic_tac_toe_init_view = View(tic_tac_toe_init_state)

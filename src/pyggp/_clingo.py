@@ -232,6 +232,8 @@ EXTERNAL_DOES_ROLE_LEGAL = create_external(
         create_literal(atom=create_atom(create_function(name="legal", arguments=(Role, Move)))),
     ),
 )
+EXTERNALS_TRUE = (EXTERNAL_TRUE_INIT, EXTERNAL_TRUE_NEXT)
+EXTERNALS = (EXTERNAL_TRUE_INIT, EXTERNAL_TRUE_NEXT, EXTERNAL_DOES_ROLE_LEGAL)
 
 
 def create_show_signature(name: str, arity: int = 0, positive=1) -> clingo_ast.AST:
