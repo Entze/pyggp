@@ -2,10 +2,10 @@
 import collections
 import itertools
 import logging
+import operator
 from dataclasses import dataclass, field
 from typing import (
     Any,
-    Callable,
     FrozenSet,
     Iterator,
     Mapping,
@@ -15,7 +15,6 @@ from typing import (
     Sequence,
     Set,
     Tuple,
-    TypeVar,
     Union,
 )
 
@@ -24,19 +23,17 @@ import cachetools.keys as cachetools_keys
 import clingo
 from typing_extensions import Self
 
-import pyggp._clingo as clingo_helper
 import pyggp.game_description_language as gdl
 from pyggp._caching import (
     get_roles_in_control_sizeof,
 )
 from pyggp._clingo_interpreter import (
     CacheContainer,
+    ControlContainer,
     TemporalRuleContainer,
     _create_developments_ctl,
-    _get_ctl,
     _get_developments_models,
     _get_model,
-    _get_shows,
     _set_state,
     _set_turn,
     _transform_model,
@@ -99,20 +96,6 @@ def development_from_symbols(symbols: Sequence[clingo.Symbol], bounds: Optional[
             for ply in range(offset, horizon + 1)
         ),
     )
-
-
-_K = TypeVar("_K")
-_V = TypeVar("_V")
-
-
-def _get_lru_cache_factory(
-    max_size: int,
-    getsizeof: Optional[Callable[[_V], int]] = None,
-) -> Callable[[], cachetools.Cache[_K, _V]]:
-    def get_lru_cache() -> cachetools.Cache[_K, _V]:
-        return cachetools.LRUCache(max_size, getsizeof)
-
-    return get_lru_cache
 
 
 _get_roles_in_control_cache: cachetools.Cache[State, FrozenSet[Role]] = cachetools.LRUCache(
@@ -379,62 +362,61 @@ class Interpreter:
 class ClingoInterpreter(Interpreter):
     """An interpreter for a GDL ruleset using clingo."""
 
-    _control: clingo.Control = field(default_factory=clingo.Control, repr=False)
+    _control_container: ControlContainer = field(default_factory=ControlContainer, repr=False)
     _temporal_rule_container: TemporalRuleContainer = field(default_factory=TemporalRuleContainer, repr=False)
     _cache_container: CacheContainer = field(default_factory=CacheContainer, repr=False)
 
     @classmethod
     def from_ruleset(cls, ruleset: gdl.Ruleset, *args: Any, **kwargs: Any) -> Self:
-        ctl = _get_ctl(
-            sentences=ruleset.rules,
-            rules=(
-                clingo_helper.EXTERNAL_TRUE_INIT,
-                clingo_helper.EXTERNAL_TRUE_NEXT,
-                clingo_helper.EXTERNAL_DOES_ROLE_LEGAL,
-                *_get_shows(ruleset),
-            ),
-            models=2,
-        )
-        ctl.ground((("base", ()),))
+        control_container = ControlContainer.from_ruleset(ruleset)
         temporal_rule_container = TemporalRuleContainer.from_ruleset(ruleset)
+        if not ruleset.sees_rules:
+            kwargs["sees_quota"] = 0
         return cls(
             ruleset=ruleset,
-            _control=ctl,
+            _control_container=control_container,
             _temporal_rule_container=temporal_rule_container,
+            _cache_container=CacheContainer.from_quotas(*args, **kwargs),
         )
 
+    @cachetools.cachedmethod(cache=operator.attrgetter("_cache_container.roles"))
     def get_roles(self) -> FrozenSet[Role]:
-        model = _get_model(self._control)
-        subrelations = _transform_model(model, gdl.Relation.Signature("role", 1), unpack=0)
+        model = _get_model(self._control_container.role)
+        subrelations = _transform_model(model, unpack=0)
         roles = (Role(subrelation) for subrelation in subrelations)
         try:
             return frozenset(roles)
         except UnsatInterpreterError:
             raise UnsatRolesInterpreterError from UnsatInterpreterError
 
+    @cachetools.cachedmethod(cache=operator.attrgetter("_cache_container.init"))
     def get_init_state(self) -> State:
-        model = _get_model(self._control)
-        subrelations = _transform_model(model, gdl.Relation.Signature("init", 1), unpack=0)
+        model = _get_model(self._control_container.init)
+        subrelations = _transform_model(model, unpack=0)
         try:
             return State(frozenset(subrelations))
         except UnsatInterpreterError:
             raise UnsatInitInterpreterError from UnsatInterpreterError
 
+    @cachetools.cachedmethod(cache=operator.attrgetter("_cache_container.next"))
     def get_next_state(self, current: Union[State, View], turn: Mapping[Role, Move]) -> State:
-        with _set_state(self._control, current) as _ctl, _set_turn(_ctl, turn) as ctl:
+        with _set_state(
+            self._control_container.next, self._control_container.next_state_shape, current
+        ) as _ctl, _set_turn(_ctl, self._control_container.next_action_shape, turn) as ctl:
             model = _get_model(ctl)
-            subrelations = _transform_model(model, gdl.Relation.Signature("next", 1), unpack=0)
+            subrelations = _transform_model(model, unpack=0)
             try:
                 return State(frozenset(subrelations))
             except UnsatInterpreterError:
                 raise UnsatNextInterpreterError from UnsatInterpreterError
 
+    @cachetools.cachedmethod(cache=operator.attrgetter("_cache_container.sees"))
     def get_sees(self, current: Union[State, View]) -> Mapping[Role, View]:
         if not self.has_incomplete_information:
             return {role: View(current) for role in self.get_roles()}
-        with _set_state(self._control, current) as ctl:
+        with _set_state(self._control_container.sees, self._control_container.sees_state_shape, current) as ctl:
             model = _get_model(ctl)
-            subrelations = _transform_model(model, gdl.Relation.Signature("sees", 2))
+            subrelations = _transform_model(model)
             role_subrelation_pairs = (
                 (Role(subrelation.symbol.arguments[0]), subrelation.symbol.arguments[1]) for subrelation in subrelations
             )
@@ -446,10 +428,11 @@ class ClingoInterpreter(Interpreter):
             except UnsatInterpreterError:
                 raise UnsatSeesInterpreterError from UnsatInterpreterError
 
+    @cachetools.cachedmethod(cache=operator.attrgetter("_cache_container.legal"))
     def get_legal_moves(self, current: Union[State, View]) -> Mapping[Role, FrozenSet[Move]]:
-        with _set_state(self._control, current) as ctl:
+        with _set_state(self._control_container.legal, self._control_container.legal_state_shape, current) as ctl:
             model = _get_model(ctl)
-            subrelations = _transform_model(model, gdl.Relation.Signature("legal", 2))
+            subrelations = _transform_model(model)
             role_move_pairs = (
                 (Role(subrelation.symbol.arguments[0]), Move(subrelation.symbol.arguments[1]))
                 for subrelation in subrelations
@@ -462,10 +445,11 @@ class ClingoInterpreter(Interpreter):
             except UnsatInterpreterError:
                 raise UnsatLegalInterpreterError from UnsatInterpreterError
 
+    @cachetools.cachedmethod(cache=operator.attrgetter("_cache_container.goal"))
     def get_goals(self, current: Union[State, View]) -> Mapping[Role, Optional[int]]:
-        with _set_state(self._control, current) as ctl:
+        with _set_state(self._control_container.goal, self._control_container.goal_state_shape, current) as ctl:
             model = _get_model(ctl)
-            subrelations = _transform_model(model, gdl.Relation.Signature("goal", 2))
+            subrelations = _transform_model(model)
             role_goal_pairs = (
                 (Role(subrelation.symbol.arguments[0]), subrelation.symbol.arguments[1]) for subrelation in subrelations
             )
@@ -484,10 +468,11 @@ class ClingoInterpreter(Interpreter):
             except UnsatInterpreterError:
                 raise UnsatGoalInterpreterError from UnsatInterpreterError
 
+    @cachetools.cachedmethod(cache=operator.attrgetter("_cache_container.terminal"))
     def is_terminal(self, current: Union[State, View]) -> bool:
-        with _set_state(self._control, current) as ctl:
+        with _set_state(self._control_container.terminal, self._control_container.terminal_state_shape, current) as ctl:
             model = _get_model(ctl)
-            subrelations = _transform_model(model, gdl.Relation.Signature("terminal", 0))
+            subrelations = _transform_model(model)
             try:
                 return bool(tuple(subrelations))
             except UnsatInterpreterError:

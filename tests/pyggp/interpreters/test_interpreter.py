@@ -2,7 +2,7 @@ from typing import FrozenSet
 
 import pyggp.game_description_language as gdl
 import pytest
-from pyggp.engine_primitives import Move, Role, State, View
+from pyggp.engine_primitives import Move, Role, State, Turn, View
 from pyggp.exceptions.interpreter_exceptions import (
     GoalNotIntegerInterpreterError,
     MoreThanOneModelInterpreterError,
@@ -227,7 +227,7 @@ def test_get_next_state(interpreter_factory, rules_str, current, turn, expected)
     ruleset = gdl.parse(rules_str)
     interpreter = interpreter_factory(ruleset)
 
-    actual = interpreter.get_next_state(current, turn)
+    actual = interpreter.get_next_state(current, Turn(turn))
     assert actual == expected
 
 
@@ -236,7 +236,7 @@ def test_get_next_state_raises_on_unsat(interpreter_factory) -> None:
     interpreter = interpreter_factory(ruleset)
 
     with pytest.raises(UnsatNextInterpreterError):
-        interpreter.get_next_state(State(frozenset()), {})
+        interpreter.get_next_state(State(frozenset()), Turn())
 
 
 def test_get_next_state_raises_on_multiple_models(interpreter_factory) -> None:
@@ -244,7 +244,7 @@ def test_get_next_state_raises_on_multiple_models(interpreter_factory) -> None:
     interpreter = interpreter_factory(ruleset)
 
     with pytest.raises(MoreThanOneModelInterpreterError):
-        interpreter.get_next_state(State(frozenset()), {})
+        interpreter.get_next_state(State(frozenset()), Turn())
 
 
 @pytest.mark.parametrize(
