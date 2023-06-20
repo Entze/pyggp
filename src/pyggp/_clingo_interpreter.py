@@ -26,7 +26,7 @@ from typing_extensions import Self
 
 import pyggp._clingo as clingo_helper
 from pyggp import game_description_language as gdl
-from pyggp._caching import goal_sizeof, legal_sizeof, next_sizeof, sees_sizeof, size_str_to_int, terminal_sizeof
+from pyggp._caching import goal_sizeof, legal_sizeof, sees_sizeof, size_str_to_int, terminal_sizeof
 from pyggp.engine_primitives import Development, DevelopmentStep, Move, Role, State, Turn, View
 from pyggp.exceptions.interpreter_exceptions import (
     ModelTimeoutInterpreterError,
@@ -359,61 +359,66 @@ def _get_lru_cache_factory(
     return get_lru_cache
 
 
-@dataclass(frozen=True)
-class CacheContainer:
-    roles: cachetools.Cache[Tuple[()], FrozenSet[Role]] = field(default_factory=_get_lru_cache_factory(1))
-    init: cachetools.Cache[Tuple[()], State] = field(default_factory=_get_lru_cache_factory(1))
-    next: cachetools.Cache[Tuple[Union[State, View], Turn], State] = field(
-        default_factory=_get_lru_cache_factory(300_000_000, getsizeof=next_sizeof)
-    )
-    sees: cachetools.Cache[Tuple[Union[State, View]], Mapping[Role, View]] = field(
-        default_factory=_get_lru_cache_factory(300_000_000, getsizeof=sees_sizeof)
-    )
-    legal: cachetools.Cache[Tuple[Union[State, View]], Mapping[Role, FrozenSet[Move]]] = field(
-        default_factory=_get_lru_cache_factory(300_000_000, getsizeof=legal_sizeof)
-    )
-    goal: cachetools.Cache[Tuple[Union[State, View]], Mapping[Role, Optional[int]]] = field(
-        default_factory=_get_lru_cache_factory(300_000_000, getsizeof=goal_sizeof)
-    )
-    terminal: cachetools.Cache[Tuple[Union[State, View]], bool] = field(
-        default_factory=_get_lru_cache_factory(300_000_000, getsizeof=terminal_sizeof)
-    )
+_NextCache = MutableMapping[int, MutableMapping[Union[State, View], MutableMapping[Turn, State]]]
+_AllNextCache = MutableMapping[int, MutableMapping[Union[State, View], Set[Tuple[Turn, State]]]]
+_SeesCache = MutableMapping[int, MutableMapping[Union[State, View], Mapping[Role, View]]]
+_LegalCache = MutableMapping[int, MutableMapping[Union[State, View], Mapping[Role, FrozenSet[Move]]]]
+_GoalCache = MutableMapping[int, MutableMapping[Union[State, View], Mapping[Role, int]]]
+_TerminalCache = MutableMapping[int, MutableMapping[Union[State, View], bool]]
 
-    @classmethod
-    def from_quotas(
-        cls,
-        cache_size: Union[float, int, str, None] = None,
-        *args: Any,
-        next_quota: float = 0.6,
-        sees_quota: float = 0.2,
-        legal_quota: float = 0.1,
-        goal_quota=0.05,
-        terminal_quota: float = 0.05,
-        **kwargs: Any,
-    ) -> Self:
-        if cache_size is None:
-            cache_size = 3_000_000_000
-        if isinstance(cache_size, str):
-            cache_size = size_str_to_int(cache_size)
-        assert isinstance(cache_size, (int, float)), "Assumption: size is an int or float"
-        total = next_quota + sees_quota + legal_quota + goal_quota + terminal_quota
-        next_quota /= total
-        next_max_size = int(cache_size * next_quota)
-        sees_quota /= total
-        sees_max_size = int(cache_size * sees_quota)
-        legal_quota /= total
-        legal_max_size = int(cache_size * legal_quota)
-        goal_quota /= total
-        goal_max_size = int(cache_size * goal_quota)
-        terminal_quota /= total
-        terminal_max_size = int(cache_size * terminal_quota)
-        return cls(
-            next=cachetools.LRUCache(next_max_size, getsizeof=next_sizeof),
-            sees=cachetools.LRUCache(sees_max_size, getsizeof=sees_sizeof),
-            legal=cachetools.LRUCache(legal_max_size, getsizeof=legal_sizeof),
-            goal=cachetools.LRUCache(goal_max_size, getsizeof=goal_sizeof),
-            terminal=cachetools.LRUCache(terminal_max_size, getsizeof=terminal_sizeof),
-        )
+
+def _state_to_dict_defaultdict_factory() -> collections.defaultdict[Union[State, View], MutableMapping[_K, _V]]:
+    return collections.defaultdict(dict)
+
+
+def _state_to_set_defaultdict_factory() -> collections.defaultdict[Union[State, View], Set[_V]]:
+    return collections.defaultdict(set)
+
+
+def _default_next_cache_factory() -> _NextCache:
+    return collections.defaultdict(_state_to_dict_defaultdict_factory)
+
+
+def _default_all_next_cache_factory() -> _AllNextCache:
+    return collections.defaultdict(_state_to_set_defaultdict_factory)
+
+
+def _default_sees_cache_factory() -> _SeesCache:
+    return collections.defaultdict(_state_to_dict_defaultdict_factory)
+
+
+def _default_legal_cache_factory() -> _LegalCache:
+    return collections.defaultdict(_state_to_dict_defaultdict_factory)
+
+
+def _default_goal_cache_factory() -> _GoalCache:
+    return collections.defaultdict(_state_to_dict_defaultdict_factory)
+
+
+def _default_terminal_cache_factory() -> _TerminalCache:
+    return collections.defaultdict(dict)
+
+
+@dataclass
+class CacheContainer:
+    roles: Optional[FrozenSet[Role]] = field(default=None)
+    init: Optional[State] = field(default=None)
+    next: _NextCache = field(default_factory=_default_next_cache_factory)
+    all_next: _AllNextCache = field(default_factory=_default_all_next_cache_factory)
+    sees: _SeesCache = field(default_factory=_default_sees_cache_factory)
+    legal: _LegalCache = field(default_factory=_default_legal_cache_factory)
+    goal: _GoalCache = field(default_factory=_default_goal_cache_factory)
+    terminal: _TerminalCache = field(default_factory=_default_terminal_cache_factory)
+
+    def clear(self) -> None:
+        self.roles = None
+        self.init = None
+        self.next.clear()
+        self.all_next.clear()
+        self.sees.clear()
+        self.legal.clear()
+        self.goal.clear()
+        self.terminal.clear()
 
 
 def _get_shows(ruleset: gdl.Ruleset) -> Iterator[clingo_ast.AST]:

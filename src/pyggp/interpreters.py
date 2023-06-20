@@ -2,7 +2,6 @@
 import collections
 import itertools
 import logging
-import operator
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -104,7 +103,7 @@ _get_roles_in_control_cache: cachetools.Cache[State, FrozenSet[Role]] = cachetoo
 )
 
 
-@dataclass(frozen=True)
+@dataclass
 class Interpreter:
     """An interpreter for a GDL ruleset.
 
@@ -358,7 +357,7 @@ class Interpreter:
         return {role: ranking.index(goal) for role, goal in goals.items()}
 
 
-@dataclass(frozen=True)
+@dataclass
 class ClingoInterpreter(Interpreter):
     """An interpreter for a GDL ruleset using clingo."""
 
@@ -370,17 +369,21 @@ class ClingoInterpreter(Interpreter):
     def from_ruleset(cls, ruleset: gdl.Ruleset, *args: Any, **kwargs: Any) -> Self:
         control_container = ControlContainer.from_ruleset(ruleset)
         temporal_rule_container = TemporalRuleContainer.from_ruleset(ruleset)
-        if not ruleset.sees_rules:
-            kwargs["sees_quota"] = 0
+        cache_container = CacheContainer()
         return cls(
             ruleset=ruleset,
             _control_container=control_container,
             _temporal_rule_container=temporal_rule_container,
-            _cache_container=CacheContainer.from_quotas(*args, **kwargs),
+            _cache_container=cache_container,
         )
 
-    @cachetools.cachedmethod(cache=operator.attrgetter("_cache_container.roles"))
     def get_roles(self) -> FrozenSet[Role]:
+        if self._cache_container.roles is None:
+            self._cache_container.roles = self._get_roles()
+        assert self._cache_container.roles is not None, "Guarantee: self._cache_container.roles is not None"
+        return self._cache_container.roles
+
+    def _get_roles(self) -> FrozenSet[Role]:
         model = _get_model(self._control_container.role)
         subrelations = _transform_model(model, unpack=0)
         roles = (Role(subrelation) for subrelation in subrelations)
@@ -389,8 +392,13 @@ class ClingoInterpreter(Interpreter):
         except UnsatInterpreterError:
             raise UnsatRolesInterpreterError from UnsatInterpreterError
 
-    @cachetools.cachedmethod(cache=operator.attrgetter("_cache_container.init"))
     def get_init_state(self) -> State:
+        if self._cache_container.init is None:
+            self._cache_container.init = self._get_init_state()
+        assert self._cache_container.init is not None, "Guarantee: self._cache_container.init is not None"
+        return self._cache_container.init
+
+    def _get_init_state(self) -> State:
         model = _get_model(self._control_container.init)
         subrelations = _transform_model(model, unpack=0)
         try:
@@ -398,8 +406,27 @@ class ClingoInterpreter(Interpreter):
         except UnsatInterpreterError:
             raise UnsatInitInterpreterError from UnsatInterpreterError
 
-    @cachetools.cachedmethod(cache=operator.attrgetter("_cache_container.next"))
     def get_next_state(self, current: Union[State, View], turn: Mapping[Role, Move]) -> State:
+        current_len = len(current)
+        if not isinstance(turn, Turn):
+            turn = Turn(turn)
+        if (
+            current_len not in self._cache_container.next
+            or current not in self._cache_container.next[current_len]
+            or turn not in self._cache_container.next[current_len][current]
+        ):
+            next_state = self._get_next_state(current, turn)
+            self._cache_container.next[current_len][current][turn] = next_state
+        assert current_len in self._cache_container.next, "Guarantee: current_len in self._cache_container.next"
+        assert (
+            current in self._cache_container.next[current_len]
+        ), "Guarantee: current in self._cache_container.next[current_len]"
+        assert (
+            turn in self._cache_container.next[current_len][current]
+        ), "Guarantee: turn in self._cache_container.next[current_len][current]"
+        return self._cache_container.next[current_len][current][turn]
+
+    def _get_next_state(self, current: Union[State, View], turn: Mapping[Role, Move]) -> State:
         with _set_state(
             self._control_container.next, self._control_container.next_state_shape, current
         ) as _ctl, _set_turn(_ctl, self._control_container.next_action_shape, turn) as ctl:
@@ -410,8 +437,38 @@ class ClingoInterpreter(Interpreter):
             except UnsatInterpreterError:
                 raise UnsatNextInterpreterError from UnsatInterpreterError
 
-    @cachetools.cachedmethod(cache=operator.attrgetter("_cache_container.sees"))
+    def get_all_next_states(self, current: Union[State, View]) -> Iterator[Tuple[Turn, State]]:
+        current_len = len(current)
+        if (
+            current_len not in self._cache_container.all_next
+            or current not in self._cache_container.all_next[current_len]
+        ):
+            all_next_states_iterator = self._get_all_next_states(current)
+            for turn, next_state in all_next_states_iterator:
+                yield turn, next_state
+                self._cache_container.all_next[current_len][current].add((turn, next_state))
+        else:
+            assert (
+                current_len in self._cache_container.all_next
+            ), "Guarantee: current_len in self._cache_container.all_next"
+            assert (
+                current in self._cache_container.all_next[current_len]
+            ), "Guarantee: current in self._cache_container.all_next[current_len]"
+            yield from self._cache_container.all_next[current_len][current]
+
+    def _get_all_next_states(self, current: Union[State, View]) -> Iterator[Tuple[Turn, State]]:
+        return super().get_all_next_states(current)
+
     def get_sees(self, current: Union[State, View]) -> Mapping[Role, View]:
+        current_len = len(current)
+        if current_len not in self._cache_container.sees or current not in self._cache_container.sees[current_len]:
+            sees = self._get_sees(current)
+            self._cache_container.sees[current_len][current] = sees
+        assert current_len in self._cache_container.sees, "Guarantee: current_len in self._cache_container.sees"
+        assert current in self._cache_container.sees[current_len], "Guarantee: current in self._cache_container.sees"
+        return self._cache_container.sees[current_len][current]
+
+    def _get_sees(self, current: Union[State, View]) -> Mapping[Role, View]:
         if not self.has_incomplete_information:
             return {role: View(current) for role in self.get_roles()}
         with _set_state(self._control_container.sees, self._control_container.sees_state_shape, current) as ctl:
@@ -428,8 +485,16 @@ class ClingoInterpreter(Interpreter):
             except UnsatInterpreterError:
                 raise UnsatSeesInterpreterError from UnsatInterpreterError
 
-    @cachetools.cachedmethod(cache=operator.attrgetter("_cache_container.legal"))
     def get_legal_moves(self, current: Union[State, View]) -> Mapping[Role, FrozenSet[Move]]:
+        current_len = len(current)
+        if current_len not in self._cache_container.legal or current not in self._cache_container.legal[current_len]:
+            legal_moves = self._get_legal_moves(current)
+            self._cache_container.legal[current_len][current] = legal_moves
+        assert current_len in self._cache_container.legal, "Guarantee: current_len in self._cache_container.legal"
+        assert current in self._cache_container.legal[current_len], "Guarantee: current in self._cache_container.legal"
+        return self._cache_container.legal[current_len][current]
+
+    def _get_legal_moves(self, current: Union[State, View]) -> Mapping[Role, FrozenSet[Move]]:
         with _set_state(self._control_container.legal, self._control_container.legal_state_shape, current) as ctl:
             model = _get_model(ctl)
             subrelations = _transform_model(model)
@@ -445,8 +510,16 @@ class ClingoInterpreter(Interpreter):
             except UnsatInterpreterError:
                 raise UnsatLegalInterpreterError from UnsatInterpreterError
 
-    @cachetools.cachedmethod(cache=operator.attrgetter("_cache_container.goal"))
     def get_goals(self, current: Union[State, View]) -> Mapping[Role, Optional[int]]:
+        current_len = len(current)
+        if current_len not in self._cache_container.goal or current not in self._cache_container.goal[current_len]:
+            goals = self._get_goals(current)
+            self._cache_container.goal[current_len][current] = goals
+        assert current_len in self._cache_container.goal, "Guarantee: current_len in self._cache_container.goal"
+        assert current in self._cache_container.goal[current_len], "Guarantee: current in self._cache_container.goal"
+        return self._cache_container.goal[current_len][current]
+
+    def _get_goals(self, current: Union[State, View]) -> Mapping[Role, Optional[int]]:
         with _set_state(self._control_container.goal, self._control_container.goal_state_shape, current) as ctl:
             model = _get_model(ctl)
             subrelations = _transform_model(model)
@@ -468,8 +541,20 @@ class ClingoInterpreter(Interpreter):
             except UnsatInterpreterError:
                 raise UnsatGoalInterpreterError from UnsatInterpreterError
 
-    @cachetools.cachedmethod(cache=operator.attrgetter("_cache_container.terminal"))
     def is_terminal(self, current: Union[State, View]) -> bool:
+        current_len = len(current)
+        if (
+            current_len not in self._cache_container.terminal
+            or current not in self._cache_container.terminal[current_len]
+        ):
+            self._cache_container.terminal[current_len][current] = self._is_terminal(current)
+        assert current_len in self._cache_container.terminal, "Guarantee: current_len in self._cache_container.terminal"
+        assert (
+            current in self._cache_container.terminal[current_len]
+        ), "Guarantee: current in self._cache_container.terminal"
+        return self._cache_container.terminal[current_len][current]
+
+    def _is_terminal(self, current: Union[State, View]) -> bool:
         with _set_state(self._control_container.terminal, self._control_container.terminal_state_shape, current) as ctl:
             model = _get_model(ctl)
             subrelations = _transform_model(model)
