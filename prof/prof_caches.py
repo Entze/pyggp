@@ -50,6 +50,9 @@ def cache_info(cache: Any) -> CacheInfo:
         return cache.cache_info()
     if isinstance(cache, cachetools.Cache):
         return CacheInfo(maxsize=cache.maxsize, currsize=cache.currsize)
+    if isinstance(cache, dict):
+        currsize = sum(len(v) for v in cache.values())
+        return CacheInfo(maxsize="inf", currsize=currsize)
     return CacheInfo()
 
 
@@ -57,6 +60,7 @@ def print_cache_info(interpreter: Interpreter):
     print("subrelation_as_clingo_symbol_cache: ", cache_info(Subrelation._as_clingo_symbol_cache))
     print("Subrelation.from_clingo_symbol: ", cache_info(Subrelation.from_clingo_symbol))
     print("interpreter.get_next_state: ", cache_info(interpreter._cache_container.next))
+    print("interpreter.get_all_next_states: ", cache_info(interpreter._cache_container.all_next))
     print("interpreter.get_sees: ", cache_info(interpreter._cache_container.sees))
     print("interpreter.get_legal_moves: ", cache_info(interpreter._cache_container.legal))
     print("interpreter.get_goals: ", cache_info(interpreter._cache_container.goal))
@@ -67,9 +71,5 @@ def print_cache_info(interpreter: Interpreter):
 def clear_caches(interpreter: Interpreter):
     Subrelation._as_clingo_symbol_cache.clear()
     Subrelation.from_clingo_symbol.cache_clear()
-    interpreter._cache_container.next.clear()
-    interpreter._cache_container.sees.clear()
-    interpreter._cache_container.legal.clear()
-    interpreter._cache_container.goal.clear()
-    interpreter._cache_container.terminal.clear()
+    interpreter._cache_container.clear()
     Interpreter.get_roles_in_control.cache_clear()
