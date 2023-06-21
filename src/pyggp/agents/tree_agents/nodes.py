@@ -72,6 +72,10 @@ class Node(Protocol[_U, _K]):
 
         """
 
+    @property
+    def max_height(self) -> int:
+        """Maximum height of the node in the tree defined by the distance to the leaves."""
+
     def expand(self, interpreter: Interpreter) -> Mapping[_K, "Node[_U, Any]"]:
         ...
 
@@ -113,6 +117,12 @@ class _AbstractNode(Node[_U, _K], Generic[_U, _K], abc.ABC):
             if child not in unique_children:
                 unique_children.append(child)
         return 1.0 + sum(child.avg_height for child in unique_children) / len(unique_children)
+
+    @property
+    def max_height(self) -> int:
+        if self.children is None or not self.children:
+            return 0
+        return 1 + max(child.max_height for child in self.children.values())
 
 
 @dataclass(unsafe_hash=True)
@@ -228,6 +238,9 @@ class InformationSetNode(Node[_U, Tuple[State, _A]], Protocol[_U, _A]):
     # Disables mypy. Because: InformationSetNode is a Node
     children: Optional[MutableMapping[Tuple[State, _A], "InformationSetNode[_U, Any]"]]  # type: ignore[assignment]
 
+    def branch(self, interpreter: Interpreter, state: State) -> None:
+        """Branches the tree assuming the given state."""
+
     def cut(self, interpreter: Interpreter) -> None:
         """Remove impossible states from possible_states."""
 
@@ -293,6 +306,14 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
         with log_time(
             log=log,
             level=logging.DEBUG,
+            begin_msg="Expanding node",
+            end_msg="Expanded node",
+            abort_msg="Aborted expanding node",
+        ):
+            node.expand(interpreter=interpreter)
+        with log_time(
+            log=log,
+            level=logging.DEBUG,
             begin_msg="Trimming node",
             end_msg="Trimmed node",
             abort_msg="Aborted trimming node",
@@ -328,6 +349,7 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
 class HiddenInformationSetNode(_AbstractInformationSetNode[_U, Turn], Generic[_U]):
     role: Role = field(hash=True)
     possible_states: Set[State] = field(default_factory=set, hash=False)
+    completed: bool = field(default=True, hash=False)
     valuation: Optional[Valuation[_U]] = field(default=None, hash=True)
     depth: Final[int] = field(default=0)
     parent: Optional["ImperfectInformationNode[_U]"] = field(default=None, repr=False, hash=False)
@@ -356,6 +378,16 @@ class HiddenInformationSetNode(_AbstractInformationSetNode[_U, Turn], Generic[_U
             return 1.0 + self.visible_child.avg_height
         return 1.0 + (self.visible_child.avg_height + self.hidden_child.avg_height) / 2.0
 
+    @property
+    def max_height(self) -> int:
+        if self.visible_child is None and self.hidden_child is None:
+            return 0
+        if self.visible_child is None:
+            return 1 + self.hidden_child.max_height
+        if self.hidden_child is None:
+            return 1 + self.visible_child.max_height
+        return 1 + max(self.visible_child.max_height, self.hidden_child.max_height)
+
     def _walk(self, ply: int, view: View) -> "ImperfectInformationNode[_U]":
         if ply == self.depth:
             return self
@@ -366,33 +398,53 @@ class HiddenInformationSetNode(_AbstractInformationSetNode[_U, Turn], Generic[_U
         return self.hidden_child
 
     def expand(self, interpreter: Interpreter) -> Mapping[Tuple[State, Turn], "ImperfectInformationNode[_U]"]:
-        if self.children is None:
-            self.children = {}
+        if not self.completed or self.children is None:
+            if self.children is None:
+                self.children = {}
             for possible_state in self.possible_states:
                 for turn, next_state in interpreter.get_all_next_states(possible_state):
-                    roles_in_control = Interpreter.get_roles_in_control(next_state)
-                    key = (possible_state, turn)
-                    if self.role not in roles_in_control:
-                        if self.hidden_child is None:
-                            self.hidden_child = HiddenInformationSetNode(
-                                role=self.role,
-                                parent=self,
-                                depth=self.depth + 1,
-                            )
-                        child = self.hidden_child
-                    else:
-                        if self.visible_child is None:
-                            self.visible_child = VisibleInformationSetNode(
-                                role=self.role,
-                                parent=self,
-                                depth=self.depth + 1,
-                            )
-                        child = self.visible_child
-                    child.possible_states.add(next_state)
-                    self.children[key] = child
+                    self._branch_by(state=possible_state, turn=turn, next_state=next_state, completed=True)
+            self.completed = True
 
         assert self.children is not None, "Guarantee: self.children is not None (expanded)"
+        assert self.completed, "Guarantee: self.completed (expanded)"
         return self.children
+
+    def branch(self, interpreter: Interpreter, state: State) -> None:
+        if self.children is None or (self.children is not None and not self.completed):
+            if self.children is None:
+                self.completed = False
+                self.children = {}
+            for turn, next_state in interpreter.get_all_next_states(state):
+                self._branch_by(state=state, turn=turn, next_state=next_state, completed=False)
+
+        assert self.children is not None, "Guarantee: self.children is not None"
+
+    def _branch_by(self, state: State, turn: Turn, next_state: State, *, completed=True) -> None:
+        roles_in_control = Interpreter.get_roles_in_control(next_state)
+        key = (state, turn)
+        if key in self.children:
+            child = self.children[key]
+        elif self.role not in roles_in_control:
+            if self.hidden_child is None:
+                self.hidden_child = HiddenInformationSetNode(
+                    role=self.role,
+                    parent=self,
+                    depth=self.depth + 1,
+                    completed=completed,
+                )
+            child = self.hidden_child
+        else:
+            if self.visible_child is None:
+                self.visible_child = VisibleInformationSetNode(
+                    role=self.role,
+                    parent=self,
+                    depth=self.depth + 1,
+                    completed=completed,
+                )
+            child = self.visible_child
+        child.possible_states.add(next_state)
+        self.children[key] = child
 
     def trim(self) -> None:
         if self.children is None or not self.children:
@@ -432,6 +484,7 @@ class HiddenInformationSetNode(_AbstractInformationSetNode[_U, Turn], Generic[_U
 class VisibleInformationSetNode(_AbstractInformationSetNode[_U, Move], Generic[_U]):
     role: Role = field(hash=True)
     possible_states: Set[State] = field(default_factory=set, hash=False)
+    completed: bool = field(default=True, hash=False)
     view: Optional[View] = field(default=None, hash=True)
     move: Optional[Move] = field(default=None, hash=True)
     valuation: Optional[Valuation[_U]] = field(default=None, hash=True)
@@ -445,6 +498,52 @@ class VisibleInformationSetNode(_AbstractInformationSetNode[_U, Move], Generic[_
         repr=False,
         hash=False,
     )
+    view_to_visiblechild: Optional[MutableMapping[View, "VisibleInformationSetNode[_U]"]] = field(
+        default=None,
+        repr=False,
+        hash=False,
+    )
+    move_to_hiddenchild: Optional[MutableMapping[Move, HiddenInformationSetNode[_U]]] = field(
+        default=None,
+        repr=False,
+        hash=False,
+    )
+
+    @property
+    def arity(self) -> int:
+        visible_children = 0 if self.view_to_visiblechild is None else len(self.view_to_visiblechild)
+        hidden_children = 0 if self.move_to_hiddenchild is None else len(self.move_to_hiddenchild)
+        return visible_children + hidden_children
+
+    @property
+    def avg_height(self) -> float:
+        if self.children is None or not self.children:
+            return 0
+        total_visible_avg_height = 0
+        if self.view_to_visiblechild:
+            total_visible_avg_height = sum(child.avg_height for child in self.view_to_visiblechild.values())
+        total_hidden_avg_height = 0
+        if self.move_to_hiddenchild:
+            total_hidden_avg_height = sum(child.avg_height for child in self.move_to_hiddenchild.values())
+        total_avg_height = total_visible_avg_height + total_hidden_avg_height
+        if total_avg_height == 0:
+            return total_avg_height
+        return 1 + (total_avg_height / self.arity)
+
+    @property
+    def max_height(self) -> int:
+        if self.children is None or not self.children:
+            return 0
+        max_visible_height = 0
+        if self.view_to_visiblechild:
+            max_visible_height = max(child.max_height for child in self.view_to_visiblechild.values())
+        max_hidden_height = 0
+        if self.move_to_hiddenchild:
+            max_hidden_height = max(child.max_height for child in self.move_to_hiddenchild.values())
+        max_height = max(max_visible_height, max_hidden_height)
+        if max_height == 0:
+            return max_height
+        return 1 + max_height
 
     def _walk(self, ply: int, view: View) -> "ImperfectInformationNode[_U]":
         if ply == self.depth:
@@ -461,37 +560,78 @@ class VisibleInformationSetNode(_AbstractInformationSetNode[_U, Move], Generic[_
                 return child
 
     def expand(self, interpreter: Interpreter) -> Mapping[Tuple[State, Move], "ImperfectInformationNode[_U]"]:
-        if self.children is None:
-            self.children = {}
-            view_node_map: MutableMapping[View, VisibleInformationSetNode[_U]] = {}
-            hidden_children: MutableMapping[Move, HiddenInformationSetNode[_U]] = {}
+        if not self.completed or self.children is None:
+            if self.children is None:
+                self.children = {}
+                self.view_to_visiblechild = {}
+                self.move_to_hiddenchild = {}
+
             for possible_state in self.possible_states:
                 for turn, next_state in interpreter.get_all_next_states(possible_state):
-                    roles_in_control = Interpreter.get_roles_in_control(next_state)
-                    assert self.role in turn, f"Assumption: self.role in turn (role={self.role}, turn={turn})"
-                    move = turn[self.role]
-                    key = (possible_state, move)
-                    if self.role not in roles_in_control:
-                        if move not in hidden_children:
-                            child = HiddenInformationSetNode(role=self.role, parent=self, depth=self.depth + 1)
-                            hidden_children[move] = child
-                        child = hidden_children[move]
-                    else:
-                        view = interpreter.get_sees_by_role(next_state, self.role)
-                        if view not in view_node_map:
-                            child = VisibleInformationSetNode(
-                                role=self.role,
-                                parent=self,
-                                view=view,
-                                depth=self.depth + 1,
-                            )
-                            view_node_map[view] = child
-                        child = view_node_map[view]
-                    child.possible_states.add(next_state)
-                    self.children[key] = child
+                    self._branch_by(
+                        interpreter=interpreter,
+                        state=possible_state,
+                        turn=turn,
+                        next_state=next_state,
+                        completed=True,
+                    )
+            self.completed = True
 
         assert self.children is not None, "Guarantee: self.children is not None (expanded)"
         return self.children
+
+    def branch(self, interpreter: Interpreter, state: State) -> None:
+        if self.children is None or (self.children is not None and not self.completed):
+            if self.children is None:
+                self.completed = False
+                self.children = {}
+                self.view_to_visiblechild = {}
+                self.move_to_hiddenchild = {}
+            for turn, next_state in interpreter.get_all_next_states(state):
+                self._branch_by(
+                    interpreter=interpreter,
+                    state=state,
+                    turn=turn,
+                    next_state=next_state,
+                    completed=False,
+                )
+
+        assert self.children is not None, "Guarantee: self.children is not None"
+
+    def _branch_by(
+        self,
+        interpreter: Interpreter,
+        state: State,
+        turn: Turn,
+        next_state: State,
+        *,
+        completed=True,
+    ) -> None:
+        roles_in_control = Interpreter.get_roles_in_control(next_state)
+        assert self.role in turn, f"Assumption: self.role in turn (role={self.role}, turn={turn})"
+        move = turn[self.role]
+        key = (state, move)
+        if key in self.children:
+            child = self.children[key]
+        elif self.role not in roles_in_control:
+            if move not in self.move_to_hiddenchild:
+                child = HiddenInformationSetNode(role=self.role, parent=self, depth=self.depth + 1, completed=completed)
+                self.move_to_hiddenchild[move] = child
+            child = self.move_to_hiddenchild[move]
+        else:
+            view = interpreter.get_sees_by_role(next_state, self.role)
+            if view not in self.view_to_visiblechild:
+                child = VisibleInformationSetNode(
+                    role=self.role,
+                    parent=self,
+                    view=view,
+                    depth=self.depth + 1,
+                    completed=completed,
+                )
+                self.view_to_visiblechild[view] = child
+            child = self.view_to_visiblechild[view]
+        child.possible_states.add(next_state)
+        self.children[key] = child
 
     def trim(self) -> None:
         if self.children is None or not self.children:

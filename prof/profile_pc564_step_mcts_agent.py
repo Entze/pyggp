@@ -1,5 +1,5 @@
-from pyggp.agents import MCTSAgent, SOISMCTSAgent
-from pyggp.gameclocks import DEFAULT_START_CLOCK_CONFIGURATION, GameClock
+from pyggp.agents import SOISMCTSAgent
+from pyggp.gameclocks import GameClock
 from tqdm import trange
 
 from prof.prof_caches import clear_caches, print_cache_info
