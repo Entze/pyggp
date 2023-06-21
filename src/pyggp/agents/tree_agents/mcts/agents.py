@@ -13,7 +13,6 @@ from typing import (
     MutableMapping,
     MutableSequence,
     Optional,
-    Set,
     Tuple,
     TypeVar,
 )
@@ -49,8 +48,7 @@ _K = TypeVar("_K")
 _BookValue = float
 _Total_Playouts = int
 _Utility = float
-_NegatedTargetStates = int
-_MCTSEvaluation = Tuple[_BookValue, _Total_Playouts, _Utility, _NegatedTargetStates]
+_MCTSEvaluation = Tuple[_BookValue, _Total_Playouts, _Utility]
 
 
 class MonteCarloTreeSearchAgent(TreeAgent[_K, _MCTSEvaluation]):
@@ -60,23 +58,19 @@ class MonteCarloTreeSearchAgent(TreeAgent[_K, _MCTSEvaluation]):
 
 @dataclass
 class AbstractMCTSAgent(AbstractTreeAgent[_K, _MCTSEvaluation], MonteCarloTreeSearchAgent[_K], Generic[_K], abc.ABC):
-    @abc.abstractmethod
-    def _can_lookup(self) -> bool:
-        raise NotImplementedError
-
     def _move_evaluation_as_str(self, move: Move, evaluation: _MCTSEvaluation) -> str:
-        book_value, total_playouts, utility, negated_target_states = evaluation
-        strs = []
-        if negated_target_states != -1:
-            strs.append(f"{move} ({-negated_target_states}): ")
-        else:
-            strs.append(f"{move}: ")
+        book_value, total_playouts, utility = evaluation
+        strs = [f"{move}: "]
         if self._can_lookup():
             strs.append(f"{book_value:.2f} | ")
         avg_utility = utility / total_playouts if total_playouts > 0 else 0.0
         strs.append(f"{avg_utility:.2f} @ ")
         strs.append(f"{format_amount(total_playouts)}")
         return "".join(strs)
+
+    @abc.abstractmethod
+    def _can_lookup(self) -> bool:
+        raise NotImplementedError
 
 
 class SingleObserverMonteCarloTreeSearchAgent(MonteCarloTreeSearchAgent[_K]):
@@ -194,13 +188,7 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
         with log_time(
             log=log,
             level=logging.DEBUG,
-            begin_msg=(
-                "Developing tree "
-                f"(depth={self.tree.depth}, "
-                f"avg_height={self.tree.avg_height:.2f}, "
-                f"valuation={self.tree.valuation}, "
-                f"arity={self.tree.arity})"
-            ),
+            begin_msg=f"Developing {self._get_tree_log_representation(logging.DEBUG)}",
             end_msg="Developed tree",
             abort_msg="Aborted developing tree",
         ):
@@ -211,23 +199,32 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
         with log_time(
             log,
             level=logging.DEBUG,
-            begin_msg=(
-                "Searching tree ("
-                f"depth={self.tree.depth}, "
-                f"avg_height={self.tree.avg_height:.2f}, "
-                f"valuation={self.tree.valuation}, "
-                f"arity={self.tree.arity}"
-                f") for at most {format_ns(search_time_ns)}"
-            ),
+            begin_msg=f"Searching {self._get_tree_log_representation(logging.DEBUG)} "
+            f"for at most {format_ns(search_time_ns)}",
             end_msg="Searched tree",
             abort_msg="Aborted searching tree",
         ):
             it, elapsed_ns = self.repeater()
 
         log.info("%s it in %s (%s it/s)", format_amount(it), format_ns(elapsed_ns), format_rate_ns(it, elapsed_ns))
+        log.info("Current %s", self._get_tree_log_representation(logging.INFO))
 
     def _guess_remaining_moves(self) -> int:
         return math.ceil(self.tree.avg_height)
+
+    def _get_tree_log_representation(self, log_level: int) -> str:
+        if log_level < log.level:
+            return "tree"
+        return (
+            "tree ("
+            f"valuation={self.tree.valuation}, "
+            f"depth={self.tree.depth}, "
+            f"max_height={self.tree.max_height}, "
+            f"avg_height={self.tree.avg_height:.2f}, "
+            f"arity={self.tree.arity}, "
+            f"possible_states={len(getattr(self.tree, 'possible_states', ((),)))}"
+            ")"
+        )
 
 
 @dataclass
@@ -280,6 +277,32 @@ _Action = TypeVar("_Action", Turn, Move)
 class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Action]]):
     tree: Optional[ImperfectInformationNode[float]] = field(default=None, repr=False)  # type: ignore[assignment]
 
+    def step(self) -> None:
+        node = self.tree
+
+        while node.children:
+            determinization = random.choice(tuple(node.possible_states))
+            key = self.selector(node=node, state=determinization)
+            node = node.children[key]
+
+        determinization = random.choice(tuple(node.possible_states))
+        node.branch(interpreter=self.interpreter, state=determinization)
+
+        utility = node.evaluate(
+            interpreter=self.interpreter,
+            evaluator=self.evaluator,
+            valuation_factory=NormalizedUtilityValuation.from_utility,
+            state=determinization,
+        )
+
+        while node.parent is not None:
+            assert node.parent is not None, "Condition: node.parent is not None"
+            node = node.parent
+            if node.valuation is not None:
+                node.valuation = node.valuation.propagate(utility)
+            else:
+                node.valuation = NormalizedUtilityValuation.from_utility(utility)
+
     def _get_root(self) -> Node[float, _K]:
         init_state = self.interpreter.get_init_state()
         roles_in_control = Interpreter.get_roles_in_control(init_state)
@@ -324,20 +347,17 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
         move_to_aggregated_book_value: MutableMapping[Move, float] = collections.defaultdict(float)
         move_to_total_playouts: MutableMapping[Move, int] = collections.defaultdict(int)
         move_to_utility: MutableMapping[Move, float] = collections.defaultdict(float)
-        move_to_possible_states: MutableMapping[Move, Set[State]] = collections.defaultdict(set)
         move_to_links: MutableMapping[Move, int] = collections.defaultdict(int)
         for (state, action), (book_value, total_playouts, utility, negated_target_states) in key_to_evaluation.items():
             move_to_links[action] += 1
             move_to_aggregated_book_value[action] += book_value
             move_to_total_playouts[action] += total_playouts
             move_to_utility[action] += utility
-            move_to_possible_states[action].update(self.tree.children[(state, action)].possible_states)
         return {
             self._key_to_move(key): (
                 move_to_aggregated_book_value[self._key_to_move(key)] / move_to_links[self._key_to_move(key)],
                 move_to_total_playouts[self._key_to_move(key)],
                 move_to_utility[self._key_to_move(key)],
-                -len(move_to_possible_states[self._key_to_move(key)]),
             )
             for key in key_to_evaluation
         }
@@ -682,20 +702,17 @@ class MultiObserverInformationSetMCTSAgent(
         move_to_aggregated_book_value: MutableMapping[Move, float] = collections.defaultdict(float)
         move_to_total_playouts: MutableMapping[Move, int] = collections.defaultdict(int)
         move_to_utility: MutableMapping[Move, float] = collections.defaultdict(float)
-        move_to_possible_states: MutableMapping[Move, Set[State]] = collections.defaultdict(set)
         move_to_links: MutableMapping[Move, int] = collections.defaultdict(int)
         for (state, action), (book_value, total_playouts, utility, negated_target_states) in key_to_evaluation.items():
             move_to_links[action] += 1
             move_to_aggregated_book_value[action] += book_value
             move_to_total_playouts[action] += total_playouts
             move_to_utility[action] += utility
-            move_to_possible_states[action].update(self.trees[self.role].children[(state, action)].possible_states)
         return {
             self._key_to_move(key): (
                 move_to_aggregated_book_value[self._key_to_move(key)] / move_to_links[self._key_to_move(key)],
                 move_to_total_playouts[self._key_to_move(key)],
                 move_to_utility[self._key_to_move(key)],
-                -len(move_to_possible_states[self._key_to_move(key)]),
             )
             for key in key_to_evaluation
         }

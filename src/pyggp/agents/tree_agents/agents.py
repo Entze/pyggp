@@ -94,9 +94,13 @@ class AbstractTreeAgent(InterpreterAgent, TreeAgent[_K, _E], Generic[_K, _E], ab
         remaining_moves = max(1, self._guess_remaining_moves()) if total_time_ns > 0 else 1
         using_time = max(0, total_time_ns // remaining_moves)
 
+        LOG_BUFFER = ONE_S_IN_NS if log.level == logging.DEBUG else 0
+        MIN_BUFFER = ONE_S_IN_NS + LOG_BUFFER
+        MAX_BUFFER = 5 * ONE_S_IN_NS + LOG_BUFFER
+
         search_time_ns = ((net_zero_time_ns + using_time) * 975) // 1000
-        search_time_ns = min(search_time_ns, net_zero_time_ns - ONE_S_IN_NS, (zero_time_ns * 95) // 100)
-        search_time_ns = max(0, search_time_ns, net_zero_time_ns - (5 * ONE_S_IN_NS))
+        search_time_ns = min(search_time_ns, net_zero_time_ns - MIN_BUFFER, (zero_time_ns * 95) // 100)
+        search_time_ns = max(0, search_time_ns, net_zero_time_ns - MAX_BUFFER)
         return search_time_ns
 
     def _guess_remaining_moves(self) -> int:
