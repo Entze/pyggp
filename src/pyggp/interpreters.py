@@ -428,7 +428,9 @@ class ClingoInterpreter(Interpreter):
 
     def _get_next_state(self, current: Union[State, View], turn: Mapping[Role, Move]) -> State:
         with _set_state(
-            self._control_container.next, self._control_container.next_state_shape, current
+            self._control_container.next,
+            self._control_container.next_state_shape,
+            current,
         ) as _ctl, _set_turn(_ctl, self._control_container.next_action_shape, turn) as ctl:
             model = _get_model(ctl)
             subrelations = _transform_model(model, unpack=0)

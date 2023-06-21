@@ -4,7 +4,6 @@ import functools
 import logging
 from dataclasses import dataclass, field
 from typing import (
-    Any,
     Callable,
     FrozenSet,
     Iterable,
@@ -19,14 +18,12 @@ from typing import (
     Union,
 )
 
-import cachetools
 import clingo
 from clingo import ast as clingo_ast
 from typing_extensions import Self
 
 import pyggp._clingo as clingo_helper
 from pyggp import game_description_language as gdl
-from pyggp._caching import goal_sizeof, legal_sizeof, sees_sizeof, size_str_to_int, terminal_sizeof
 from pyggp.engine_primitives import Development, DevelopmentStep, Move, Role, State, Turn, View
 from pyggp.exceptions.interpreter_exceptions import (
     ModelTimeoutInterpreterError,
@@ -61,10 +58,14 @@ class ControlContainer:
     @classmethod
     def from_ruleset(cls, ruleset: gdl.Ruleset) -> Self:
         role_ctl = ControlContainer.get_ctl(
-            sentences=ruleset.role_rules, rules=(clingo_helper.SHOW_ROLE,), context="role"
+            sentences=ruleset.role_rules,
+            rules=(clingo_helper.SHOW_ROLE,),
+            context="role",
         )
         init_ctl = ControlContainer.get_ctl(
-            sentences=ruleset.init_rules, rules=(clingo_helper.SHOW_INIT,), context="init"
+            sentences=ruleset.init_rules,
+            rules=(clingo_helper.SHOW_INIT,),
+            context="init",
         )
         next_ctl = ControlContainer.get_ctl(
             sentences=ruleset.rules,
@@ -278,7 +279,7 @@ class TemporalRuleContainer:
         dynamic = (
             clingo_helper.PROGRAM_DYNAMIC,
             *(
-                visitor(sentence.as_clingo_ast())
+                visitor.visit(sentence.as_clingo_ast())
                 for sentence in sentences
                 if sentence.head.signature in dynamic_categorization
             ),
@@ -301,12 +302,15 @@ class TemporalRuleContainer:
                     literal.atom.signature
                     for literal in body
                     if not literal.is_comparison
-                    and any(
+                    and not any(
                         literal.atom.signature in signatures
                         for signatures in (static_categorization, dynamic_categorization)
                     )
                 )
-                if any(head.signature in signatures for signatures in (static_categorization, dynamic_categorization)):
+                if any(
+                    head.signature in signatures
+                    for signatures in (static_categorization, dynamic_categorization, base_statemachine_categorization)
+                ):
                     continue
                 changes = True
                 if any(literal.atom.signature in dynamic_categorization for literal in body):
@@ -326,7 +330,7 @@ class TemporalTransformer(clingo_ast.Transformer):
     dynamic: Mapping[gdl.Relation.Signature, TemporalInformation]
     statemachine: Mapping[gdl.Relation.Signature, TemporalInformation]
 
-    def visit_function(self, function: clingo_ast.AST) -> clingo_ast.AST:
+    def visit_Function(self, function: clingo_ast.AST) -> clingo_ast.AST:
         original_name = function.name if function.name != "" else None
         original_arity = len(function.arguments)
         original_signature = gdl.Relation.Signature(name=original_name, arity=original_arity)
@@ -347,17 +351,6 @@ class TemporalTransformer(clingo_ast.Transformer):
 
 _K = TypeVar("_K")
 _V = TypeVar("_V")
-
-
-def _get_lru_cache_factory(
-    max_size: int,
-    getsizeof: Optional[Callable[[_V], int]] = None,
-) -> Callable[[], cachetools.Cache[_K, _V]]:
-    def get_lru_cache() -> cachetools.Cache[_K, _V]:
-        return cachetools.LRUCache(max_size, getsizeof)
-
-    return get_lru_cache
-
 
 _NextCache = MutableMapping[int, MutableMapping[Union[State, View], MutableMapping[Turn, State]]]
 _AllNextCache = MutableMapping[int, MutableMapping[Union[State, View], Set[Tuple[Turn, State]]]]
@@ -492,9 +485,10 @@ def _transform_model(
 
 
 def _transform(symbol: clingo.Symbol, unpack: Optional[int] = None) -> gdl.Subrelation:
+    subrelation = gdl.Subrelation.from_clingo_symbol(symbol)
     if unpack is None:
-        return gdl.Subrelation.from_clingo_symbol(symbol)
-    return gdl.Subrelation.from_clingo_symbol(symbol.arguments[unpack])
+        return subrelation
+    return subrelation.symbol.arguments[unpack]
 
 
 def lookup_state_shape(ctl: clingo.Control, subrelation: gdl.Subrelation, state_shape: MutableStateShape) -> int:
@@ -511,7 +505,9 @@ def lookup_state_shape(ctl: clingo.Control, subrelation: gdl.Subrelation, state_
 
 @contextlib.contextmanager
 def _set_state(
-    ctl: clingo.Control, state_shape: MutableMapping[gdl.Subrelation, int], current: Union[State, View]
+    ctl: clingo.Control,
+    state_shape: MutableMapping[gdl.Subrelation, int],
+    current: Union[State, View],
 ) -> Iterator[clingo.Control]:
     ground_literals = tuple(lookup_state_shape(ctl, subrelation, state_shape) for subrelation in current)
     try:
@@ -542,7 +538,9 @@ def lookup_action_shape(
 
 @contextlib.contextmanager
 def _set_turn(
-    ctl: clingo.Control, action_shape: MutableActionShape, turn: Mapping[Role, Move]
+    ctl: clingo.Control,
+    action_shape: MutableActionShape,
+    turn: Mapping[Role, Move],
 ) -> Iterator[clingo.Control]:
     ground_literals = tuple(lookup_action_shape(ctl, role, move, action_shape) for role, move in turn.items())
     try:
@@ -571,6 +569,7 @@ def _create_developments_ctl(
         sentences=(),
         rules=rules,
         models=0,
+        logger=functools.partial(ControlContainer.log, context="development"),
     )
     return ctl, rules
 
@@ -586,8 +585,8 @@ def _get_developments_models(
         (
             ("base", ()),
             ("static", ()),
-            *(("dynamic", (clingo.Number(step))) for step in range(offset, horizon + 1)),
-            *(("statemachine", (clingo.Number(step))) for step in range(offset, horizon)),
+            *(("dynamic", (clingo.Number(step),)) for step in range(offset, horizon + 1)),
+            *(("statemachine", (clingo.Number(step),)) for step in range(offset, horizon)),
         ),
     )
     with ctl.solve(yield_=True, async_=True) as handle:
