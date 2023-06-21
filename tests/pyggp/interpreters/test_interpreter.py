@@ -2,7 +2,7 @@ from typing import FrozenSet
 
 import pyggp.game_description_language as gdl
 import pytest
-from pyggp.engine_primitives import Move, Role, State, Turn, View
+from pyggp.engine_primitives import Development, DevelopmentStep, Move, Role, State, Turn, View
 from pyggp.exceptions.interpreter_exceptions import (
     GoalNotIntegerInterpreterError,
     MoreThanOneModelInterpreterError,
@@ -17,6 +17,7 @@ from pyggp.exceptions.interpreter_exceptions import (
 )
 from pyggp.game_description_language import Number, Relation, String, Subrelation
 from pyggp.interpreters import ClingoInterpreter, Interpreter
+from pyggp.records import PerfectInformationRecord
 
 
 @pytest.mark.parametrize(
@@ -503,3 +504,51 @@ def test_is_terminal_throws_on_multiple_models(interpreter_factory) -> None:
 
     with pytest.raises(MoreThanOneModelInterpreterError):
         interpreter.is_terminal(State(frozenset()))
+
+
+def test_get_developments_perfect_information_record(interpreter_factory) -> None:
+    rules_str = """
+    role(r).
+    init(0). init(control(r)).
+    next(control(r)) :- true(control(r)).
+    next(2) :- true(1), does(r, 1). next(b) :- true(a), does(r, a).
+    next(1) :- true(0), does(r, 1). next(a) :- true(0), does(r, a).
+    legal(r, 1) :- true(0). legal(r, 1) :- true(1).
+    legal(r, a) :- true(0). legal(r, a) :- true(a).
+    """
+
+    ruleset = gdl.parse(rules_str)
+    interpreter = interpreter_factory(ruleset)
+
+    state_0 = State(
+        frozenset({Subrelation(Number(0)), Subrelation(Relation("control", (Subrelation(Relation("r")),)))}),
+    )
+    state_1 = State(
+        frozenset({Subrelation(Number(1)), Subrelation(Relation("control", (Subrelation(Relation("r")),)))}),
+    )
+    state_2 = State(
+        frozenset({Subrelation(Number(2)), Subrelation(Relation("control", (Subrelation(Relation("r")),)))}),
+    )
+
+    record = PerfectInformationRecord(
+        states={0: state_0, 1: state_1, 2: state_2},
+    )
+    actual = tuple(interpreter.get_developments(record))
+
+    expected = (
+        Development(
+            (
+                DevelopmentStep(
+                    state=state_0,
+                    turn=Turn({Role(Subrelation(Relation("r"))): Move(Subrelation(Number(1)))}),
+                ),
+                DevelopmentStep(
+                    state=state_1,
+                    turn=Turn({Role(Subrelation(Relation("r"))): Move(Subrelation(Number(1)))}),
+                ),
+                DevelopmentStep(state=state_2, turn=None),
+            ),
+        ),
+    )
+
+    assert actual == expected
