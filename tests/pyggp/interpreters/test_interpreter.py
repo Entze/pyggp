@@ -17,7 +17,7 @@ from pyggp.exceptions.interpreter_exceptions import (
 )
 from pyggp.game_description_language import Number, Relation, String, Subrelation
 from pyggp.interpreters import ClingoInterpreter, Interpreter
-from pyggp.records import PerfectInformationRecord
+from pyggp.records import ImperfectInformationRecord, PerfectInformationRecord
 
 
 @pytest.mark.parametrize(
@@ -550,5 +550,39 @@ def test_get_developments_perfect_information_record(interpreter_factory) -> Non
             ),
         ),
     )
+
+    assert actual == expected
+
+
+def test_get_possible_states(interpreter_factory) -> None:
+    rules_str = """
+    role(r).
+    init(0). init(control(r)).
+    next(control(r)) :- true(control(r)).
+    next(2) :- true(1), does(r, 1). next(b) :- true(a), does(r, a).
+    next(1) :- true(0), does(r, 1). next(a) :- true(0), does(r, a).
+    sees(r, control(r)) :- true(control(r)).
+    legal(r, 1) :- true(0). legal(r, 1) :- true(1).
+    legal(r, a) :- true(0). legal(r, a) :- true(a).
+    """
+
+    ruleset = gdl.parse(rules_str)
+    interpreter = interpreter_factory(ruleset)
+
+    r = Role(Subrelation(Relation("r")))
+    control_r = Subrelation(Relation("control", (Subrelation(Relation("r")),)))
+
+    state_0 = State(frozenset({Subrelation(Number(0)), control_r}))
+    state_1a = State(frozenset({Subrelation(Number(1)), control_r}))
+    state_1b = State(frozenset({Subrelation(Relation("a")), control_r}))
+    view_0 = View(State(frozenset({control_r})))
+    view_1 = View(State(frozenset({control_r})))
+    record = ImperfectInformationRecord(
+        possible_states={0: frozenset({state_0})}, views={0: {r: view_0}, 1: {r: view_1}}
+    )
+
+    actual = frozenset(interpreter.get_possible_states(record, ply=1))
+
+    expected = frozenset({state_1a, state_1b})
 
     assert actual == expected

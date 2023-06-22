@@ -11,7 +11,6 @@ from typing import (
     MutableMapping,
     MutableSequence,
     Optional,
-    Sequence,
     Set,
     Tuple,
     Union,
@@ -19,29 +18,26 @@ from typing import (
 
 import cachetools
 import cachetools.keys as cachetools_keys
-import clingo
 from typing_extensions import Self
 
 import pyggp.game_description_language as gdl
 from pyggp._caching import (
     get_roles_in_control_sizeof,
 )
-from pyggp._clingo_interpreter import (
-    CacheContainer,
-    ControlContainer,
-    TemporalRuleContainer,
+from pyggp._clingo_interpreter.base import _get_model, _transform_model
+from pyggp._clingo_interpreter.cache import CacheContainer
+from pyggp._clingo_interpreter.control_containers import ControlContainer, _set_state, _set_turn
+from pyggp._clingo_interpreter.developments import (
     _create_developments_ctl,
     _get_developments_models,
-    _get_model,
-    _set_state,
-    _set_turn,
-    _transform_model,
     transform_developments_model,
 )
-from pyggp.engine_primitives import Development, DevelopmentStep, Move, Role, State, Turn, View
+from pyggp._clingo_interpreter.temporal_rule_containers import TemporalRuleContainer
+from pyggp.engine_primitives import Development, Move, Role, State, Turn, View
 from pyggp.exceptions.interpreter_exceptions import (
     GoalNotIntegerInterpreterError,
     MultipleGoalsInterpreterError,
+    PlyOutsideOfBoundsError,
     UnsatGoalInterpreterError,
     UnsatInitInterpreterError,
     UnsatInterpreterError,
@@ -54,48 +50,6 @@ from pyggp.exceptions.interpreter_exceptions import (
 from pyggp.records import Record
 
 log: logging.Logger = logging.getLogger("pyggp")
-
-
-def development_from_symbols(symbols: Sequence[clingo.Symbol], bounds: Optional[Tuple[int, int]] = None) -> Development:
-    """Create a development from clingo symbols.
-
-    Args:
-        symbols: Clingo symbols
-        bounds: (offset, horizon) bounds on the development
-
-    Returns:
-        Development
-
-    """
-    offset, horizon = bounds if bounds is not None else (None, None)
-    ply_state_map: MutableMapping[int, Set[gdl.Subrelation]] = collections.defaultdict(set)
-    ply_turn_map: MutableMapping[int, MutableMapping[Role, Move]] = collections.defaultdict(dict)
-    for symbol in symbols:
-        if symbol.match("holds_at", 2):
-            subrelation = gdl.Subrelation.from_clingo_symbol(symbol.arguments[0])
-            ply = symbol.arguments[1].number
-            if bounds is None or offset <= ply <= horizon:
-                ply_state_map[ply].add(subrelation)
-        elif symbol.match("does_at", 3):
-            role = Role(gdl.Subrelation.from_clingo_symbol(symbol.arguments[0]))
-            move = Move(gdl.Subrelation.from_clingo_symbol(symbol.arguments[1]))
-            ply = symbol.arguments[2].number
-            if bounds is None or offset <= ply <= horizon:
-                ply_turn_map[ply][role] = move
-    if bounds is None:
-        offset = 0
-        horizon = len(ply_state_map)
-    assert list(range(offset, horizon + 1)) == sorted(ply_state_map.keys())
-    return Development(
-        tuple(
-            DevelopmentStep(
-                state=State(frozenset(ply_state_map[ply])),
-                turn=Turn(ply_turn_map[ply]) if ply_turn_map[ply] else None,
-            )
-            for ply in range(offset, horizon + 1)
-        ),
-    )
-
 
 _get_roles_in_control_cache: cachetools.Cache[State, FrozenSet[Role]] = cachetools.LRUCache(
     maxsize=50_000_000,
@@ -316,6 +270,26 @@ class Interpreter:
 
         """
         raise NotImplementedError
+
+    def get_possible_states(self, record: Record, ply: int) -> Iterator[State]:
+        """Yield all possible states for the given record at the given ply.
+
+        Args:
+            record: Record of the game
+            ply: Ply
+
+        Yields:
+            All possible states at the given ply
+
+        """
+        offset = record.offset
+        horizon = record.horizon
+        if not offset <= ply <= horizon:
+            raise PlyOutsideOfBoundsError
+        developments = self.get_developments(record)
+        shift = ply - offset
+        for development in developments:
+            yield development[shift].state
 
     @staticmethod
     @cachetools.cached(
