@@ -32,6 +32,12 @@ from pyggp._clingo_interpreter.developments import (
     _get_developments_models,
     transform_developments_model,
 )
+from pyggp._clingo_interpreter.possible_states import (
+    StateEnumerationPropagator,
+    create_possible_states_ctl,
+    get_possible_states_models,
+    transform_possible_states_model,
+)
 from pyggp._clingo_interpreter.temporal_rule_containers import TemporalRuleContainer
 from pyggp.engine_primitives import Development, Move, Role, State, Turn, View
 from pyggp.exceptions.interpreter_exceptions import (
@@ -548,3 +554,13 @@ class ClingoInterpreter(Interpreter):
             transform_developments_model(symbols=symbols, offset=offset, horizon=horizon) for symbols in models
         )
         return developments
+
+    def get_possible_states(self, record: Record, ply: int) -> Iterator[State]:
+        ctl, rules = create_possible_states_ctl(temporal_rules=self._temporal_rule_container, record=record, ply=ply)
+        # propagator = StateEnumerationPropagator(ply=ply)
+        # ctl.register_propagator(propagator)
+        offset = record.offset
+        horizon = record.horizon
+        models = get_possible_states_models(ctl, offset=offset, horizon=horizon)
+        possible_states = (transform_possible_states_model(symbols=symbols) for symbols in models)
+        return possible_states

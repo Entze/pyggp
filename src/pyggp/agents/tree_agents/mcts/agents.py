@@ -222,6 +222,9 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
             f"max_height={self.tree.max_height}, "
             f"avg_height={self.tree.avg_height:.2f}, "
             f"arity={self.tree.arity}, "
+            f"fully_expanded={getattr(self.tree, 'fully_expanded', self.tree.children is not None)}, "
+            f"transitions={len(self.tree.children or ())}, "
+            f"fully_enumerated={getattr(self.tree, 'fully_enumerated', True)}, "
             f"possible_states={len(getattr(self.tree, 'possible_states', ((),)))}"
             ")"
         )
@@ -278,12 +281,13 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
 
     def step(self) -> None:
         node = self.tree
-        determinization = random.choice(tuple(node.possible_states))
+        determinization: State = random.choice(tuple(node.possible_states))
 
         while (
             node.children is not None
             and node.children
             and any(state == determinization for (state, _) in node.children)
+            and not self.interpreter.is_terminal(determinization)
         ):
             key = self.selector(node=node, state=determinization)
             node = node.children[key]
@@ -326,6 +330,11 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
         self.tree.trim()
 
     def get_key_to_evaluation(self) -> Mapping[Tuple[State, _Action], _MCTSEvaluation]:
+        while not self.tree.children:
+            determinization = random.choice(tuple(self.tree.possible_states))
+            if self.interpreter.is_terminal(determinization):
+                continue
+            self.tree.branch(interpreter=self.interpreter, state=determinization)
         return {
             key: (
                 float("-inf") if not self._can_lookup() else self._lookup(child),

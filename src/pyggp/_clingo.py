@@ -247,3 +247,17 @@ SHOW_SEES = create_show_signature(name="sees", arity=2)
 SHOW_LEGAL = create_show_signature(name="legal", arity=2)
 SHOW_GOAL = create_show_signature(name="goal", arity=2)
 SHOW_TERMINAL = create_show_signature(name="terminal", arity=0)
+HIDE = create_show_signature(name="", arity=0)
+
+
+def create_show_term(term: Optional[clingo_ast.AST] = None, body: Sequence[clingo_ast.AST] = ()) -> clingo_ast.AST:
+    if term is None:
+        term = create_symbolic_term(symbol=clingo.Number(0))
+    assert term.ast_type in (clingo_ast.ASTType.SymbolicTerm, clingo_ast.ASTType.Variable, clingo_ast.ASTType.Function)
+    return clingo_ast.ShowTerm(location=_loc, term=term, body=body)
+
+
+def get_holds_at_ply_show(ply: int) -> clingo_ast.AST:
+    ply_term = create_symbolic_term(symbol=clingo.Number(ply))
+    holds_at_ply = create_literal(atom=create_atom(create_function(name="holds_at", arguments=(V, ply_term))))
+    return create_show_term(term=V, body=(holds_at_ply,))

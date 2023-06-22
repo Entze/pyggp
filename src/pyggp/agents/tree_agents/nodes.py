@@ -32,7 +32,7 @@ from pyggp.agents.tree_agents.evaluators import Evaluator
 from pyggp.agents.tree_agents.valuations import Valuation
 from pyggp.engine_primitives import Development, Move, Role, State, Turn, View
 from pyggp.interpreters import Interpreter
-from pyggp.records import ImperfectInformationRecord, PerfectInformationRecord
+from pyggp.records import ImperfectInformationRecord, PerfectInformationRecord, Record
 
 log = logging.getLogger("pyggp")
 
@@ -345,15 +345,26 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
     def _make_walkable(self, interpreter: Interpreter, ply: int, view: View) -> None:
         if self._can_walk(ply, view):
             return
-        for possible_state in self.possible_states:
+
+        expanded_states = {state for (state, _) in self.children} if self.children is not None else set()
+        to_branch = self.possible_states - expanded_states
+
+        for possible_state in to_branch:
             self.branch(interpreter, possible_state)
             if self._can_walk(ply, view):
                 return
-        self.fill(interpreter)
-        for possible_state in self.possible_states:
-            self.branch(interpreter, possible_state)
+        expanded_states.update(to_branch)
+        record = self._gather_record(interpreter)
+        possible_states = interpreter.get_possible_states(record=record, ply=self.depth)
+        self.possible_states.clear()
+        self.fully_enumerated = False
+        for possible_state in possible_states:
+            self.possible_states.add(possible_state)
+            if possible_state not in expanded_states:
+                self.branch(interpreter, possible_state)
             if self._can_walk(ply, view):
                 return
+        self.fully_enumerated = True
 
     @abc.abstractmethod
     def _can_walk(self, ply: int, view: View) -> bool:
@@ -366,12 +377,19 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
     def fill(self, interpreter: Interpreter) -> None:
         if self.fully_enumerated:
             return
-        if interpreter.has_incomplete_information:
-            self._fill_with_incomplete_information(interpreter)
-        else:
-            self._fill_with_complete_information(interpreter)
 
-    def _fill_with_incomplete_information(self, interpreter: Interpreter) -> None:
+        record = self._gather_record(interpreter)
+
+        possible_states = interpreter.get_possible_states(record=record, ply=self.depth)
+        self.possible_states = set(possible_states)
+        self.fully_enumerated = True
+
+    def _gather_record(self, interpreter: Interpreter) -> Record:
+        if interpreter.has_incomplete_information:
+            return self._gather_record_incomplete_information()
+        return self._gather_record_complete_information()
+
+    def _gather_record_incomplete_information(self) -> Record:
         last_known_possible_states = None
         last_known_ply = None
         views = {}
@@ -392,17 +410,13 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
         assert last_known_possible_states is not None, "Assumption: last_known_possible_states is not None"
         assert last_known_ply is not None, "Assumption: last_known_ply is not None"
 
-        record = ImperfectInformationRecord(
+        return ImperfectInformationRecord(
             possible_states={last_known_ply: frozenset(last_known_possible_states)},
             views={ply: {self.role: view} for ply, view in views.items()},
             role_move_map={ply: {self.role: move} for ply, move in moves.items()},
         )
 
-        possible_states = interpreter.get_possible_states(record=record, ply=self.depth)
-        self.possible_states = set(possible_states)
-        self.fully_enumerated = True
-
-    def _fill_with_complete_information(self, interpreter: Interpreter) -> None:
+    def _gather_record_complete_information(self) -> Record:
         states = {}
 
         node = self
@@ -412,13 +426,9 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
                     state = cast(State, node.view)
                     states[node.depth] = state
             node = node.parent
-        record = PerfectInformationRecord(
+        return PerfectInformationRecord(
             states={ply: state for ply, state in states.items()},
         )
-
-        possible_states = interpreter.get_possible_states(record=record, ply=self.depth)
-        self.possible_states = set(possible_states)
-        self.fully_enumerated = True
 
     def is_in_control(self, role: Role) -> bool:
         assert any(role in Interpreter.get_roles_in_control(state) for state in self.possible_states) == all(
@@ -519,6 +529,14 @@ class HiddenInformationSetNode(_AbstractInformationSetNode[_U, Turn], Generic[_U
                     fully_expanded=False,
                     fully_enumerated=False,
                 )
+            if self.fully_enumerated and all(
+                any(possible_state == state for (state, _) in self.children) for possible_state in self.possible_states
+            ):
+                self.fully_expanded = True
+                if self.visible_child is not None:
+                    self.visible_child.fully_enumerated = True
+                if self.hidden_child is not None:
+                    self.hidden_child.fully_enumerated = True
 
         assert self.children is not None, "Guarantee: self.children is not None"
 
@@ -708,6 +726,14 @@ class VisibleInformationSetNode(_AbstractInformationSetNode[_U, Move], Generic[_
                     fully_expanded=False,
                     fully_enumerated=False,
                 )
+            if self.fully_enumerated and all(
+                any(possible_state == state for (state, _) in self.children) for possible_state in self.possible_states
+            ):
+                self.fully_expanded = True
+                for child in self.view_to_visiblechild.values():
+                    child.fully_enumerated = True
+                for child in self.move_to_hiddenchild.values():
+                    child.fully_enumerated = True
 
         assert self.children is not None, "Guarantee: self.children is not None"
 

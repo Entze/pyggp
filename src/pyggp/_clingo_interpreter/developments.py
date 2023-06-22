@@ -32,6 +32,7 @@ def _create_developments_ctl(
         sentences=(),
         rules=rules,
         models=0,
+        parallel_mode=1,
         logger=functools.partial(ControlContainer.log, context="development"),
     )
     return ctl, rules
@@ -99,44 +100,3 @@ def transform_developments_model(symbols: Iterable[clingo.Symbol], offset: int, 
         for step in range(offset, horizon + 1)
     )
     return Development(development_steps)
-
-
-def development_from_symbols(symbols: Sequence[clingo.Symbol], bounds: Optional[Tuple[int, int]] = None) -> Development:
-    """Create a development from clingo symbols.
-
-    Args:
-        symbols: Clingo symbols
-        bounds: (offset, horizon) bounds on the development
-
-    Returns:
-        Development
-
-    """
-    offset, horizon = bounds if bounds is not None else (None, None)
-    ply_state_map: MutableMapping[int, Set[gdl.Subrelation]] = collections.defaultdict(set)
-    ply_turn_map: MutableMapping[int, MutableMapping[Role, Move]] = collections.defaultdict(dict)
-    for symbol in symbols:
-        if symbol.match("holds_at", 2):
-            subrelation = gdl.Subrelation.from_clingo_symbol(symbol.arguments[0])
-            ply = symbol.arguments[1].number
-            if bounds is None or offset <= ply <= horizon:
-                ply_state_map[ply].add(subrelation)
-        elif symbol.match("does_at", 3):
-            role = Role(gdl.Subrelation.from_clingo_symbol(symbol.arguments[0]))
-            move = Move(gdl.Subrelation.from_clingo_symbol(symbol.arguments[1]))
-            ply = symbol.arguments[2].number
-            if bounds is None or offset <= ply <= horizon:
-                ply_turn_map[ply][role] = move
-    if bounds is None:
-        offset = 0
-        horizon = len(ply_state_map)
-    assert list(range(offset, horizon + 1)) == sorted(ply_state_map.keys())
-    return Development(
-        tuple(
-            DevelopmentStep(
-                state=State(frozenset(ply_state_map[ply])),
-                turn=Turn(ply_turn_map[ply]) if ply_turn_map[ply] else None,
-            )
-            for ply in range(offset, horizon + 1)
-        ),
-    )
