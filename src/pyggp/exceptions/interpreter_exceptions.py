@@ -99,3 +99,7 @@ class MultipleGoalsInterpreterError(InvalidGDLInterpreterError):
 
 class GoalNotIntegerInterpreterError(InvalidGDLInterpreterError):
     """Goal is not an integer."""
+
+
+class PlyOutsideOfBoundsError(InterpreterError):
+    """Ply is outside of bound."""

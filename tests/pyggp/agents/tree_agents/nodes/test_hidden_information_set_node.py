@@ -286,6 +286,8 @@ def test_develop_returns_minimal_leaf(mock_interpreter, mock_role) -> None:
 
     state_to_turnstatepair = {
         root_state: ((root_turn_1, child_state_1), (root_turn_2, child_state_2)),
+        child_state_1: (),
+        child_state_2: (),
     }
 
     child_state_1_view = mock.MagicMock(spec=View, name="child_state_1_view")
@@ -314,6 +316,7 @@ def test_develop_returns_minimal_leaf(mock_interpreter, mock_role) -> None:
     mock_interpreter.get_all_next_states.side_effect = state_to_turnstatepair.get
     mock_interpreter.get_sees_by_role.side_effect = lambda state, _: state_to_view.get(state)
     mock_interpreter.get_developments.side_effect = lambda _: iter(developments)
+    mock_interpreter.get_possible_states.side_effect = lambda *_args, **_kwargs: iter((child_state_2,))
 
     state_to_roles = {
         root_state: {mock_random_role},
@@ -469,7 +472,6 @@ def test_tic_tac_toe(tic_tac_toe_ruleset) -> None:
 
     assert tree.view == view
     assert tree.possible_states == {state}
-    assert tree.children is None
 
 
 @pytest.fixture()

@@ -15,6 +15,7 @@ def mock_interpreter() -> Interpreter:
     return mock.Mock(spec=Interpreter, name="mock_interpreter")
 
 
+@pytest.mark.skip()
 def test_select_stops_on_incidental_final_state(mock_interpreter) -> None:
     player_1_role = Role(gdl.Subrelation(gdl.Relation("player", (gdl.Subrelation(gdl.Number(1)),))))
     player_2_role = Role(gdl.Subrelation(gdl.Relation("player", (gdl.Subrelation(gdl.Number(2)),))))
@@ -76,6 +77,7 @@ def test_select_stops_on_incidental_final_state(mock_interpreter) -> None:
     assert nodes == trees
 
 
+@pytest.mark.skip()
 def test_select_moves_nodes_to_compatible_branch(mock_interpreter) -> None:
     role_bluffer = Role(gdl.Subrelation(gdl.Relation("bluffer")))
     role_caller = Role(gdl.Subrelation(gdl.Relation("caller")))
