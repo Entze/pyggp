@@ -35,9 +35,11 @@ def _get_ctl(
     *,
     logger: Callable[[clingo.MessageCode, str], None],
     models: int = 0,
+    parallel_mode: int = 1,
 ) -> clingo.Control:
     ctl = clingo.Control(logger=logger)
     ctl.configuration.solve.models = models
+    ctl.configuration.solve.parallel_mode = parallel_mode
     with clingo_ast.ProgramBuilder(ctl) as builder:
         if sentences is not None:
             for sentence in sentences:
