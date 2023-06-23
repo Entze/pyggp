@@ -6,7 +6,19 @@ import clingo
 from clingo import ast as clingo_ast
 
 from pyggp import _clingo as clingo_helper
-from pyggp.engine_primitives import Move, Role, State, Turn, View
+from pyggp.engine_primitives import (
+    ActionShape,
+    Move,
+    Role,
+    SeesShape,
+    State,
+    StateShape,
+    Turn,
+    View,
+    invert_does,
+    invert_sees,
+    invert_state,
+)
 
 
 class Record(Protocol):
@@ -20,16 +32,22 @@ class Record(Protocol):
     def horizon(self) -> int:
         """Maximum ply associated with either states, views or turns."""
 
-    def get_state_assertions(self) -> Iterator[clingo_ast.AST]:
+    def get_state_assertions(self, state_shape: StateShape) -> Iterator[clingo_ast.AST]:
         """Get the clingo assertions for the states of the game.
+
+        Args:
+            state_shape: Shape of state
 
         Yields:
             Clingo assertions for the states of the game
 
         """
 
-    def get_view_assertions(self) -> Iterator[clingo_ast.AST]:
+    def get_view_assertions(self, sees_shape: SeesShape) -> Iterator[clingo_ast.AST]:
         """Get the clingo assertions for the views of the game.
+
+        Args:
+            sees_shape: Shape of view
 
         Yields:
             Clingo assertions for the views of the game
@@ -62,18 +80,21 @@ def get_as_facts(
 
 
 def get_as_assertions(
-    current: Union[State, View],
+    current: Union[State, View, Iterable[Move]],
     name: str = "true",
     pre_arguments: Sequence[clingo_ast.AST] = (),
     post_arguments: Sequence[clingo_ast.AST] = (),
+    *,
+    exclude: bool = False,
 ) -> Iterator[clingo_ast.AST]:
     """Get the clingo assertions for the given state.
 
     Args:
-        current: State or view
+        current: State or view or moves
         name: Name of the relation
         pre_arguments: Arguments before the subrelation
         post_arguments: Arguments after the subrelation
+        exclude: Whether to exclude current
 
     Yields:
         clingo assertions
@@ -84,7 +105,8 @@ def get_as_assertions(
         for elem in current
     )
     atoms = (clingo_helper.create_atom(symbol=symbol) for symbol in symbols)
-    literals = (clingo_helper.create_literal(atom=atom, sign=clingo_ast.Sign.Negation) for atom in atoms)
+    sign = clingo_ast.Sign.Negation if not exclude else clingo_ast.Sign.NoSign
+    literals = (clingo_helper.create_literal(atom=atom, sign=sign) for atom in atoms)
     assertions = (clingo_helper.create_rule(body=(literal,)) for literal in literals)
     yield from assertions
 
@@ -113,13 +135,7 @@ class PerfectInformationRecord(Record):
             max(self.turns.keys(), default=0),
         )
 
-    def get_state_assertions(self) -> Iterator[clingo_ast.AST]:
-        """Get the clingo assertions for the states of the game.
-
-        Yields:
-            Clingo assertions for the states of the game
-
-        """
+    def get_state_assertions(self, state_shape: StateShape) -> Iterator[clingo_ast.AST]:
         if self.offset > 0:
             current_time = clingo_helper.create_symbolic_term(clingo.Number(self.offset))
             state = self.states[self.offset]
@@ -132,14 +148,15 @@ class PerfectInformationRecord(Record):
                 name="holds_at",
                 post_arguments=(current_time,),
             )
+            inverted_state = invert_state(state_shape, state)
+            yield from get_as_assertions(
+                inverted_state,
+                name="holds_at",
+                post_arguments=(current_time,),
+                exclude=True,
+            )
 
-    def get_view_assertions(self) -> Iterator[clingo_ast.AST]:
-        """Get the clingo assertions for the views of the game.
-
-        Yields:
-            Clingo assertions for the views of the game
-
-        """
+    def get_view_assertions(self, sees_shape: SeesShape) -> Iterator[clingo_ast.AST]:
         for ply, views in self.views.items():
             current_time = clingo_helper.create_symbolic_term(clingo.Number(ply))
             for role, view in views.items():
@@ -149,6 +166,14 @@ class PerfectInformationRecord(Record):
                     name="sees_at",
                     pre_arguments=(role_ast,),
                     post_arguments=(current_time,),
+                )
+                inverted_view = invert_sees(sees_shape, role, view)
+                yield from get_as_assertions(
+                    inverted_view,
+                    name="sees_at",
+                    pre_arguments=(role_ast,),
+                    post_arguments=(current_time,),
+                    exclude=True,
                 )
 
     def get_turn_assertions(self) -> Iterator[clingo_ast.AST]:
@@ -160,10 +185,19 @@ class PerfectInformationRecord(Record):
         """
         for ply, turn in self.turns.items():
             current_time = clingo_helper.create_symbolic_term(clingo.Number(ply))
-            yield from turn.get_assertions(current_time)
+            for role, move in turn.items():
+                role_ast = role.as_clingo_ast()
+                yield from get_as_assertions(
+                    (move,),
+                    name="does_at",
+                    pre_arguments=(role_ast,),
+                    post_arguments=(current_time,),
+                )
 
 
-def _get_indirect_state_assertions(ply: int, possible_states: Iterable[State]) -> Iterator[clingo_ast.AST]:
+def _get_indirect_state_assertions(
+    ply: int, possible_states: Iterable[State], state_shape: StateShape
+) -> Iterator[clingo_ast.AST]:
     state_literals = []
     ply_number = clingo_helper.create_symbolic_term(clingo.Number(ply))
     for n, state in enumerate(possible_states):
@@ -180,6 +214,8 @@ def _get_indirect_state_assertions(ply: int, possible_states: Iterable[State]) -
         state_literal = clingo_helper.create_literal(atom=state_atom)
         state_literals.append(state_literal)
         yield from _pin_state_indirectly(ply_number, state, state_literal)
+        inverted_state = invert_state(state_shape, state)
+        yield from _pin_state_indirectly(ply_number, inverted_state, state_literal, exclude=True)
 
     yield from _choose_state(state_literals)
 
@@ -188,12 +224,15 @@ def _pin_state_indirectly(
     ply_number: clingo_ast.AST,
     state: State,
     state_literal: clingo_ast.AST,
+    *,
+    exclude: bool = False,
 ) -> Iterator[clingo_ast.AST]:
     temporal_symbols = (
         clingo_helper.create_function(name="holds_at", arguments=(elem.as_clingo_ast(), ply_number)) for elem in state
     )
     atoms = (clingo_helper.create_atom(temporal_symbol) for temporal_symbol in temporal_symbols)
-    literals = (clingo_helper.create_literal(sign=clingo_ast.Sign.Negation, atom=atom) for atom in atoms)
+    sign = clingo_ast.Sign.Negation if not exclude else clingo_ast.Sign.NoSign
+    literals = (clingo_helper.create_literal(sign=sign, atom=atom) for atom in atoms)
     bodies = ((state_literal, literal) for literal in literals)
     rules = (clingo_helper.create_rule(body=body) for body in bodies)
     yield from rules
@@ -286,7 +325,7 @@ class ImperfectInformationRecord(Record):
             max(self.role_move_map.keys(), default=0),
         )
 
-    def get_state_assertions(self) -> Iterator[clingo_ast.AST]:
+    def get_state_assertions(self, state_shape: StateShape) -> Iterator[clingo_ast.AST]:
         """Get the clingo assertions for the states of the game.
 
         Yields:
@@ -299,15 +338,9 @@ class ImperfectInformationRecord(Record):
         for ply, possible_states in self.possible_states.items():
             if ply == self.offset:
                 continue
-            yield from _get_indirect_state_assertions(ply, possible_states)
+            yield from _get_indirect_state_assertions(ply, possible_states, state_shape)
 
-    def get_view_assertions(self) -> Iterator[clingo_ast.AST]:
-        """Get the clingo assertions for the views of the game.
-
-        Yields:
-            Clingo assertions for the views of the game
-
-        """
+    def get_view_assertions(self, sees_shape: SeesShape) -> Iterator[clingo_ast.AST]:
         for ply, views in self.views.items():
             current_time = clingo_helper.create_symbolic_term(clingo.Number(ply))
             for role, view in views.items():
@@ -318,6 +351,14 @@ class ImperfectInformationRecord(Record):
                     pre_arguments=(role_ast,),
                     post_arguments=(current_time,),
                 )
+                inverted_view = invert_sees(sees_shape, role, view)
+                yield from get_as_assertions(
+                    inverted_view,
+                    name="sees_at",
+                    pre_arguments=(role_ast,),
+                    post_arguments=(current_time,),
+                    exclude=True,
+                )
 
     def get_turn_assertions(self) -> Iterator[clingo_ast.AST]:
         """Get the clingo assertions for the turns of the game.
@@ -326,7 +367,13 @@ class ImperfectInformationRecord(Record):
             Clingo assertions for the turns of the game
 
         """
-        for ply, role_move_map in self.role_move_map.items():
+        for ply, role_to_move in self.role_move_map.items():
             current_time = clingo_helper.create_symbolic_term(clingo.Number(ply))
-            turn = Turn(role_move_map.items())
-            yield from turn.get_assertions(current_time)
+            for role, move in role_to_move.items():
+                role_ast = role.as_clingo_ast()
+                yield from get_as_assertions(
+                    (move,),
+                    name="does_at",
+                    pre_arguments=(role_ast,),
+                    post_arguments=(current_time,),
+                )

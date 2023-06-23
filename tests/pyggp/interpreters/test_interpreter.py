@@ -461,10 +461,8 @@ def test_get_goals_throws_on_multiple_goals(interpreter_factory) -> None:
 
 def test_get_goals_throws_on_goal_not_integer(interpreter_factory) -> None:
     ruleset = gdl.parse("role(x). goal(x, a).")
-    interpreter = interpreter_factory(ruleset)
-
     with pytest.raises(GoalNotIntegerInterpreterError):
-        interpreter.get_goals(State(frozenset()))
+        interpreter = interpreter_factory(ruleset)
 
 
 @pytest.mark.parametrize(

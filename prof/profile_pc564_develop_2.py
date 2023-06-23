@@ -29,8 +29,7 @@ move_4 = cell_2_2
 move_5 = cell_3_6
 move_6 = cell_3_5
 move_7 = cell_1_3
-move_8 = cell_2_6
-move_9 = cell_5_1
+move_8 = cell_5_1
 
 state_0 = phantom_connect_5_6_4_init_state
 x = phantom_connect_5_6_4_role_x
@@ -40,10 +39,12 @@ interpreter = phantom_connect_5_6_4_interpreter
 tree_x = VisibleInformationSetNode(
     possible_states={state_0},
     role=x,
+    fully_enumerated=True,
 )
 tree_o = HiddenInformationSetNode(
     possible_states={state_0},
     role=o,
+    fully_enumerated=True,
 )
 
 view_0 = interpreter.get_sees_by_role(state_0, x)
@@ -145,3 +146,5 @@ tree_x.move = move_8
 print(f"Step 9 {len(tree_x.possible_states)}")
 
 tree_x = tree_x.develop(interpreter, 9, view_9)
+
+print(f"Step 10 {len(tree_x.possible_states)}")

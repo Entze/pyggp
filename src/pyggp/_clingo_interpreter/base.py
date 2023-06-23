@@ -5,6 +5,7 @@ from clingo import ast as clingo_ast
 
 from pyggp import _clingo as clingo_helper
 from pyggp import game_description_language as gdl
+from pyggp.engine_primitives import ParallelMode
 from pyggp.exceptions.interpreter_exceptions import (
     ModelTimeoutInterpreterError,
     MoreThanOneModelInterpreterError,
@@ -35,11 +36,14 @@ def _get_ctl(
     *,
     logger: Callable[[clingo.MessageCode, str], None],
     models: int = 0,
-    parallel_mode: int = 1,
+    parallel_mode: ParallelMode = 1,
 ) -> clingo.Control:
     ctl = clingo.Control(logger=logger)
     ctl.configuration.solve.models = models
-    ctl.configuration.solve.parallel_mode = parallel_mode
+    if isinstance(parallel_mode, tuple):
+        ctl.configuration.solve.parallel_mode = f"{parallel_mode[0]},{parallel_mode[1]}"
+    else:
+        ctl.configuration.solve.parallel_mode = parallel_mode
     with clingo_ast.ProgramBuilder(ctl) as builder:
         if sentences is not None:
             for sentence in sentences:

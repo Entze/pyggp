@@ -16,8 +16,8 @@ from pyggp.engine_primitives import Move, Role, State, View
 
 log = logging.getLogger("pyggp")
 
-MutableStateShape = MutableMapping[gdl.Subrelation, int]
-MutableActionShape = MutableMapping[Role, MutableMapping[Move, int]]
+MutableStateLiteralMapping = MutableMapping[gdl.Subrelation, int]
+MutableActionLiteralMapping = MutableMapping[Role, MutableMapping[Move, int]]
 
 
 @dataclass(frozen=True)
@@ -25,16 +25,18 @@ class ControlContainer:
     role: clingo.Control = field(default_factory=clingo.Control)
     init: clingo.Control = field(default_factory=clingo.Control)
     next: clingo.Control = field(default_factory=clingo.Control)
-    next_state_shape: MutableStateShape = field(default_factory=dict)
-    next_action_shape: MutableActionShape = field(default_factory=functools.partial(collections.defaultdict, dict))
+    next_state_to_literal: MutableStateLiteralMapping = field(default_factory=dict)
+    next_action_to_literal: MutableActionLiteralMapping = field(
+        default_factory=functools.partial(collections.defaultdict, dict)
+    )
     sees: clingo.Control = field(default_factory=clingo.Control)
-    sees_state_shape: MutableStateShape = field(default_factory=dict)
+    sees_state_to_literal: MutableStateLiteralMapping = field(default_factory=dict)
     legal: clingo.Control = field(default_factory=clingo.Control)
-    legal_state_shape: MutableStateShape = field(default_factory=dict)
+    legal_state_to_literal: MutableStateLiteralMapping = field(default_factory=dict)
     goal: clingo.Control = field(default_factory=clingo.Control)
-    goal_state_shape: MutableStateShape = field(default_factory=dict)
+    goal_state_to_literal: MutableStateLiteralMapping = field(default_factory=dict)
     terminal: clingo.Control = field(default_factory=clingo.Control)
-    terminal_state_shape: MutableStateShape = field(default_factory=dict)
+    terminal_state_to_literal: MutableStateLiteralMapping = field(default_factory=dict)
 
     @classmethod
     def from_ruleset(cls, ruleset: gdl.Ruleset) -> Self:
@@ -138,25 +140,27 @@ class ControlContainer:
             log.debug("%s: %s", context, message)
 
 
-def lookup_state_shape(ctl: clingo.Control, subrelation: gdl.Subrelation, state_shape: MutableStateShape) -> int:
-    if subrelation not in state_shape:
+def lookup_state_literal(
+    ctl: clingo.Control, subrelation: gdl.Subrelation, state_to_literal: MutableStateLiteralMapping
+) -> int:
+    if subrelation not in state_to_literal:
         symbolic_atom = clingo.Function(name="true", arguments=(subrelation.as_clingo_symbol(),))
         lit = ctl.symbolic_atoms[symbolic_atom]
         if lit is None:
             return 0
         assert lit is not None, f"Assumption: ctl.symbolic_atoms[symbolic_atom] is not None (subrelation={subrelation})"
-        state_shape[subrelation] = lit.literal
-    assert subrelation in state_shape, f"Guarantee: {subrelation} in state_shape"
-    return state_shape[subrelation]
+        state_to_literal[subrelation] = lit.literal
+    assert subrelation in state_to_literal, f"Guarantee: {subrelation} in state_shape"
+    return state_to_literal[subrelation]
 
 
 @contextlib.contextmanager
 def _set_state(
     ctl: clingo.Control,
-    state_shape: MutableMapping[gdl.Subrelation, int],
+    state_to_literal: MutableStateLiteralMapping,
     current: Union[State, View],
 ) -> Iterator[clingo.Control]:
-    ground_literals = tuple(lookup_state_shape(ctl, subrelation, state_shape) for subrelation in current)
+    ground_literals = tuple(lookup_state_literal(ctl, subrelation, state_to_literal) for subrelation in current)
     try:
         for ground_literal in ground_literals:
             ctl.assign_external(external=ground_literal, truth=True)
@@ -166,30 +170,27 @@ def _set_state(
             ctl.assign_external(external=ground_literal, truth=False)
 
 
-def lookup_action_shape(
-    ctl: clingo.Control,
-    role: Role,
-    move: Move,
-    action_shape: MutableActionShape,
+def lookup_action_literal(
+    ctl: clingo.Control, role: Role, move: Move, action_to_literal: MutableActionLiteralMapping
 ) -> int:
-    if role not in action_shape or move not in action_shape[role]:
+    if role not in action_to_literal or move not in action_to_literal[role]:
         symbolic_atom = clingo.Function(name="does", arguments=(role.as_clingo_symbol(), move.as_clingo_symbol()))
         lit = ctl.symbolic_atoms[symbolic_atom]
         assert lit is not None, "Assumption: ctl.symbolic_atoms[symbolic_atom] is not None"
-        action_shape[role][move] = lit.literal
+        action_to_literal[role][move] = lit.literal
 
-    assert role in action_shape, f"Guarantee: role in action_shape"
-    assert move in action_shape[role], f"Guarantee: move in action_shape[role]"
-    return action_shape[role][move]
+    assert role in action_to_literal, f"Guarantee: role in action_shape"
+    assert move in action_to_literal[role], f"Guarantee: move in action_shape[role]"
+    return action_to_literal[role][move]
 
 
 @contextlib.contextmanager
 def _set_turn(
     ctl: clingo.Control,
-    action_shape: MutableActionShape,
+    action_to_literal: MutableActionLiteralMapping,
     turn: Mapping[Role, Move],
 ) -> Iterator[clingo.Control]:
-    ground_literals = tuple(lookup_action_shape(ctl, role, move, action_shape) for role, move in turn.items())
+    ground_literals = tuple(lookup_action_literal(ctl, role, move, action_to_literal) for role, move in turn.items())
     try:
         for ground_literal in ground_literals:
             ctl.assign_external(external=ground_literal, truth=True)

@@ -2,6 +2,7 @@
 import collections
 import itertools
 import logging
+import multiprocessing
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -33,13 +34,13 @@ from pyggp._clingo_interpreter.developments import (
     transform_developments_model,
 )
 from pyggp._clingo_interpreter.possible_states import (
-    StateEnumerationPropagator,
     create_possible_states_ctl,
     get_possible_states_models,
     transform_possible_states_model,
 )
+from pyggp._clingo_interpreter.shape_containers import ShapeContainer
 from pyggp._clingo_interpreter.temporal_rule_containers import TemporalRuleContainer
-from pyggp.engine_primitives import Development, Move, Role, State, Turn, View
+from pyggp.engine_primitives import Development, Move, ParallelMode, Role, State, Turn, View
 from pyggp.exceptions.interpreter_exceptions import (
     GoalNotIntegerInterpreterError,
     MultipleGoalsInterpreterError,
@@ -341,18 +342,28 @@ class Interpreter:
 class ClingoInterpreter(Interpreter):
     """An interpreter for a GDL ruleset using clingo."""
 
+    parallel_mode: ParallelMode = field(default=1)
     _control_container: ControlContainer = field(default_factory=ControlContainer, repr=False)
+    _shape_container: ShapeContainer = field(default_factory=ShapeContainer, repr=False)
     _temporal_rule_container: TemporalRuleContainer = field(default_factory=TemporalRuleContainer, repr=False)
     _cache_container: CacheContainer = field(default_factory=CacheContainer, repr=False)
 
     @classmethod
-    def from_ruleset(cls, ruleset: gdl.Ruleset, *args: Any, **kwargs: Any) -> Self:
+    def from_ruleset(
+        cls, ruleset: gdl.Ruleset, *args: Any, parallel_mode: Optional[ParallelMode] = None, **kwargs: Any
+    ) -> Self:
         control_container = ControlContainer.from_ruleset(ruleset)
+        shape_container = ShapeContainer.from_control_container(control_container)
         temporal_rule_container = TemporalRuleContainer.from_ruleset(ruleset)
         cache_container = CacheContainer()
+        if parallel_mode is None:
+            cpu_count = multiprocessing.cpu_count()
+            parallel_mode = (max(2, min(64, cpu_count)), "compete")
         return cls(
             ruleset=ruleset,
+            parallel_mode=parallel_mode,
             _control_container=control_container,
+            _shape_container=shape_container,
             _temporal_rule_container=temporal_rule_container,
             _cache_container=cache_container,
         )
@@ -409,9 +420,9 @@ class ClingoInterpreter(Interpreter):
     def _get_next_state(self, current: Union[State, View], turn: Mapping[Role, Move]) -> State:
         with _set_state(
             self._control_container.next,
-            self._control_container.next_state_shape,
+            self._control_container.next_state_to_literal,
             current,
-        ) as _ctl, _set_turn(_ctl, self._control_container.next_action_shape, turn) as ctl:
+        ) as _ctl, _set_turn(_ctl, self._control_container.next_action_to_literal, turn) as ctl:
             model = _get_model(ctl)
             subrelations = _transform_model(model, unpack=0)
             try:
@@ -453,7 +464,7 @@ class ClingoInterpreter(Interpreter):
     def _get_sees(self, current: Union[State, View]) -> Mapping[Role, View]:
         if not self.has_incomplete_information:
             return {role: View(current) for role in self.get_roles()}
-        with _set_state(self._control_container.sees, self._control_container.sees_state_shape, current) as ctl:
+        with _set_state(self._control_container.sees, self._control_container.sees_state_to_literal, current) as ctl:
             model = _get_model(ctl)
             subrelations = _transform_model(model)
             role_subrelation_pairs = (
@@ -477,7 +488,7 @@ class ClingoInterpreter(Interpreter):
         return self._cache_container.legal[current_len][current]
 
     def _get_legal_moves(self, current: Union[State, View]) -> Mapping[Role, FrozenSet[Move]]:
-        with _set_state(self._control_container.legal, self._control_container.legal_state_shape, current) as ctl:
+        with _set_state(self._control_container.legal, self._control_container.legal_state_to_literal, current) as ctl:
             model = _get_model(ctl)
             subrelations = _transform_model(model)
             role_move_pairs = (
@@ -502,7 +513,7 @@ class ClingoInterpreter(Interpreter):
         return self._cache_container.goal[current_len][current]
 
     def _get_goals(self, current: Union[State, View]) -> Mapping[Role, Optional[int]]:
-        with _set_state(self._control_container.goal, self._control_container.goal_state_shape, current) as ctl:
+        with _set_state(self._control_container.goal, self._control_container.goal_state_to_literal, current) as ctl:
             model = _get_model(ctl)
             subrelations = _transform_model(model)
             role_goal_pairs = (
@@ -537,7 +548,9 @@ class ClingoInterpreter(Interpreter):
         return self._cache_container.terminal[current_len][current]
 
     def _is_terminal(self, current: Union[State, View]) -> bool:
-        with _set_state(self._control_container.terminal, self._control_container.terminal_state_shape, current) as ctl:
+        with _set_state(
+            self._control_container.terminal, self._control_container.terminal_state_to_literal, current
+        ) as ctl:
             model = _get_model(ctl)
             subrelations = _transform_model(model)
             try:
@@ -546,7 +559,9 @@ class ClingoInterpreter(Interpreter):
                 raise UnsatTerminalInterpreterError from UnsatInterpreterError
 
     def get_developments(self, record: Record) -> Iterator[Development]:
-        ctl, rules = _create_developments_ctl(temporal_rules=self._temporal_rule_container, record=record)
+        ctl, rules = _create_developments_ctl(
+            temporal_rules=self._temporal_rule_container, shapes=self._shape_container, record=record
+        )
         offset = record.offset
         horizon = record.horizon
         models = _get_developments_models(ctl, offset=offset, horizon=horizon)
@@ -556,11 +571,17 @@ class ClingoInterpreter(Interpreter):
         return developments
 
     def get_possible_states(self, record: Record, ply: int) -> Iterator[State]:
-        ctl, rules = create_possible_states_ctl(temporal_rules=self._temporal_rule_container, record=record, ply=ply)
-        # propagator = StateEnumerationPropagator(ply=ply)
-        # ctl.register_propagator(propagator)
+        ctl, rules = create_possible_states_ctl(
+            temporal_rules=self._temporal_rule_container,
+            shapes=self._shape_container,
+            record=record,
+            ply=ply,
+            parallel_mode=self.parallel_mode,
+        )
         offset = record.offset
         horizon = record.horizon
+        # propagator = StateEnumerationPropagator(ply=ply, offset=offset)
+        # ctl.register_propagator(propagator)
         models = get_possible_states_models(ctl, offset=offset, horizon=horizon)
         possible_states = (transform_possible_states_model(symbols=symbols) for symbols in models)
         return possible_states

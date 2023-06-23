@@ -246,6 +246,9 @@ class InformationSetNode(Node[_U, Tuple[State, _A]], Protocol[_U, _A]):
     def cut(self, interpreter: Interpreter) -> None:
         """Remove impossible states from possible_states."""
 
+    def gather_record(self, *, has_incomplete_information: bool = True) -> Record:
+        """Gathers a minimal record to reconstruct current possible states."""
+
     def fill(self, interpreter: Interpreter) -> None:
         """Fills the node with all possible states consistent with the given views and moves."""
 
@@ -309,25 +312,16 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
                 abort_msg="Aborted cutting node",
             ):
                 node.cut(interpreter=interpreter)
-        else:
+
             with log_time(
                 log=log,
                 level=logging.DEBUG,
-                begin_msg="Filling node",
-                end_msg="Filled node",
-                abort_msg="Aborted filling node",
+                begin_msg="Trimming node",
+                end_msg="Trimmed node",
+                abort_msg="Aborted trimming node",
             ):
-                node.fill(interpreter=interpreter)
-        assert node.fully_enumerated, "Guarantee: node.fully_enumerated"
-        with log_time(
-            log=log,
-            level=logging.DEBUG,
-            begin_msg="Trimming node",
-            end_msg="Trimmed node",
-            abort_msg="Aborted trimming node",
-        ):
-            node.trim()
-        node.parent = None
+                node.trim()
+            node.parent = None
 
         return node
 
@@ -345,23 +339,20 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
     def _make_walkable(self, interpreter: Interpreter, ply: int, view: View) -> None:
         if self._can_walk(ply, view):
             return
-
-        expanded_states = {state for (state, _) in self.children} if self.children is not None else set()
-        to_branch = self.possible_states - expanded_states
-
-        for possible_state in to_branch:
-            self.branch(interpreter, possible_state)
-            if self._can_walk(ply, view):
-                return
-        expanded_states.update(to_branch)
-        record = self._gather_record(interpreter)
-        possible_states = interpreter.get_possible_states(record=record, ply=self.depth)
-        self.possible_states.clear()
-        self.fully_enumerated = False
+        if not self.fully_enumerated:
+            record = self.gather_record(
+                has_incomplete_information=interpreter.has_incomplete_information, views={ply: view}
+            )
+            possible_states = interpreter.get_possible_states(record=record, ply=self.depth)
+            self.possible_states.clear()
+        else:
+            possible_states = self.possible_states
         for possible_state in possible_states:
-            self.possible_states.add(possible_state)
-            if possible_state not in expanded_states:
-                self.branch(interpreter, possible_state)
+            if not self.fully_enumerated:
+                if possible_state in self.possible_states:
+                    continue
+                self.possible_states.add(possible_state)
+            self.branch(interpreter, possible_state)
             if self._can_walk(ply, view):
                 return
         self.fully_enumerated = True
@@ -378,22 +369,32 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
         if self.fully_enumerated:
             return
 
-        record = self._gather_record(interpreter)
+        record = self.gather_record(has_incomplete_information=interpreter.has_incomplete_information)
 
         possible_states = interpreter.get_possible_states(record=record, ply=self.depth)
         self.possible_states = set(possible_states)
         self.fully_enumerated = True
 
-    def _gather_record(self, interpreter: Interpreter) -> Record:
-        if interpreter.has_incomplete_information:
-            return self._gather_record_incomplete_information()
-        return self._gather_record_complete_information()
+    def gather_record(
+        self,
+        *,
+        has_incomplete_information: bool = True,
+        views: Optional[MutableMapping[int, View]] = None,
+        moves: Optional[MutableMapping[int, Move]] = None,
+    ) -> Record:
+        if has_incomplete_information:
+            return self._gather_record_incomplete_information(views=views, moves=moves)
+        return self._gather_record_complete_information(views=views, moves=moves)
 
-    def _gather_record_incomplete_information(self) -> Record:
+    def _gather_record_incomplete_information(
+        self, *, views: Optional[MutableMapping[int, View]] = None, moves: Optional[MutableMapping[int, Move]] = None
+    ) -> ImperfectInformationRecord:
         last_known_possible_states = None
         last_known_ply = None
-        views = {}
-        moves = {}
+        if views is None:
+            views = {}
+        if moves is None:
+            moves = {}
 
         node = self
         while node is not None and last_known_possible_states is None:
@@ -416,8 +417,12 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
             role_move_map={ply: {self.role: move} for ply, move in moves.items()},
         )
 
-    def _gather_record_complete_information(self) -> Record:
+    def _gather_record_complete_information(
+        self, *, views: Optional[MutableMapping[int, View]] = None, moves: Optional[MutableMapping[int, Move]] = None
+    ) -> PerfectInformationRecord:
         states = {}
+        if views is not None:
+            states.update((ply, cast(State, view)) for ply, view in views.items())
 
         node = self
         while node is not None and not states:
@@ -441,7 +446,7 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
 class HiddenInformationSetNode(_AbstractInformationSetNode[_U, Turn], Generic[_U]):
     role: Role = field(hash=True)
     possible_states: Set[State] = field(default_factory=set, hash=False)
-    fully_enumerated: bool = field(default=True, hash=False)
+    fully_enumerated: bool = field(default=False, hash=False)
     valuation: Optional[Valuation[_U]] = field(default=None, hash=True)
     depth: Final[int] = field(default=0)
     parent: Optional["ImperfectInformationNode[_U]"] = field(default=None, repr=False, hash=False)
@@ -453,7 +458,7 @@ class HiddenInformationSetNode(_AbstractInformationSetNode[_U, Turn], Generic[_U
         repr=False,
         hash=False,
     )
-    fully_expanded: bool = field(default=True, hash=False)
+    fully_expanded: bool = field(default=False, hash=False)
     visible_child: Optional["VisibleInformationSetNode[_U]"] = field(default=None, repr=False, hash=False)
     hidden_child: Optional["HiddenInformationSetNode[_U]"] = field(default=None, repr=False, hash=False)
 

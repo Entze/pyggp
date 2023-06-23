@@ -1,4 +1,4 @@
-from typing import Final, FrozenSet, Iterator, NamedTuple, NewType, Optional, Sequence
+from typing import Final, FrozenSet, Iterator, Literal, NamedTuple, NewType, Optional, Sequence, Tuple, Union
 
 import clingo.ast as clingo_ast
 
@@ -76,3 +76,64 @@ class DevelopmentStep(NamedTuple):
 _Development = Sequence[DevelopmentStep]
 Development = NewType("Development", _Development)
 """A sequence of development steps."""
+
+ParallelMode = Union[int, Tuple[int, Literal["compete", "split"]]]
+
+StateShape = FrozenSet[gdl.Subrelation]
+ActionShape = FrozenDict[Role, FrozenSet[Move]]
+SeesShape = FrozenDict[Role, FrozenSet[gdl.Subrelation]]
+GoalShape = FrozenDict[Role, FrozenSet[int]]
+
+
+def in_state_shape(state_shape: StateShape, subrelation: gdl.Subrelation) -> bool:
+    if subrelation in state_shape:
+        return True
+    return subrelation.matches_signature(name="true", arity=1) and subrelation.symbol.arguments[0] in state_shape
+
+
+def invert_state(state_shape: StateShape, current: Union[State, View]) -> State:
+    inverted = state_shape - current
+    return State(inverted)
+
+
+def in_action_shape(action_shape: ActionShape, __play_or_role: Union[Play, Role], move: Optional[Move] = None) -> bool:
+    role = None
+    if __play_or_role in action_shape:
+        role = __play_or_role
+    elif __play_or_role.matches_signature(name="does", arity=2):
+        role = __play_or_role.symbol.arguments[0]
+        move = __play_or_role.symbol.arguments[1]
+    return role in action_shape and move in action_shape[role]
+
+
+def invert_does(action_shape: ActionShape, role: Role, move: Move) -> FrozenSet[Move]:
+    return frozenset(m for m in action_shape[role] if m != move)
+
+
+def in_sees_shape(
+    sees_shape: ActionShape, __sees_or_role: Union[gdl.Subrelation, Role], subrelation: Optional[gdl.Subrelation] = None
+) -> bool:
+    role = None
+    if __sees_or_role in sees_shape:
+        role = __sees_or_role
+    elif __sees_or_role.matches_signature(name="sees", arity=2):
+        role = __sees_or_role.symbol.arguments[0]
+        subrelation = __sees_or_role.symbol.arguments[1]
+    return role in sees_shape and subrelation in sees_shape[role]
+
+
+def invert_sees(sees_shape: SeesShape, role: Role, view: View) -> View:
+    inverted = sees_shape[role] - view
+    return View(inverted)
+
+
+def in_goal_shape(
+    goal_shape: GoalShape, __goal_or_role: Union[gdl.Subrelation, Role], value: Optional[int] = None
+) -> bool:
+    role = None
+    if __goal_or_role in goal_shape:
+        role = __goal_or_role
+    elif __goal_or_role.matches_signature(name="goal", arity=2):
+        role = __goal_or_role.symbol.arguments[0]
+        value = __goal_or_role.symbol.arguments[1]
+    return role in goal_shape and value in goal_shape[role]

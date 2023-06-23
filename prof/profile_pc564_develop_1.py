@@ -39,10 +39,12 @@ interpreter = phantom_connect_5_6_4_interpreter
 tree_x = VisibleInformationSetNode(
     possible_states={state_0},
     role=x,
+    fully_enumerated=True,
 )
 tree_o = HiddenInformationSetNode(
     possible_states={state_0},
     role=o,
+    fully_enumerated=True,
 )
 
 view_0 = interpreter.get_sees_by_role(state_0, x)
