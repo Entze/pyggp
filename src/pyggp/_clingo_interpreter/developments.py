@@ -9,6 +9,7 @@ from pyggp import _clingo as clingo_helper
 from pyggp import game_description_language as gdl
 from pyggp._clingo_interpreter.base import _get_ctl, _transform_model
 from pyggp._clingo_interpreter.control_containers import ControlContainer
+from pyggp._clingo_interpreter.shape_containers import ShapeContainer
 from pyggp._clingo_interpreter.temporal_rule_containers import TemporalRuleContainer
 from pyggp.engine_primitives import Development, DevelopmentStep, Move, Role, State, Turn
 from pyggp.exceptions.interpreter_exceptions import ModelTimeoutInterpreterError, UnsatDevelopmentsInterpreterError
@@ -17,12 +18,13 @@ from pyggp.records import Record
 
 def _create_developments_ctl(
     temporal_rules: TemporalRuleContainer,
+    shapes: ShapeContainer,
     record: Record,
 ) -> Tuple[clingo.Control, Sequence[clingo_ast.AST]]:
     rules = (
-        *record.get_state_assertions(),
+        *record.get_state_assertions(shapes.state_shape),
         *record.get_turn_assertions(),
-        *record.get_view_assertions(),
+        *record.get_view_assertions(shapes.sees_shape),
         *temporal_rules.static,
         *temporal_rules.dynamic,
         *temporal_rules.statemachine,

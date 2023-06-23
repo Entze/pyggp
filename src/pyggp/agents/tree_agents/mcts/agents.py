@@ -1,17 +1,14 @@
 import abc
 import collections
 import logging
-import math
 import random
 import time
 from dataclasses import dataclass, field
 from typing import (
     FrozenSet,
     Generic,
-    Iterator,
     Mapping,
     MutableMapping,
-    MutableSequence,
     Optional,
     Tuple,
     TypeVar,
@@ -35,10 +32,9 @@ from pyggp.agents.tree_agents.nodes import (
     VisibleInformationSetNode,
 )
 from pyggp.books import Book, BookBuilder
-from pyggp.engine_primitives import Development, DevelopmentStep, Move, Role, State, Turn, View
+from pyggp.engine_primitives import Move, Role, State, Turn, View
 from pyggp.gameclocks import GameClock
 from pyggp.interpreters import Interpreter
-from pyggp.records import ImperfectInformationRecord
 from pyggp.repeaters import Repeater
 
 log = logging.getLogger("pyggp")
@@ -77,7 +73,7 @@ class SingleObserverMonteCarloTreeSearchAgent(MonteCarloTreeSearchAgent[_K]):
     tree: Optional[Node[float, _K]]
     selector: Optional[Selector[float, _K]]
     evaluator: Optional[Evaluator[float]]
-    repeater: Optional[Repeater]
+    repeater: Optional[Repeater[None]]
     book: Optional[Book[float]]
 
 
@@ -86,7 +82,7 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
     tree: Optional[Node[float, _K]] = field(default=None, repr=False)
     selector: Optional[Selector[float, _K]] = field(default=None, repr=False)
     evaluator: Optional[Evaluator[float]] = field(default=None, repr=False)
-    repeater: Optional[Repeater] = field(default=None, repr=False)
+    repeater: Optional[Repeater[None]] = field(default=None, repr=False)
     book: Optional[Book[float]] = field(default=None, repr=False)
 
     def prepare_match(
@@ -184,7 +180,7 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
         )
         return book_builder()
 
-    def update(self, ply: int, view: View) -> None:
+    def update(self, ply: int, view: View, total_time_ns: int) -> None:
         with log_time(
             log=log,
             level=logging.DEBUG,
@@ -210,7 +206,7 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
         log.info("Current %s", self._get_tree_log_representation(logging.INFO))
 
     def _guess_remaining_moves(self) -> int:
-        return math.ceil(self.tree.avg_height)
+        return self.tree.max_height
 
     def _get_tree_log_representation(self, log_level: int) -> str:
         if log_level < log.level:
@@ -279,6 +275,34 @@ _Action = TypeVar("_Action", Turn, Move)
 class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Action]]):
     tree: Optional[ImperfectInformationNode[float]] = field(default=None, repr=False)  # type: ignore[assignment]
 
+    def update(self, ply: int, view: View, total_time_ns: int) -> None:
+        used_time = time.monotonic_ns()
+        super().update(ply=ply, view=view, total_time_ns=total_time_ns)
+        used_time = time.monotonic_ns() - used_time
+        fill_time_ns = self._get_timeout_ns(total_time_ns=total_time_ns, used_time=used_time, scale=0.5)
+        with log_time(
+            log=log,
+            level=logging.DEBUG,
+            begin_msg=f"Filling {self._get_tree_log_representation(logging.DEBUG)}",
+            end_msg="Filled tree",
+            abort_msg="Aborted filling tree",
+        ):
+            self._fill(ply=ply, view=view, fill_time_ns=fill_time_ns)
+
+    def _fill(self, ply: int, view: View, fill_time_ns: int) -> None:
+        __start = time.monotonic_ns()
+        deltas = collections.deque(maxlen=5)
+        deltas.extend((0, 0, 0, 0, 0))
+        record = self.tree.gather_record(has_incomplete_information=self.interpreter.has_incomplete_information)
+        possible_states = self.interpreter.get_possible_states(record=record, ply=ply)
+        possible_state = next(possible_states, None)
+
+        while possible_state is not None and time.monotonic_ns() - __start < fill_time_ns:
+            self.tree.possible_states.add(possible_state)
+            possible_state = next(possible_states, None)
+        if possible_state is None:
+            self.tree.fully_enumerated = True
+
     def step(self) -> None:
         node = self.tree
         determinization: State = random.choice(tuple(node.possible_states))
@@ -314,10 +338,12 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
         init_state = self.interpreter.get_init_state()
         roles_in_control = Interpreter.get_roles_in_control(init_state)
         if self.role not in roles_in_control:
-            return HiddenInformationSetNode(possible_states={init_state}, role=self.role)
+            return HiddenInformationSetNode(possible_states={init_state}, role=self.role, fully_enumerated=True)
         else:
             view = self.interpreter.get_sees_by_role(init_state, self.role)
-            return VisibleInformationSetNode(possible_states={init_state}, view=view, role=self.role)
+            return VisibleInformationSetNode(
+                possible_states={init_state}, view=view, role=self.role, fully_enumerated=True
+            )
 
     def _can_lookup(self) -> bool:
         return self.book is not None and all(state in self.book for state in self.tree.possible_states)

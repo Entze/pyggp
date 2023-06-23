@@ -13,6 +13,7 @@ tree = VisibleInformationSetNode(
     role=tic_tac_toe_x,
     possible_states={tic_tac_toe_init_state},
     view=tic_tac_toe_init_view,
+    fully_enumerated=True,
 )
 
 stack = [tree]

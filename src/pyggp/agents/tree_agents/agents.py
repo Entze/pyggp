@@ -15,7 +15,7 @@ _E = TypeVar("_E")
 
 
 class TreeAgent(Agent, Protocol[_K, _E]):
-    def update(self, ply: int, view: View) -> None:
+    def update(self, ply: int, view: View, total_time_ns: int) -> None:
         ...
 
     def search(self, search_time_ns: int) -> None:
@@ -33,10 +33,12 @@ ONE_S_IN_NS: Final[int] = 1_000_000_000
 
 @dataclass
 class AbstractTreeAgent(InterpreterAgent, TreeAgent[_K, _E], Generic[_K, _E], abc.ABC):
-    max_logged_options: int = field(default=10, repr=False)
+    max_logged_options: int = field(default=10)
+    update_time_quota: float = field(default=1.0)
+    search_time_quota: float = field(default=1.0)
 
     @abc.abstractmethod
-    def update(self, ply: int, view: View) -> None:
+    def update(self, ply: int, view: View, total_time_ns: int) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -64,7 +66,7 @@ class AbstractTreeAgent(InterpreterAgent, TreeAgent[_K, _E], Generic[_K, _E], ab
 
         used_time = time.monotonic_ns() - used_time
 
-        search_time_ns = self._get_search_time_ns(total_time_ns, used_time)
+        search_time_ns = self._get_timeout_ns(total_time_ns, used_time)
 
         with log_time(
             log=log,
@@ -87,21 +89,36 @@ class AbstractTreeAgent(InterpreterAgent, TreeAgent[_K, _E], Generic[_K, _E], ab
         self.descend(best_key)
         return move
 
-    def _get_search_time_ns(self, total_time_ns: int, used_time: int) -> int:
-        net_zero_time_ns = self.playclock_config.increment_ns + self.playclock_config.delay_ns - used_time
+    @property
+    def _net_zero_time_ns(self) -> int:
+        return self.playclock_config.increment_ns + self.playclock_config.delay_ns
+
+    def _get_timeout_ns(
+        self,
+        total_time_ns: int,
+        used_time: int,
+        *,
+        scale: float = 0.975,
+        min_buffer: int = ONE_S_IN_NS,
+        max_buffer: int = 5 * ONE_S_IN_NS,
+    ) -> int:
+        net_zero_time_ns = self._net_zero_time_ns - used_time
         zero_time_ns = total_time_ns + self.playclock_config.delay_ns - used_time
 
         remaining_moves = max(1, self._guess_remaining_moves()) if total_time_ns > 0 else 1
         using_time = max(0, total_time_ns // remaining_moves)
 
         LOG_BUFFER = ONE_S_IN_NS if log.level == logging.DEBUG else 0
-        MIN_BUFFER = ONE_S_IN_NS + LOG_BUFFER
-        MAX_BUFFER = 5 * ONE_S_IN_NS + LOG_BUFFER
+        MIN_BUFFER = min_buffer + LOG_BUFFER
+        MAX_BUFFER = max_buffer + LOG_BUFFER
 
-        search_time_ns = ((net_zero_time_ns + using_time) * 975) // 1000
-        search_time_ns = min(search_time_ns, net_zero_time_ns - MIN_BUFFER, (zero_time_ns * 95) // 100)
-        search_time_ns = max(0, search_time_ns, net_zero_time_ns - MAX_BUFFER)
-        return search_time_ns
+        max_time = int(zero_time_ns * scale) - MIN_BUFFER
+        min_time = int(net_zero_time_ns * scale) - MAX_BUFFER
+
+        timeout_ns = int((net_zero_time_ns + using_time) * scale)
+        timeout_ns = max(0, timeout_ns, min_time)
+        timeout_ns = min(timeout_ns, max_time)
+        return timeout_ns
 
     def _guess_remaining_moves(self) -> int:
         return 128
