@@ -337,48 +337,12 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
         while node.depth < ply and node._can_walk(ply=ply, view=view):
             node = node._walk(ply=ply, view=view)
 
-        if node.depth + 1 == ply:
-            node._make_walkable(interpreter=interpreter, ply=ply, view=view)
-            assert node._can_walk(ply=ply, view=view), "Assumption: node._make_walkable implies node._can_walk"
-            node = node._walk(ply=ply, view=view)
-
         if node.depth < ply:
             node = node._dig(interpreter=interpreter, ply=ply, view=view)
 
         assert node.depth == ply, f"Guarantee: node.depth == ply (node.depth={node.depth}, ply={ply})"
         assert isinstance(node, VisibleInformationSetNode), "Guarantee: node is VisibleInformationSetNode"
         return node
-
-    def _make_walkable(self, interpreter: Interpreter, ply: int, view: View) -> None:
-        if not self.fully_enumerated:
-            record = self.gather_record(
-                has_incomplete_information=interpreter.has_incomplete_information,
-                views={ply: view},
-            )
-
-            possible_states = interpreter.get_possible_states(record=record, ply=ply)
-        else:
-            possible_states = self.possible_states
-        for possible_state in possible_states:
-            if (
-                possible_state in self.possible_states
-                and self.children is not None
-                and any(state == possible_state for state, _ in self.children)
-            ):
-                continue
-            self.possible_states.add(possible_state)
-            for turn, next_state in interpreter.get_all_next_states(possible_state):
-                self._initialize_children()
-                self._branch_by(
-                    interpreter=interpreter,
-                    state=possible_state,
-                    turn=turn,
-                    next_state=next_state,
-                    fully_expanded=False,
-                    fully_enumerated=False,
-                )
-                if self._can_walk(ply=ply, view=view):
-                    return
 
     def _dig(self, interpreter: Interpreter, ply: int, view: View) -> "VisibleInformationSetNode[_U]":
         record = self.gather_record(
