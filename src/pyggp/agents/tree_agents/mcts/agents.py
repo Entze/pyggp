@@ -5,8 +5,10 @@ import random
 import time
 from dataclasses import dataclass, field
 from typing import (
+    Any,
     FrozenSet,
     Generic,
+    Iterator,
     Mapping,
     MutableMapping,
     Optional,
@@ -73,7 +75,7 @@ class SingleObserverMonteCarloTreeSearchAgent(MonteCarloTreeSearchAgent[_K]):
     tree: Optional[Node[float, _K]]
     selector: Optional[Selector[float, _K]]
     evaluator: Optional[Evaluator[float]]
-    repeater: Optional[Repeater[None]]
+    step_repeater: Optional[Repeater[None]]
     book: Optional[Book[float]]
 
 
@@ -82,7 +84,7 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
     tree: Optional[Node[float, _K]] = field(default=None, repr=False)
     selector: Optional[Selector[float, _K]] = field(default=None, repr=False)
     evaluator: Optional[Evaluator[float]] = field(default=None, repr=False)
-    repeater: Optional[Repeater[None]] = field(default=None, repr=False)
+    step_repeater: Optional[Repeater[None]] = field(default=None, repr=False)
     book: Optional[Book[float]] = field(default=None, repr=False)
 
     def prepare_match(
@@ -101,7 +103,12 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
 
         self.selector = UCTSelector(self.role)
 
-        self.repeater = Repeater(func=self.step, timeout_ns=playclock_config.delay_ns, shortcircuit=self._can_lookup)
+        self.step_repeater = Repeater(
+            func=self.step,
+            timeout_ns=playclock_config.delay_ns,
+            shortcircuit=self._can_lookup,
+            slack=1.5,
+        )
 
         timeout_ns -= time.monotonic_ns()
         self.book = self._build_book(timeout_ns=timeout_ns)
@@ -191,7 +198,7 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
             self.tree = self.tree.develop(interpreter=self.interpreter, ply=ply, view=view)
 
     def search(self, search_time_ns: int) -> None:
-        self.repeater.timeout_ns = search_time_ns
+        self.step_repeater.timeout_ns = search_time_ns
         with log_time(
             log,
             level=logging.DEBUG,
@@ -200,7 +207,7 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
             end_msg="Searched tree",
             abort_msg="Aborted searching tree",
         ):
-            it, elapsed_ns = self.repeater()
+            it, elapsed_ns = self.step_repeater()
 
         log.info("%s it in %s (%s it/s)", format_amount(it), format_ns(elapsed_ns), format_rate_ns(it, elapsed_ns))
         log.info("Current %s", self._get_tree_log_representation(logging.INFO))
@@ -274,34 +281,60 @@ _Action = TypeVar("_Action", Turn, Move)
 @dataclass
 class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Action]]):
     tree: Optional[ImperfectInformationNode[float]] = field(default=None, repr=False)  # type: ignore[assignment]
+    fill_repeater: Optional[Repeater[None]] = field(default=None, repr=False)
+
+    def prepare_match(
+        self,
+        role: Role,
+        ruleset: gdl.Ruleset,
+        startclock_config: GameClock.Configuration,
+        playclock_config: GameClock.Configuration,
+    ) -> None:
+        super().prepare_match(role, ruleset, startclock_config, playclock_config)
+        self.fill_repeater = Repeater(
+            timeout_ns=0,
+            func=self.fill,
+            shortcircuit=self._is_fully_enumerated,
+            slack=2.0,
+            weights=(1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0),
+            tail=10,
+        )
+
+    def fill(self, possible_states: Iterator[State]) -> None:
+        possible_state = next(possible_states, None)
+        if possible_state is None:
+            self.tree.fully_enumerated = True
+            self.tree.parent = None
+            return
+        self.tree.possible_states.add(possible_state)
+
+    def _is_fully_enumerated(self, *args: Any, **kwargs: Any) -> bool:
+        return self.tree.fully_enumerated
 
     def update(self, ply: int, view: View, total_time_ns: int) -> None:
         used_time = time.monotonic_ns()
         super().update(ply=ply, view=view, total_time_ns=total_time_ns)
         used_time = time.monotonic_ns() - used_time
-        fill_time_ns = self._get_timeout_ns(total_time_ns=total_time_ns, used_time=used_time, scale=0.5)
+        if self.tree.fully_enumerated:
+            return
+        total_quota = self.update_time_quota + self.search_time_quota
+        fill_time_scale = self.update_time_quota / total_quota
+        fill_time_ns = self._get_timeout_ns(total_time_ns=total_time_ns, used_time=used_time, scale=fill_time_scale)
+        self.fill_repeater.timeout_ns = fill_time_ns
         with log_time(
             log=log,
             level=logging.DEBUG,
-            begin_msg=f"Filling {self._get_tree_log_representation(logging.DEBUG)}",
+            begin_msg=f"Filling {self._get_tree_log_representation(logging.DEBUG)} "
+            f"for at most {format_ns(fill_time_ns)}",
             end_msg="Filled tree",
             abort_msg="Aborted filling tree",
         ):
-            self._fill(ply=ply, view=view, fill_time_ns=fill_time_ns)
-
-    def _fill(self, ply: int, view: View, fill_time_ns: int) -> None:
-        __start = time.monotonic_ns()
-        deltas = collections.deque(maxlen=5)
-        deltas.extend((0, 0, 0, 0, 0))
-        record = self.tree.gather_record(has_incomplete_information=self.interpreter.has_incomplete_information)
-        possible_states = self.interpreter.get_possible_states(record=record, ply=ply)
-        possible_state = next(possible_states, None)
-
-        while possible_state is not None and time.monotonic_ns() - __start < fill_time_ns:
-            self.tree.possible_states.add(possible_state)
-            possible_state = next(possible_states, None)
-        if possible_state is None:
-            self.tree.fully_enumerated = True
+            record = self.tree.gather_record(
+                has_incomplete_information=self.interpreter.has_incomplete_information,
+                views={ply: view},
+            )
+            possible_states = self.interpreter.get_possible_states(record=record, ply=ply)
+            self.fill_repeater(possible_states)
 
     def step(self) -> None:
         node = self.tree
@@ -342,7 +375,10 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
         else:
             view = self.interpreter.get_sees_by_role(init_state, self.role)
             return VisibleInformationSetNode(
-                possible_states={init_state}, view=view, role=self.role, fully_enumerated=True
+                possible_states={init_state},
+                view=view,
+                role=self.role,
+                fully_enumerated=True,
             )
 
     def _can_lookup(self) -> bool:

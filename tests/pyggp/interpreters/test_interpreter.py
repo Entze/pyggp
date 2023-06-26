@@ -576,7 +576,8 @@ def test_get_possible_states(interpreter_factory) -> None:
     view_0 = View(State(frozenset({control_r})))
     view_1 = View(State(frozenset({control_r})))
     record = ImperfectInformationRecord(
-        possible_states={0: frozenset({state_0})}, views={0: {r: view_0}, 1: {r: view_1}}
+        possible_states={0: frozenset({state_0})},
+        views={0: {r: view_0}, 1: {r: view_1}},
     )
 
     actual = frozenset(interpreter.get_possible_states(record, ply=1))

@@ -31,6 +31,7 @@ def test_expand_to_visible_nodes(mock_interpreter) -> None:
         role=mock_role1,
         possible_states={mock_state1, mock_state2},
         depth=0,
+        fully_enumerated=True,
     )
 
     mock_child_state1 = mock.Mock(spec=State, name="mock_child_state1")
@@ -42,6 +43,8 @@ def test_expand_to_visible_nodes(mock_interpreter) -> None:
         parent=node,
         possible_states={mock_child_state1, mock_child_state2, mock_child_state3},
         depth=1,
+        fully_enumerated=True,
+        fully_expanded=False,
     )
 
     mock_turn1 = mock.Mock(spec=Turn, name="mock_turn1")
@@ -79,6 +82,7 @@ def test_expand_to_hidden_nodes(mock_interpreter) -> None:
         role=mock_role1,
         possible_states={mock_state1, mock_state2},
         depth=0,
+        fully_enumerated=True,
     )
 
     mock_child_state1 = mock.Mock(spec=State, name="mock_child_state1")
@@ -90,6 +94,7 @@ def test_expand_to_hidden_nodes(mock_interpreter) -> None:
         parent=node,
         possible_states={mock_child_state1, mock_child_state2, mock_child_state3},
         depth=1,
+        fully_enumerated=True,
     )
 
     mock_turn1 = mock.Mock(spec=Turn, name="mock_turn1")
@@ -206,6 +211,7 @@ def test_develop_returns_visible_if_visible_and_hidden_children(mock_interpreter
     node = HiddenInformationSetNode(
         role=mock_role,
         possible_states={mock_node_state1, mock_node_state2},
+        fully_enumerated=True,
     )
 
     mock_child1_state1 = mock.Mock(spec=State, name="mock_child1_state1")
@@ -216,6 +222,7 @@ def test_develop_returns_visible_if_visible_and_hidden_children(mock_interpreter
         parent=node,
         possible_states={mock_child1_state1, mock_child1_state2},
         depth=node.depth + 1,
+        fully_enumerated=True,
     )
 
     mock_child2_state = mock.Mock(spec=State, name="mock_child2_state")
@@ -225,6 +232,7 @@ def test_develop_returns_visible_if_visible_and_hidden_children(mock_interpreter
         parent=node,
         possible_states={mock_child2_state},
         depth=node.depth + 1,
+        fully_enumerated=True,
     )
 
     node.children = {
@@ -254,81 +262,13 @@ def test_develop_returns_visible_if_visible_and_hidden_children(mock_interpreter
 
     developments_seq = (development1,)
 
-    mock_interpreter.get_developments.side_effect = lambda _: iter(developments_seq)
-
-    current = node.develop(interpreter=mock_interpreter, ply=1, view=mock_child1_view)
-
-    assert current is child1
-
-
-def test_develop_returns_minimal_leaf(mock_interpreter, mock_role) -> None:
-    mock_random_role = mock.Mock(spec=Role, name="mock_random_role")
-
-    root_state = mock.Mock(spec=State, name="root_state")
-
-    root_move_1 = mock.Mock(spec=Move, name="root_move_1")
-    root_move_2 = mock.Mock(spec=Move, name="root_move_2")
-
-    root_turn_1 = Turn({mock_random_role: root_move_1})
-    root_turn_2 = Turn({mock_random_role: root_move_2})
-
-    root = HiddenInformationSetNode(
-        role=mock_role,
-        possible_states={root_state},
-    )
-
-    child_state_1 = mock.Mock(spec=State, name="child_state_1")
-    child_state_2 = mock.Mock(spec=State, name="child_state_2")
-
-    state_to_lt = {
-        root_state: Turn({mock_random_role: frozenset({root_move_1, root_move_2})}),
-    }
-
-    state_to_turnstatepair = {
-        root_state: ((root_turn_1, child_state_1), (root_turn_2, child_state_2)),
-        child_state_1: (),
-        child_state_2: (),
-    }
-
-    child_state_1_view = mock.MagicMock(spec=View, name="child_state_1_view")
-    child_state_1_view.__le__.side_effect = lambda other: other in (child_state_1_view, child_state_1)
-    child_state_2_view = mock.MagicMock(spec=View, name="child_state_2_view")
-    child_state_2_view.__le__.side_effect = lambda other: other in (child_state_2_view, child_state_2)
-
-    state_to_view = {
-        child_state_1: child_state_1_view,
-        child_state_2: child_state_2_view,
-    }
-
-    development_step0 = DevelopmentStep(
-        state=root_state,
-        turn=root_turn_2,
-    )
-    development_step1 = DevelopmentStep(
-        state=child_state_2,
-        turn=None,
-    )
-
-    development = Development((development_step0, development_step1))
-    developments = (development,)
-
-    mock_interpreter.get_legal_moves.side_effect = state_to_lt.get
-    mock_interpreter.get_all_next_states.side_effect = state_to_turnstatepair.get
-    mock_interpreter.get_sees_by_role.side_effect = lambda state, _: state_to_view.get(state)
-    mock_interpreter.get_developments.side_effect = lambda _: iter(developments)
-    mock_interpreter.get_possible_states.side_effect = lambda *_args, **_kwargs: iter((child_state_2,))
-
-    state_to_roles = {
-        root_state: {mock_random_role},
-        child_state_1: {mock_role},
-        child_state_2: {mock_role},
-    }
+    mock_interpreter.get_developments.side_effect = lambda *args, **kwargs: iter(developments_seq)
 
     with mock.patch.object(Interpreter, "get_roles_in_control") as mock_get_roles_in_control:
-        mock_get_roles_in_control.side_effect = state_to_roles.get
-        actual = root.develop(interpreter=mock_interpreter, ply=1, view=child_state_2_view)
+        mock_get_roles_in_control.side_effect = lambda *args, **kwargs: {mock_role}
+        current = node.develop(interpreter=mock_interpreter, ply=1, view=mock_child1_view)
 
-    assert actual.possible_states == {child_state_2}
+    assert current is child1
 
 
 @pytest.fixture()
@@ -437,7 +377,7 @@ def test_tic_tac_toe(tic_tac_toe_ruleset) -> None:
     init_state = interpreter.get_init_state()
     init_view = interpreter.get_sees_by_role(init_state, role=x)
 
-    root = VisibleInformationSetNode(view=init_view, possible_states={init_state}, role=x)
+    root = VisibleInformationSetNode(view=init_view, possible_states={init_state}, role=x, fully_enumerated=True)
 
     root.expand(interpreter)
     # for child in root.children.values():
@@ -469,6 +409,7 @@ def test_tic_tac_toe(tic_tac_toe_ruleset) -> None:
     view = View(state)
 
     tree = node.develop(interpreter=interpreter, ply=2, view=view)
+    tree.fill(interpreter)
 
     assert tree.view == view
     assert tree.possible_states == {state}
@@ -538,7 +479,7 @@ def test_minipoker(minipoker_ruleset) -> None:
 
     init_state = interpreter.get_init_state()
 
-    root = HiddenInformationSetNode(possible_states={init_state}, role=caller)
+    root = HiddenInformationSetNode(possible_states={init_state}, role=caller, fully_enumerated=True)
 
     control_caller = gdl.Subrelation(gdl.Relation("control", (gdl.Subrelation(gdl.Relation("caller")),)))
     dealt = gdl.Subrelation(gdl.Relation("dealt"))
@@ -547,6 +488,7 @@ def test_minipoker(minipoker_ruleset) -> None:
     view = View(target_state)
 
     actual = root.develop(interpreter=interpreter, ply=2, view=view)
+    actual.fill(interpreter)
 
     dealt_red = gdl.Subrelation(gdl.Relation("dealt", (gdl.Subrelation(gdl.Relation("red")),)))
     dealt_black = gdl.Subrelation(gdl.Relation("dealt", (gdl.Subrelation(gdl.Relation("black")),)))

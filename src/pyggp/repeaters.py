@@ -22,30 +22,33 @@ class Repeater(Generic[T]):
     func: Callable[P, T]
     timeout_ns: int
     shortcircuit: Optional[Callable[P, bool]] = None
-    average_tail: int = 5
-    average_weights: Optional[Tuple[float, ...]] = None
+    tail: int = 5
+    weights: Optional[Tuple[float, ...]] = None
+    slack: float = 1.0
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Tuple[int, int]:
         if self.timeout_ns == 0:
             return 0, 0
-        average_weights = self.average_weights
-        if average_weights is None:
-            average_weights = (1, *(2**i for i in range(0, self.average_tail - 1)))
-        average_weights = average_weights[: self.average_tail]
+        weights = self.weights
+        if weights is None:
+            weights = (1, *(2**i for i in range(0, self.tail - 1)))
+        weights = weights[: self.tail]
+        deltas_ns: Deque[int] = deque(maxlen=self.tail)
         calls: int = 0
-        deltas_ns: Deque[int] = deque(maxlen=self.average_tail)
         start_ns: int = time.monotonic_ns()
-        end_ns = time.monotonic_ns() + self.timeout_ns
-        avg_delta_ns: float = more_itertools.dotproduct(average_weights, deltas_ns) / sum(
-            average_weights[: len(deltas_ns)]
-        )
-        while time.monotonic_ns() + avg_delta_ns < end_ns and (
-            self.shortcircuit is None or not self.shortcircuit(*args, **kwargs)
-        ):
+        end_ns: int = time.monotonic_ns() + self.timeout_ns
+        avg_delta_ns: float = 0.0
+        while time.monotonic_ns() + avg_delta_ns * self.slack < end_ns and not self._shortcircuit(*args, **kwargs):
             last_delta_ns = time.monotonic_ns()
             self.func(*args, **kwargs)
             last_delta_ns = time.monotonic_ns() - last_delta_ns
-            deltas_ns.appendleft(last_delta_ns)
+            deltas_ns.append(last_delta_ns)
+            avg_delta_ns = more_itertools.dotproduct(weights, deltas_ns) / sum(weights[: len(deltas_ns)])
             calls += 1
 
         return calls, (time.monotonic_ns() - start_ns)
+
+    def _shortcircuit(self, *args: P.args, **kwargs: P.kwargs) -> bool:
+        if self.shortcircuit is None:
+            return False
+        return self.shortcircuit(*args, **kwargs)

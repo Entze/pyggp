@@ -350,7 +350,11 @@ class ClingoInterpreter(Interpreter):
 
     @classmethod
     def from_ruleset(
-        cls, ruleset: gdl.Ruleset, *args: Any, parallel_mode: Optional[ParallelMode] = None, **kwargs: Any
+        cls,
+        ruleset: gdl.Ruleset,
+        *args: Any,
+        parallel_mode: Optional[ParallelMode] = None,
+        **kwargs: Any,
     ) -> Self:
         control_container = ControlContainer.from_ruleset(ruleset)
         shape_container = ShapeContainer.from_control_container(control_container)
@@ -549,7 +553,9 @@ class ClingoInterpreter(Interpreter):
 
     def _is_terminal(self, current: Union[State, View]) -> bool:
         with _set_state(
-            self._control_container.terminal, self._control_container.terminal_state_to_literal, current
+            self._control_container.terminal,
+            self._control_container.terminal_state_to_literal,
+            current,
         ) as ctl:
             model = _get_model(ctl)
             subrelations = _transform_model(model)
@@ -560,7 +566,9 @@ class ClingoInterpreter(Interpreter):
 
     def get_developments(self, record: Record) -> Iterator[Development]:
         ctl, rules = _create_developments_ctl(
-            temporal_rules=self._temporal_rule_container, shapes=self._shape_container, record=record
+            temporal_rules=self._temporal_rule_container,
+            shapes=self._shape_container,
+            record=record,
         )
         offset = record.offset
         horizon = record.horizon

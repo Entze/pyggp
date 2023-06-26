@@ -111,7 +111,9 @@ def invert_does(action_shape: ActionShape, role: Role, move: Move) -> FrozenSet[
 
 
 def in_sees_shape(
-    sees_shape: ActionShape, __sees_or_role: Union[gdl.Subrelation, Role], subrelation: Optional[gdl.Subrelation] = None
+    sees_shape: ActionShape,
+    __sees_or_role: Union[gdl.Subrelation, Role],
+    subrelation: Optional[gdl.Subrelation] = None,
 ) -> bool:
     role = None
     if __sees_or_role in sees_shape:
@@ -128,7 +130,9 @@ def invert_sees(sees_shape: SeesShape, role: Role, view: View) -> View:
 
 
 def in_goal_shape(
-    goal_shape: GoalShape, __goal_or_role: Union[gdl.Subrelation, Role], value: Optional[int] = None
+    goal_shape: GoalShape,
+    __goal_or_role: Union[gdl.Subrelation, Role],
+    value: Optional[int] = None,
 ) -> bool:
     role = None
     if __goal_or_role in goal_shape:
