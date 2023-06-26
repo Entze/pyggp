@@ -60,6 +60,14 @@ class Record(Protocol):
 
         """
 
+    def get_incidental_assertions(self) -> Iterator[clingo_ast.AST]:
+        """Get the clingo assertions for the incidental facts of the game.
+
+        Yields:
+            Clingo assertions for the incidental facts of the game
+
+        """
+
 
 def get_as_facts(
     current: Union[State, View],
@@ -191,6 +199,24 @@ class PerfectInformationRecord(Record):
                     pre_arguments=(role_ast,),
                     post_arguments=(current_time,),
                 )
+
+    def get_incidental_assertions(self) -> Iterator[clingo_ast.AST]:
+        plies = range(self.offset, self.horizon)
+        current_times = (clingo_helper.create_symbolic_term(clingo.Number(ply)) for ply in plies)
+        terminal_at_functions = (
+            clingo_helper.create_function(name="terminal_at", arguments=(current_time,))
+            for current_time in current_times
+        )
+        terminal_at_atoms = (
+            clingo_helper.create_atom(symbol=terminal_at_function) for terminal_at_function in terminal_at_functions
+        )
+        terminal_at_literals = (
+            clingo_helper.create_literal(atom=terminal_at_atom) for terminal_at_atom in terminal_at_atoms
+        )
+        terminal_at_rules = (
+            clingo_helper.create_rule(body=(terminal_at_literal,)) for terminal_at_literal in terminal_at_literals
+        )
+        yield from terminal_at_rules
 
 
 def _get_indirect_state_assertions(
@@ -377,3 +403,21 @@ class ImperfectInformationRecord(Record):
                     pre_arguments=(role_ast,),
                     post_arguments=(current_time,),
                 )
+
+    def get_incidental_assertions(self) -> Iterator[clingo_ast.AST]:
+        plies = range(self.offset, self.horizon)
+        current_times = (clingo_helper.create_symbolic_term(clingo.Number(ply)) for ply in plies)
+        terminal_at_functions = (
+            clingo_helper.create_function(name="terminal_at", arguments=(current_time,))
+            for current_time in current_times
+        )
+        terminal_at_atoms = (
+            clingo_helper.create_atom(symbol=terminal_at_function) for terminal_at_function in terminal_at_functions
+        )
+        terminal_at_literals = (
+            clingo_helper.create_literal(atom=terminal_at_atom) for terminal_at_atom in terminal_at_atoms
+        )
+        terminal_at_rules = (
+            clingo_helper.create_rule(body=(terminal_at_literal,)) for terminal_at_literal in terminal_at_literals
+        )
+        yield from terminal_at_rules

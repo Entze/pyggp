@@ -261,3 +261,13 @@ def get_holds_at_ply_show(ply: int) -> clingo_ast.AST:
     ply_term = create_symbolic_term(symbol=clingo.Number(ply))
     holds_at_ply = create_literal(atom=create_atom(create_function(name="holds_at", arguments=(V, ply_term))))
     return create_show_term(term=V, body=(holds_at_ply,))
+
+
+def get_terminal_at_assertion(ply: int, *, invert: bool = False) -> clingo_ast.AST:
+    ply_term = create_symbolic_term(symbol=clingo.Number(ply))
+    sign = clingo_ast.Sign.NoSign if not invert else clingo_ast.Sign.Negation
+    terminal_at_ply = create_literal(
+        sign=sign,
+        atom=create_atom(create_function(name="terminal_at", arguments=(ply_term,))),
+    )
+    return create_rule(body=(terminal_at_ply,))

@@ -20,11 +20,15 @@ def _create_developments_ctl(
     temporal_rules: TemporalRuleContainer,
     shapes: ShapeContainer,
     record: Record,
+    *,
+    is_final_view: bool = False,
 ) -> Tuple[clingo.Control, Sequence[clingo_ast.AST]]:
     rules = (
         *record.get_state_assertions(shapes.state_shape),
         *record.get_turn_assertions(),
         *record.get_view_assertions(shapes.sees_shape),
+        *record.get_incidental_assertions(),
+        clingo_helper.get_terminal_at_assertion(ply=record.horizon, invert=is_final_view),
         *temporal_rules.static,
         *temporal_rules.dynamic,
         *temporal_rules.statemachine,
