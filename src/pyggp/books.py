@@ -62,6 +62,9 @@ class BookBuilder(Generic[_U_co]):
             assert isinstance(item, BookBuilder.Search), "Assumption: item has type Search"
             self._handle_search(*item)
 
+    def is_done(self) -> bool:
+        return self.done
+
     def _initialize(self) -> None:
         if self.init_seed_state is None:
             self.init_seed_state = self.interpreter.get_init_state()

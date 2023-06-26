@@ -34,7 +34,7 @@ from pyggp.gameclocks import (
 )
 from pyggp.interpreters import ClingoInterpreter, Interpreter
 from pyggp.match import Match
-from pyggp.visualizers import SimpleVisualizer, Visualizer
+from pyggp.visualizers import Visualizer
 
 log: logging.Logger = logging.getLogger("pyggp")
 
@@ -56,6 +56,7 @@ def handle_match_command_args(
     role_agentname_registry: Sequence[str],
     role_startclockconfig_registry: Sequence[str],
     role_playclockconfig_registry: Sequence[str],
+    visualizer_str: str,
 ) -> MatchCommandParams:
     log.debug("Fetching ruleset")
     try:
@@ -117,7 +118,6 @@ def handle_match_command_args(
     )
 
     log.debug("Instantiating visualizer")
-    visualizer = SimpleVisualizer()
 
     return MatchCommandParams(
         ruleset=ruleset,

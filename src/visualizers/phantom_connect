@@ -1,0 +1,28 @@
+
+__viz(-1, 0, "control: ").
+__viz(-1, 1, R) :- true(control(R)).
+__viz(R, 0, "+") :- row(R_), R=(R_-1) * 5.
+__viz(R, C+1..C+5, "-") :- row(R_), R=(R_-1) * 5, col(C_), C=(C_-1)*5.
+__viz(R+1..R+5, C, "|") :- row(R_), R=(R_-1)*5, col(C_), C=(C_-1)*5.
+__viz(R+1..R+2, C+1..C+5, " ") :- row(R_), R=(R_-1)*5, col(C_), C=(C_-1)*5.
+__viz(R+3, C+1..C+2, " ") :- row(R_), R=(R_-1)*5, col(C_), C=(C_-1)*5.
+__viz(R+3, C+4..C+5, " ") :- row(R_), R=(R_-1)*5, col(C_), C=(C_-1)*5.
+__viz(R+4, C+1..C+5, " ") :- row(R_), R=(R_-1)*5, col(C_), C=(C_-1)*5.
+__viz(R+5, C+1, " ") :- row(R_), R=(R_-1)*5, col(C_), C=(C_-1)*5.
+__viz(R+5, C+3, " ") :- row(R_), R=(R_-1)*5, col(C_), C=(C_-1)*5.
+__viz(R+5, C+3, " ") :- row(R_), R=(R_-1)*5, col(C_), C=(C_-1)*5.
+
+__viz(R+3, C+3, " ") :- row(R_), R=(R_-1)*5, col(C_), C=(C_-1)*5,
+    not true(cell(C_, R_, _)).
+__viz(R+3, C+3, R) :- row(R_), R=(R_-1)*5, col(C_), C=(C_-1)*5,
+    true(cell(C_, R_, R)).
+
+__viz(R+5, C+2, "?") :- row(R_), R=(R_-1)*5, col(C_), C=(C_-1)*5,
+    not true(revealed(x, cell(C_, R_))).
+__viz(R+5, C+2, x) :- row(R_), R=(R_-1)*5, col(C_), C=(C_-1)*5,
+    not true(revealed(x, cell(C_, R_))).
+
+__viz(R+5, C+4, "?") :- row(R_), R=(R_-1)*5, col(C_), C=(C_-1)*5,
+    not true(revealed(o, cell(C_, R_))).
+__viz(R+5, C+4, o) :- row(R_), R=(R_-1)*5, col(C_), C=(C_-1)*5,
+    not true(revealed(o, cell(C_, R_))).

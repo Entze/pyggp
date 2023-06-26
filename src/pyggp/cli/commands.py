@@ -51,6 +51,7 @@ def match(
     files: List[pathlib.Path] = typer.Option(..., "--ruleset", "--file", "-f", show_default=False),
     startclock: List[str] = typer.Option(None, "--startclock", "-s", show_default=False),
     playclock: List[str] = typer.Option(None, "--playclock", "-p", show_default=False),
+    visualizer: str = typer.Option(None, "--visualizer", show_default=False),
     verbose: int = typer.Option(0, "--verbose", "-v", count=True, show_default=False),
     quiet: int = typer.Option(0, "--quiet", "-q", count=True, show_default=False),
 ) -> None:
@@ -59,12 +60,13 @@ def match(
 
     log.setLevel(log_level)
     log.debug(
-        "Arguments: log_level=%s, files=%s, registry=%s, startclock=%s, playclock=%s",
+        "Arguments: log_level=%s, files=%s, registry=%s, startclock=%s, playclock=%s, visualizer=%s",
         logging.getLevelName(log_level),
         files,
         registry,
         startclock,
         playclock,
+        visualizer,
     )
 
     match_params = handle_match_command_args(
@@ -72,6 +74,7 @@ def match(
         role_agentname_registry=registry,
         role_startclockconfig_registry=startclock,
         role_playclockconfig_registry=playclock,
+        visualizer_str=visualizer,
     )
 
     log.debug("Parameters: %s", match_params)

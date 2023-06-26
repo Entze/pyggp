@@ -1,7 +1,6 @@
 import abc
 import collections
 import logging
-import random
 import time
 from dataclasses import dataclass, field
 from typing import (
@@ -14,6 +13,7 @@ from typing import (
     Optional,
     Tuple,
     TypeVar,
+    cast,
 )
 
 import pyggp.game_description_language as gdl
@@ -37,6 +37,7 @@ from pyggp.books import Book, BookBuilder
 from pyggp.engine_primitives import Move, Role, State, Turn, View
 from pyggp.gameclocks import GameClock
 from pyggp.interpreters import Interpreter
+from pyggp.records import ImperfectInformationRecord, PerfectInformationRecord, Record
 from pyggp.repeaters import Repeater
 
 log = logging.getLogger("pyggp")
@@ -50,12 +51,29 @@ _MCTSEvaluation = Tuple[_BookValue, _Total_Playouts, _Utility]
 
 
 class MonteCarloTreeSearchAgent(TreeAgent[_K, _MCTSEvaluation]):
+    step_repeater: Optional[Repeater[None]]
+
     def step(self) -> None:
         ...
 
 
 @dataclass
 class AbstractMCTSAgent(AbstractTreeAgent[_K, _MCTSEvaluation], MonteCarloTreeSearchAgent[_K], Generic[_K], abc.ABC):
+    def search(self, search_time_ns: int) -> None:
+        self.step_repeater.timeout_ns = search_time_ns
+        with log_time(
+            log,
+            level=logging.DEBUG,
+            begin_msg=f"Searching {self._get_tree_log_representation(logging.DEBUG)} "
+            f"for at most {format_ns(search_time_ns)}",
+            end_msg="Searched tree",
+            abort_msg="Aborted searching tree",
+        ):
+            it, elapsed_ns = self.step_repeater()
+
+        log.info("%s it in %s (%s it/s)", format_amount(it), format_ns(elapsed_ns), format_rate_ns(it, elapsed_ns))
+        log.info("Current %s", self._get_tree_log_representation(logging.INFO))
+
     def _move_evaluation_as_str(self, move: Move, evaluation: _MCTSEvaluation) -> str:
         book_value, total_playouts, utility = evaluation
         strs = [f"{move}: "]
@@ -66,16 +84,41 @@ class AbstractMCTSAgent(AbstractTreeAgent[_K, _MCTSEvaluation], MonteCarloTreeSe
         strs.append(f"{format_amount(total_playouts)}")
         return "".join(strs)
 
-    @abc.abstractmethod
     def _can_lookup(self) -> bool:
+        return False
+
+    @abc.abstractmethod
+    def _lookup(self, node: ImperfectInformationNode[float]) -> float:
         raise NotImplementedError
+
+    def _get_tree_log_representation(self, log_level: int, tree: Optional[Node[float, _K]] = None) -> str:
+        if log_level < log.level:
+            return "tree"
+        if tree is None:
+            tree = getattr(self, "tree", None)
+        if tree is None:
+            tree = getattr(self, "trees", {self.role: None})[self.role]
+        if tree is None:
+            return "tree"
+        return (
+            "tree ("
+            f"valuation={tree.valuation}, "
+            f"depth={tree.depth}, "
+            f"max_height={tree.max_height}, "
+            f"avg_height={tree.avg_height:.2f}, "
+            f"arity={tree.arity}, "
+            f"fully_expanded={getattr(tree, 'fully_expanded', tree.children is not None)}, "
+            f"transitions={len(tree.children or ())}, "
+            f"fully_enumerated={getattr(tree, 'fully_enumerated', True)}, "
+            f"possible_states={len(getattr(tree, 'possible_states', ((),)))}"
+            ")"
+        )
 
 
 class SingleObserverMonteCarloTreeSearchAgent(MonteCarloTreeSearchAgent[_K]):
     tree: Optional[Node[float, _K]]
     selector: Optional[Selector[float, _K]]
     evaluator: Optional[Evaluator[float]]
-    step_repeater: Optional[Repeater[None]]
     book: Optional[Book[float]]
 
 
@@ -165,10 +208,11 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
             max_value=1.0,
         )
 
-        def shortcircuit() -> bool:
-            return book_builder.done
-
-        book_building_repeater = Repeater(func=book_builder.step, timeout_ns=build_time_ns, shortcircuit=shortcircuit)
+        book_building_repeater = Repeater(
+            func=book_builder.step,
+            timeout_ns=build_time_ns,
+            shortcircuit=book_builder.is_done,
+        )
 
         with log_time(
             log=log,
@@ -197,40 +241,8 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
         ):
             self.tree = self.tree.develop(interpreter=self.interpreter, ply=ply, view=view)
 
-    def search(self, search_time_ns: int) -> None:
-        self.step_repeater.timeout_ns = search_time_ns
-        with log_time(
-            log,
-            level=logging.DEBUG,
-            begin_msg=f"Searching {self._get_tree_log_representation(logging.DEBUG)} "
-            f"for at most {format_ns(search_time_ns)}",
-            end_msg="Searched tree",
-            abort_msg="Aborted searching tree",
-        ):
-            it, elapsed_ns = self.step_repeater()
-
-        log.info("%s it in %s (%s it/s)", format_amount(it), format_ns(elapsed_ns), format_rate_ns(it, elapsed_ns))
-        log.info("Current %s", self._get_tree_log_representation(logging.INFO))
-
     def _guess_remaining_moves(self) -> int:
         return self.tree.max_height
-
-    def _get_tree_log_representation(self, log_level: int) -> str:
-        if log_level < log.level:
-            return "tree"
-        return (
-            "tree ("
-            f"valuation={self.tree.valuation}, "
-            f"depth={self.tree.depth}, "
-            f"max_height={self.tree.max_height}, "
-            f"avg_height={self.tree.avg_height:.2f}, "
-            f"arity={self.tree.arity}, "
-            f"fully_expanded={getattr(self.tree, 'fully_expanded', self.tree.children is not None)}, "
-            f"transitions={len(self.tree.children or ())}, "
-            f"fully_enumerated={getattr(self.tree, 'fully_enumerated', True)}, "
-            f"possible_states={len(getattr(self.tree, 'possible_states', ((),)))}"
-            ")"
-        )
 
 
 @dataclass
@@ -296,8 +308,6 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
             func=self.fill,
             shortcircuit=self._is_fully_enumerated,
             slack=2.0,
-            weights=(1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0),
-            tail=10,
         )
 
     def fill(self, possible_states: Iterator[State]) -> None:
@@ -334,6 +344,7 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
                 views={ply: view},
             )
             possible_states = self.interpreter.get_possible_states(record=record, ply=ply)
+            self.tree.possible_states.clear()
             self.fill_repeater(possible_states)
 
     def step(self) -> None:
@@ -393,7 +404,7 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
 
     def get_key_to_evaluation(self) -> Mapping[Tuple[State, _Action], _MCTSEvaluation]:
         while not self.tree.children:
-            determinization = random.choice(tuple(self.tree.possible_states))
+            determinization = self.tree.get_determinization()
             if self.interpreter.is_terminal(determinization):
                 continue
             self.tree.branch(interpreter=self.interpreter, state=determinization)
@@ -439,14 +450,422 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
 
 
 class MultiObserverMonteCarloTreeSearchAgent(MonteCarloTreeSearchAgent[_K]):
-    trees: Optional[MutableMapping[Role, Node[float, _K]]]
+    trees: Optional[MutableMapping[Role, ImperfectInformationNode[float]]]
     roles: Optional[FrozenSet[Role]]
     selectors: Optional[Mapping[Role, Selector[float, _K]]]
     evaluators: Optional[Mapping[Role, Evaluator[float]]]
-    repeater: Optional[Repeater]
+    step_repeater: Optional[Repeater[None]]
+    fill_repeater: Optional[Repeater[None]]
     books: Optional[Mapping[Role, Book[float]]]
 
 
 @dataclass
-class MultiObserverInformationSetMCTSAgent(MultiObserverMonteCarloTreeSearchAgent[Tuple[State, Turn]]):
-    pass
+class MultiObserverInformationSetMCTSAgent(
+    AbstractMCTSAgent[Tuple[State, _Action]],
+    MultiObserverMonteCarloTreeSearchAgent[Tuple[State, _Action]],
+):
+    trees: Optional[MutableMapping[Role, ImperfectInformationNode[float]]] = field(default=None)
+    roles: Optional[FrozenSet[Role]] = field(default=None)
+    views: Optional[MutableMapping[int, View]] = field(default=None)
+    moves: Optional[MutableMapping[int, Move]] = field(default=None)
+    selectors: Optional[Mapping[Role, Selector[float, _K]]] = field(default=None)
+    evaluators: Optional[Mapping[Role, Evaluator[float]]] = field(default=None)
+    step_repeater: Optional[Repeater[None]] = field(default=None)
+    fill_repeater: Optional[Repeater[None]] = field(default=None)
+    books: Optional[Mapping[Role, Book[float]]] = field(default=None)
+
+    def prepare_match(
+        self,
+        role: Role,
+        ruleset: gdl.Ruleset,
+        startclock_config: GameClock.Configuration,
+        playclock_config: GameClock.Configuration,
+    ) -> None:
+        timeout_ns = startclock_config.total_time_ns + startclock_config.delay_ns + time.monotonic_ns()
+        super().prepare_match(role, ruleset, startclock_config, playclock_config)
+
+        self.roles = self.interpreter.get_roles()
+        self.trees = self._get_roots()
+
+        self.selectors = {role: UCTSelector(role) for role in self.roles}
+
+        self.step_repeater = Repeater(
+            func=self.step,
+            timeout_ns=playclock_config.delay_ns,
+            shortcircuit=self._can_lookup,
+            slack=1.5,
+        )
+        self.fill_repeater = Repeater(
+            func=self.fill,
+            timeout_ns=playclock_config.delay_ns,
+            shortcircuit=self._fully_enumerated,
+            slack=2.0,
+        )
+
+        timeout_ns -= time.monotonic_ns()
+        self.books = self._build_books(timeout_ns=timeout_ns)
+        self.evaluators = {
+            role: LightPlayoutEvaluator(
+                role=role,
+                final_state_evaluator=final_goal_normalized_utility_evaluator,
+                book=self.books.get(role) if self.books is not None else None,
+            )
+            for role in self.roles
+        }
+        self.views = {}
+        self.moves = {}
+
+    def _get_roots(self) -> MutableMapping[Role, ImperfectInformationNode[float]]:
+        init_state = self.interpreter.get_init_state()
+        roles_in_control = Interpreter.get_roles_in_control(init_state)
+        views = self.interpreter.get_sees(init_state)
+        roots = {}
+        for role in self.roles:
+            if role not in roles_in_control:
+                root = HiddenInformationSetNode(
+                    role=role,
+                    possible_states={init_state},
+                    fully_enumerated=True,
+                )
+            else:
+                root = VisibleInformationSetNode(
+                    role=role,
+                    possible_states={init_state},
+                    fully_enumerated=True,
+                    view=views[role],
+                )
+            roots[role] = root
+        return roots
+
+    def _fully_enumerated(self, tree: ImperfectInformationNode[float], *args: Any, **kwargs: Any) -> bool:
+        return tree.fully_enumerated
+
+    def _build_books(self, timeout_ns: int) -> Optional[Mapping[Role, Book[float]]]:
+        if timeout_ns <= ONE_S_IN_NS:
+            return
+        books = {}
+        main_timeout_ns = timeout_ns // 2
+        other_timeout_ns = (timeout_ns - main_timeout_ns) // (len(self.roles) - 1)
+        for role in self.roles:
+            timeout_ns = main_timeout_ns if role == self.role else other_timeout_ns
+            books[role] = self._build_book(role, timeout_ns)
+        return books
+
+    def _build_book(self, role: Role, timeout_ns: int) -> Book[float]:
+        book_builder = BookBuilder(
+            interpreter=self.interpreter,
+            role=role,
+            evaluator=final_goal_normalized_utility_evaluator,
+            min_value=0.0,
+            max_value=1.0,
+        )
+
+        book_building_repeater = Repeater(
+            func=book_builder.step,
+            timeout_ns=timeout_ns,
+            shortcircuit=book_builder.is_done,
+        )
+
+        with log_time(
+            log=log,
+            level=logging.DEBUG,
+            begin_msg=f"Building book for Role {role} for at most {format_ns(timeout_ns)}",
+            end_msg="Built book",
+            abort_msg="Aborted building book",
+        ):
+            it, elapsed_time = book_building_repeater()
+        log.info(
+            "%s book for Role %s with %s entries in %s (%s entries/s)",
+            "Finished" if book_builder.done else "Built",
+            role,
+            format_amount(len(book_builder.book)),
+            format_ns(elapsed_time),
+            format_rate_ns(len(book_builder.book), elapsed_time),
+        )
+        return book_builder()
+
+    def update(self, ply: int, view: View, total_time_ns: int) -> None:
+        self.views[ply] = view
+        used_time = time.monotonic_ns()
+        with log_time(
+            log=log,
+            level=logging.DEBUG,
+            begin_msg=f"Developing {self._get_tree_log_representation(logging.DEBUG, self.trees[self.role])}",
+            end_msg="Developed tree",
+            abort_msg="Aborted developing tree",
+        ):
+            self.trees[self.role] = self.trees[self.role].develop(
+                interpreter=self.interpreter,
+                ply=ply,
+                view=view,
+            )
+        if self.trees[self.role].fully_enumerated:
+            return
+        used_time = time.monotonic_ns() - used_time
+        total_quota = self.update_time_quota + self.search_time_quota
+        fill_time_scale = self.update_time_quota / total_quota
+        fill_time_ns = self._get_timeout_ns(total_time_ns=total_time_ns, used_time=used_time, scale=fill_time_scale)
+        with log_time(
+            log=log,
+            level=logging.DEBUG,
+            begin_msg=f"Filling "
+            f"{self._get_tree_log_representation(logging.DEBUG, self.trees[self.role])} "
+            f"for at most {format_ns(fill_time_ns)}",
+            end_msg="Filled tree",
+            abort_msg="Aborted filling tree",
+        ):
+            record = self.trees[self.role].gather_record(
+                has_incomplete_information=self.interpreter.has_incomplete_information,
+                views={ply: view},
+            )
+            possible_states = self.interpreter.get_possible_states(record=record, ply=ply)
+            self.fill_repeater.timeout_ns = fill_time_ns
+            tree = self.trees[self.role]
+            tree.possible_states.clear()
+            tree.fully_enumerated = False
+            self.fill_repeater(tree, possible_states)
+
+    def fill(self, tree: ImperfectInformationNode[float], possible_states: Iterator[State]) -> None:
+        possible_state = next(possible_states, None)
+        if possible_state is None:
+            tree.fully_enumerated = True
+            tree.parent = None
+            return
+        tree.possible_states.add(possible_state)
+
+    def step(self) -> None:
+        tree = self.trees[self.role]
+        ply = tree.depth
+        determinization = tree.get_determinization()
+
+        trees = None
+        if not self.interpreter.is_terminal(determinization):
+            trees = self._recenter_trees(ply=ply, determinization=determinization)
+            assert all(
+                node.depth == tree.depth for node in trees.values()
+            ), "Assumption: all trees are at the same depth"
+        while (
+            tree.children is not None
+            and tree.children
+            and not self.interpreter.is_terminal(determinization)
+            and any(determinization == state for state, _ in tree.children)
+        ):
+            assert (
+                trees is not None
+            ), "Assumption: not self.interpreter.is_terminal(determinization) implies trees is not None"
+            turn = self._select(determinization=determinization, tree=tree, trees=trees)
+            assert determinization in tree.possible_states, "Assumption: determinization in tree.possible_states"
+            assert any(
+                determinization == state for state, _ in tree.children
+            ), "Assumption: determinization in (state,_) for all (state,_) in tree.children"
+            assert all(any(determinization == state for state, _ in node.children) for node in trees.values()), (
+                "Assumption: determinization in (state,_) for all (state,_) in node.children "
+                "for all nodes in trees.values()"
+            )
+            tree = tree.descend(state=determinization, turn=turn)
+            assert tree is not None, "Assumption: tree is not None"
+            assert all(
+                determinization in node.possible_states for node in trees.values()
+            ), "Assumption: determinization in node.possible_states for all nodes in trees.values()"
+            trees = {role: node.descend(state=determinization, turn=turn) for role, node in trees.items()}
+            assert all(
+                node is not None for node in trees.values()
+            ), "Assumption: not self.interpreter.is_terminal(determinization) implies all nodes are not None"
+
+            determinization = self.interpreter.get_next_state(determinization, turn)
+
+        tree.branch(interpreter=self.interpreter, state=determinization)
+
+        utilities = self._evaluate(determinization=determinization, tree=tree, trees=trees)
+
+        self._backpropagate(tree=tree, trees=trees, utilities=utilities)
+
+    def _recenter_trees(self, ply: int, determinization: State) -> Mapping[Role, ImperfectInformationNode[float]]:
+        states = {0: self.interpreter.get_init_state()}
+        if ply > 0:
+            states[ply] = determinization
+
+        record = self._gather_record(states=states)
+        developments = self.interpreter.get_developments(record=record)
+        roots: Mapping[Role, ImperfectInformationNode[float]] = {
+            role: tree.root for role, tree in self.trees.items() if role != self.role
+        }
+        trees: Mapping[Role, ImperfectInformationNode[float]] = {}
+        for development in developments:
+            trees = {role: root for role, root in roots.items()}
+            for ply_, step in enumerate(development):
+                state = step.state
+                turn = step.turn
+                if turn is not None:
+                    next_state = development[ply_ + 1].state
+                    for role, tree in trees.items():
+                        tree._initialize_children()
+                        tree._branch_by(
+                            interpreter=self.interpreter,
+                            state=state,
+                            turn=turn,
+                            next_state=next_state,
+                            fully_enumerated=False,
+                            fully_expanded=False,
+                        )
+                    trees = {role: tree.descend(state, turn) for role, tree in trees.items()}
+                    if any(tree is None for tree in trees.values()):
+                        break
+            if all(tree is not None for tree in trees.values()):
+                break
+        return trees
+
+    def _gather_record(self, states: Mapping[int, State]) -> Record:
+        if self.interpreter.has_incomplete_information:
+            return self._gather_imperfect_information_record(states=states)
+        return self._gather_perfect_information_record(states=states)
+
+    def _gather_imperfect_information_record(self, states: Mapping[int, State]) -> ImperfectInformationRecord:
+        return ImperfectInformationRecord(
+            views={ply_: {self.role: view} for ply_, view in self.views.items()},
+            role_move_map={ply_: {self.role: move} for ply_, move in self.moves.items()},
+            possible_states={ply_: frozenset((state,)) for ply_, state in states.items()},
+        )
+
+    def _gather_perfect_information_record(self, states: Mapping[int, State]) -> PerfectInformationRecord:
+        states_ = {ply: cast(State, view) for ply, view in self.views.items()}
+        states_.update(states)
+        return PerfectInformationRecord(states=states_)
+
+    def _select(
+        self,
+        determinization: State,
+        tree: ImperfectInformationNode[float],
+        trees: Mapping[Role, ImperfectInformationNode[float]],
+    ) -> Turn:
+        roles_in_control = Interpreter.get_roles_in_control(determinization)
+        assert all(
+            determinization in node.possible_states for node in trees.values()
+        ), "Assumption: determinization in node.possible_states for all nodes in trees.values()"
+        for role, node in trees.items():
+            node.branch(interpreter=self.interpreter, state=determinization)
+        assert all(
+            any(determinization == state for state, _ in node.children) for node in trees.values()
+        ), "Assumption: branch implies state in children if non-terminal"
+        role_move_map = {
+            role: self.selectors[role](node=node, state=determinization)[1]
+            for role, node in trees.items()
+            if role in roles_in_control
+        }
+        if self.role in roles_in_control:
+            role_move_map[self.role] = self.selectors[self.role](node=tree, state=determinization)[1]
+        return Turn(role_move_map)
+
+    def _evaluate(
+        self,
+        determinization: State,
+        tree: ImperfectInformationNode[float],
+        trees: Mapping[Role, ImperfectInformationNode[float]],
+    ) -> Mapping[Role, float]:
+        utilities = {
+            role: node.evaluate(
+                interpreter=self.interpreter,
+                state=determinization,
+                valuation_factory=NormalizedUtilityValuation.from_utility,
+                evaluator=self.evaluators[role],
+            )
+            for role, node in trees.items()
+        }
+        utilities[self.role] = tree.evaluate(
+            interpreter=self.interpreter,
+            state=determinization,
+            valuation_factory=NormalizedUtilityValuation.from_utility,
+            evaluator=self.evaluators[self.role],
+        )
+        return utilities
+
+    def _backpropagate(
+        self,
+        tree: ImperfectInformationNode[float],
+        trees: Mapping[Role, ImperfectInformationNode[float]],
+        utilities: Mapping[Role, float],
+    ) -> None:
+        while tree.parent is not None:
+            tree = tree.parent
+            if tree.valuation is None:
+                tree.valuation = NormalizedUtilityValuation.from_utility(utilities[self.role])
+            else:
+                tree.valuation = tree.valuation.propagate(utilities[self.role])
+        for role, tree in trees.items():
+            node = tree
+            while node.parent is not None:
+                node = node.parent
+                if node.valuation is None:
+                    node.valuation = NormalizedUtilityValuation.from_utility(utilities[role])
+                else:
+                    node.valuation = node.valuation.propagate(utilities[role])
+
+    def descend(self, key: Tuple[State, _Action]) -> None:
+        state: State = key[0]
+        move: Move = key[1]
+        assert isinstance(move, gdl.Subrelation), "Assumption: action is a move"
+        self.trees[self.role].branch(interpreter=self.interpreter, state=state)
+        self.trees[self.role].move = move
+        self.moves[self.trees[self.role].depth] = move
+        self.trees[self.role].trim()
+
+    def get_key_to_evaluation(self) -> Mapping[Tuple[State, _Action], _MCTSEvaluation]:
+        while not self.trees[self.role].children:
+            determinization = self.trees[self.role].get_determinization()
+            if self.interpreter.is_terminal(determinization):
+                continue
+            self.trees[self.role].branch(interpreter=self.interpreter, state=determinization)
+        return {
+            key: (
+                float("-inf") if not self._can_lookup() else self._lookup(child),
+                child.valuation.total_playouts
+                if child.valuation is not None and hasattr(child.valuation, "total_playouts")
+                else 0,
+                child.valuation.utility if child.valuation is not None else 0.0,
+            )
+            for key, child in self.trees[self.role].children.items()
+        }
+
+    def _can_lookup(self) -> bool:
+        return (
+            self.books is not None
+            and self.books.get(self.role) is not None
+            and all(state in self.books[self.role] for state in self.trees[self.role].possible_states)
+        )
+
+    def _lookup(self, node: ImperfectInformationNode[float]) -> float:
+        utilities = tuple(self.books[self.role][state] for state in node.possible_states)
+        total = sum(utilities)
+        return total / len(utilities)
+
+    def _get_move_to_aggregation(
+        self,
+        key_to_evaluation: Mapping[_K, _MCTSEvaluation],
+    ) -> Mapping[Move, _MCTSEvaluation]:
+        move_to_aggregated_book_value: MutableMapping[Move, float] = collections.defaultdict(float)
+        move_to_total_playouts: MutableMapping[Move, int] = collections.defaultdict(int)
+        move_to_utility: MutableMapping[Move, float] = collections.defaultdict(float)
+        move_to_links: MutableMapping[Move, int] = collections.defaultdict(int)
+        for (state, action), (book_value, total_playouts, utility) in key_to_evaluation.items():
+            move_to_links[action] += 1
+            move_to_aggregated_book_value[action] += book_value
+            move_to_total_playouts[action] += total_playouts
+            move_to_utility[action] += utility
+        return {
+            self._key_to_move(key): (
+                move_to_aggregated_book_value[self._key_to_move(key)] / move_to_links[self._key_to_move(key)],
+                move_to_total_playouts[self._key_to_move(key)],
+                move_to_utility[self._key_to_move(key)],
+            )
+            for key in key_to_evaluation
+        }
+
+    def _key_to_move(self, key: Tuple[State, _Action]) -> Move:
+        state, action = key
+        move: Move
+        if isinstance(action, Turn):
+            move = action[self.role]
+        else:
+            assert isinstance(action, gdl.Subrelation), "Assumption: action is a move"
+            move = cast(Move, action)
+        return move
