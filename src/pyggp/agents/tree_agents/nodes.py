@@ -76,6 +76,10 @@ class Node(Protocol[_U, _K]):
     def max_height(self) -> int:
         """Maximum height of the node in the tree defined by the distance to the leaves."""
 
+    @property
+    def root(self) -> "Node[_U, Any]":
+        """Root of the tree."""
+
     def expand(self, interpreter: Interpreter) -> Mapping[_K, "Node[_U, Any]"]:
         ...
 
@@ -123,6 +127,13 @@ class _AbstractNode(Node[_U, _K], Generic[_U, _K], abc.ABC):
         if self.children is None or not self.children:
             return 0
         return 1 + max(child.max_height for child in self.children.values())
+
+    @property
+    def root(self) -> "Node[_U, Any]":
+        node = self
+        while node.parent is not None:
+            node = node.parent
+        return node
 
 
 @dataclass(unsafe_hash=True)
@@ -592,9 +603,7 @@ class HiddenInformationSetNode(_AbstractInformationSetNode[_U, Turn], Generic[_U
 
     def branch(self, interpreter: Interpreter, state: State) -> None:
         if self.children is None or (self.children is not None and not self.fully_expanded):
-            if self.children is None:
-                self.fully_expanded = False
-                self.children = {}
+            self._initialize_children()
             for turn, next_state in interpreter.get_all_next_states(state):
                 self._branch_by(
                     interpreter=interpreter,
@@ -804,11 +813,7 @@ class VisibleInformationSetNode(_AbstractInformationSetNode[_U, Move], Generic[_
 
     def branch(self, interpreter: Interpreter, state: State) -> None:
         if self.children is None or (self.children is not None and not self.fully_expanded):
-            if self.children is None:
-                self.fully_expanded = False
-                self.children = {}
-                self.view_to_visiblechild = {}
-                self.move_to_hiddenchild = {}
+            self._initialize_children()
             for turn, next_state in interpreter.get_all_next_states(state):
                 self._branch_by(
                     interpreter=interpreter,
