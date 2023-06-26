@@ -89,6 +89,7 @@ def create_possible_states_ctl(
     record: Record,
     ply: int,
     *,
+    is_final_view: bool = False,
     parallel_mode: ParallelMode = 4,
 ) -> Tuple[clingo.Control, Sequence[clingo_ast.AST]]:
     rules = (
@@ -97,6 +98,8 @@ def create_possible_states_ctl(
         *record.get_state_assertions(shapes.state_shape),
         *record.get_turn_assertions(),
         *record.get_view_assertions(shapes.sees_shape),
+        # *record.get_incidental_assertions(),
+        clingo_helper.get_terminal_at_assertion(ply=record.horizon, invert=is_final_view),
         *temporal_rules.static,
         *temporal_rules.dynamic,
         *temporal_rules.statemachine,
