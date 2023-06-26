@@ -246,6 +246,9 @@ class InformationSetNode(Node[_U, Tuple[State, _A]], Protocol[_U, _A]):
     def descend(self, state: State, turn: Turn) -> Optional["InformationSetNode[_U, Any]"]:
         """Descends the tree an edge consistent with the given state and turn or returns None if impossible."""
 
+    def get_determinization(self) -> State:
+        """Retrieves a possible state."""
+
     def cut(self, interpreter: Interpreter) -> None:
         """Remove impossible states from possible_states."""
 
@@ -266,7 +269,7 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
     ) -> _U:
         self.valuation: Optional[Valuation[_U]]  # needed for mypy
         if state is None:
-            state = random.choice(tuple(self.possible_states))
+            state = self.get_determinization()
         assert state in self.possible_states, (
             f"Assumption: state in self.possible_states (consistency, state={format_sorted_set(state)}, "
             "possible_states="
@@ -523,6 +526,13 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
         return PerfectInformationRecord(
             states={ply: state for ply, state in states.items()},
         )
+
+    def get_determinization(self) -> State:
+        if getattr(self, "_possible_state_seq", None) is None or len(self._possible_state_seq) != len(
+            self.possible_states,
+        ):
+            self._possible_state_seq = tuple(self.possible_states)
+        return random.choice(self._possible_state_seq)
 
     def is_in_control(self, role: Role) -> bool:
         assert any(role in Interpreter.get_roles_in_control(state) for state in self.possible_states) == all(
