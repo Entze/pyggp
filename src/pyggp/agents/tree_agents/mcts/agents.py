@@ -338,7 +338,7 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
 
     def step(self) -> None:
         node = self.tree
-        determinization: State = random.choice(tuple(node.possible_states))
+        determinization: State = node.get_determinization()
 
         while (
             node.children is not None
@@ -348,7 +348,7 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
         ):
             key = self.selector(node=node, state=determinization)
             node = node.children[key]
-            determinization = random.choice(tuple(node.possible_states))
+            determinization = node.get_determinization()
 
         node.branch(interpreter=self.interpreter, state=determinization)
 
