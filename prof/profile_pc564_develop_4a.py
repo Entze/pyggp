@@ -234,43 +234,43 @@ state_11 = interpreter.get_next_state(
 view_11 = interpreter.get_sees_by_role(state_11, o)
 tree_x.move = move_10
 
-# print(
-#     f"Step 11 {len(tree_o.possible_states)}, "
-#     f"{format_ns(time.monotonic_ns() - delta)}, "
-#     f"{format_ns(time.monotonic_ns() - start)}"
-# )
-# delta = time.monotonic_ns()
-#
-# tree_o = tree_o.develop(interpreter, 11, view_11)
-#
-# state_12 = interpreter.get_next_state(state_11, Turn({o: move_11}))
-# view_12 = interpreter.get_sees_by_role(state_12, x)
-# tree_o.move = move_11
-#
-# print(
-#     f"Step 12 {len(tree_x.possible_states)}, "
-#     f"{format_ns(time.monotonic_ns() - delta)}, "
-#     f"{format_ns(time.monotonic_ns() - start)}"
-# )
-# delta = time.monotonic_ns()
-#
-# tree_x = tree_x.develop(interpreter, 12, view_12)
-#
-# state_13 = interpreter.get_next_state(
-#     state_12,
-#     Turn({x: move_12}),
-# )
-# view_13 = interpreter.get_sees_by_role(state_13, o)
-#
-# tree_x.move = move_12
-#
-# print(
-#     f"Step 13 {len(tree_o.possible_states)}, "
-#     f"{format_ns(time.monotonic_ns() - delta)}, "
-#     f"{format_ns(time.monotonic_ns() - start)}"
-# )
-# delta = time.monotonic_ns()
-#
-# tree_o = tree_o.develop(interpreter, 13, view_13)
+print(
+    f"Step 11 {len(tree_o.possible_states)}, "
+    f"{format_ns(time.monotonic_ns() - delta)}, "
+    f"{format_ns(time.monotonic_ns() - start)}",
+)
+delta = time.monotonic_ns()
+
+tree_o = tree_o.develop(interpreter, 11, view_11)
+
+state_12 = interpreter.get_next_state(state_11, Turn({o: move_11}))
+view_12 = interpreter.get_sees_by_role(state_12, x)
+tree_o.move = move_11
+
+print(
+    f"Step 12 {len(tree_x.possible_states)}, "
+    f"{format_ns(time.monotonic_ns() - delta)}, "
+    f"{format_ns(time.monotonic_ns() - start)}",
+)
+delta = time.monotonic_ns()
+
+tree_x = tree_x.develop(interpreter, 12, view_12)
+
+state_13 = interpreter.get_next_state(
+    state_12,
+    Turn({x: move_12}),
+)
+view_13 = interpreter.get_sees_by_role(state_13, o)
+
+tree_x.move = move_12
+
+print(
+    f"Step 13 {len(tree_o.possible_states)}, "
+    f"{format_ns(time.monotonic_ns() - delta)}, "
+    f"{format_ns(time.monotonic_ns() - start)}",
+)
+delta = time.monotonic_ns()
+
+tree_o = tree_o.develop(interpreter, 13, view_13)
 
 print(len(tree_x.possible_states), format_ns(time.monotonic_ns() - delta), format_ns(time.monotonic_ns() - start))

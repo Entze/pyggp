@@ -7,7 +7,6 @@ from clingo import ast as clingo_ast
 
 from pyggp import _clingo as clingo_helper
 from pyggp.engine_primitives import (
-    ActionShape,
     Move,
     Role,
     SeesShape,
@@ -15,7 +14,6 @@ from pyggp.engine_primitives import (
     StateShape,
     Turn,
     View,
-    invert_does,
     invert_sees,
     invert_state,
 )
@@ -196,7 +194,9 @@ class PerfectInformationRecord(Record):
 
 
 def _get_indirect_state_assertions(
-    ply: int, possible_states: Iterable[State], state_shape: StateShape
+    ply: int,
+    possible_states: Iterable[State],
+    state_shape: StateShape,
 ) -> Iterator[clingo_ast.AST]:
     state_literals = []
     ply_number = clingo_helper.create_symbolic_term(clingo.Number(ply))

@@ -15,7 +15,10 @@ from prof.prof_common_phantom_connect_5_6_4 import (
 cell_1_1 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(1)), gdl.Subrelation(gdl.Number(1))))))
 cell_1_2 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(1)), gdl.Subrelation(gdl.Number(2))))))
 cell_1_3 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(1)), gdl.Subrelation(gdl.Number(3))))))
+cell_2_1 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(2)), gdl.Subrelation(gdl.Number(1))))))
 cell_2_2 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(2)), gdl.Subrelation(gdl.Number(2))))))
+cell_2_3 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(2)), gdl.Subrelation(gdl.Number(3))))))
+cell_2_4 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(2)), gdl.Subrelation(gdl.Number(4))))))
 cell_1_4 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(1)), gdl.Subrelation(gdl.Number(4))))))
 cell_1_5 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(1)), gdl.Subrelation(gdl.Number(5))))))
 cell_1_6 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(1)), gdl.Subrelation(gdl.Number(6))))))
@@ -26,6 +29,8 @@ cell_3_3 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number
 cell_3_4 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(3)), gdl.Subrelation(gdl.Number(4))))))
 cell_3_5 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(3)), gdl.Subrelation(gdl.Number(5))))))
 cell_3_6 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(3)), gdl.Subrelation(gdl.Number(6))))))
+cell_4_1 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(4)), gdl.Subrelation(gdl.Number(1))))))
+cell_4_2 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(4)), gdl.Subrelation(gdl.Number(2))))))
 cell_5_1 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(5)), gdl.Subrelation(gdl.Number(1))))))
 cell_5_2 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(5)), gdl.Subrelation(gdl.Number(2))))))
 cell_5_3 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(5)), gdl.Subrelation(gdl.Number(3))))))
@@ -33,19 +38,17 @@ cell_5_4 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number
 cell_5_5 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(5)), gdl.Subrelation(gdl.Number(5))))))
 cell_5_6 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(5)), gdl.Subrelation(gdl.Number(6))))))
 
-move_0 = cell_1_1
-move_1 = cell_1_2
-move_2 = cell_1_3
-move_3 = cell_1_4
-move_4 = cell_1_5
-move_5 = cell_1_6
-move_6 = cell_5_1
-move_7 = cell_5_2
-move_8 = cell_5_3
+move_0 = cell_2_4
+move_1 = cell_5_4
+move_2 = cell_4_2
+move_3 = cell_1_3
+move_4 = cell_3_3
+move_5 = cell_1_5
+move_6 = cell_2_2
+move_7 = cell_3_4
+move_8 = cell_3_1
 move_9 = cell_5_4
-move_10 = cell_5_5
-move_11 = cell_5_6
-move_12 = cell_3_1
+
 
 state_0 = phantom_connect_5_6_4_init_state
 x = phantom_connect_5_6_4_role_x
@@ -210,67 +213,5 @@ print(
 delta = time.monotonic_ns()
 
 tree_o = tree_o.develop(interpreter, 9, view_9)
-
-state_10 = interpreter.get_next_state(
-    state_9,
-    Turn({o: move_9}),
-)
-view_10 = interpreter.get_sees_by_role(state_10, x)
-tree_o.move = move_9
-
-print(
-    f"Step 10 {len(tree_x.possible_states)}, "
-    f"{format_ns(time.monotonic_ns() - delta)}, "
-    f"{format_ns(time.monotonic_ns() - start)}",
-)
-delta = time.monotonic_ns()
-
-tree_x = tree_x.develop(interpreter, 10, view_10)
-
-state_11 = interpreter.get_next_state(
-    state_10,
-    Turn({x: move_10}),
-)
-view_11 = interpreter.get_sees_by_role(state_11, o)
-tree_x.move = move_10
-
-# print(
-#     f"Step 11 {len(tree_o.possible_states)}, "
-#     f"{format_ns(time.monotonic_ns() - delta)}, "
-#     f"{format_ns(time.monotonic_ns() - start)}"
-# )
-# delta = time.monotonic_ns()
-#
-# tree_o = tree_o.develop(interpreter, 11, view_11)
-#
-# state_12 = interpreter.get_next_state(state_11, Turn({o: move_11}))
-# view_12 = interpreter.get_sees_by_role(state_12, x)
-# tree_o.move = move_11
-#
-# print(
-#     f"Step 12 {len(tree_x.possible_states)}, "
-#     f"{format_ns(time.monotonic_ns() - delta)}, "
-#     f"{format_ns(time.monotonic_ns() - start)}"
-# )
-# delta = time.monotonic_ns()
-#
-# tree_x = tree_x.develop(interpreter, 12, view_12)
-#
-# state_13 = interpreter.get_next_state(
-#     state_12,
-#     Turn({x: move_12}),
-# )
-# view_13 = interpreter.get_sees_by_role(state_13, o)
-#
-# tree_x.move = move_12
-#
-# print(
-#     f"Step 13 {len(tree_o.possible_states)}, "
-#     f"{format_ns(time.monotonic_ns() - delta)}, "
-#     f"{format_ns(time.monotonic_ns() - start)}"
-# )
-# delta = time.monotonic_ns()
-#
-# tree_o = tree_o.develop(interpreter, 13, view_13)
 
 print(len(tree_x.possible_states), format_ns(time.monotonic_ns() - delta), format_ns(time.monotonic_ns() - start))

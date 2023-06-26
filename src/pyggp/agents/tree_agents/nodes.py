@@ -243,6 +243,9 @@ class InformationSetNode(Node[_U, Tuple[State, _A]], Protocol[_U, _A]):
     def branch(self, interpreter: Interpreter, state: State) -> None:
         """Branches the tree assuming the given state."""
 
+    def descend(self, state: State, turn: Turn) -> Optional["InformationSetNode[_U, Any]"]:
+        """Descends the tree an edge consistent with the given state and turn or returns None if impossible."""
+
     def cut(self, interpreter: Interpreter) -> None:
         """Remove impossible states from possible_states."""
 
@@ -298,7 +301,7 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
             abort_msg="Aborted rerooting tree",
         ):
             node = self._reroot(interpreter, ply, view)
-        assert ply == node.depth, "Guarantee: ply == node.depth == depth (developed the tree to current depth)"
+        assert ply == node.depth, f"Guarantee: ply == node.depth == depth (ply={ply}, node.depth={node.depth})"
         assert isinstance(node, VisibleInformationSetNode), "Guarantee: node is VisibleInformationSetNode"
         assert node.view is None or node.view == view, "Assumption: node.view == view (consistency)"
         node.view = view
@@ -328,34 +331,97 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
     def _reroot(self, interpreter: Interpreter, ply: int, view: View) -> "VisibleInformationSetNode[_U]":
         node = self
 
-        while node.depth != ply:
-            node._make_walkable(interpreter, ply, view)
-            node = node._walk(ply, view)
+        while node.depth < ply and node._can_walk(ply=ply, view=view):
+            node = node._walk(ply=ply, view=view)
+
+        if node.depth + 1 == ply:
+            node._make_walkable(interpreter=interpreter, ply=ply, view=view)
+            assert node._can_walk(ply=ply, view=view), "Assumption: node._make_walkable implies node._can_walk"
+            node = node._walk(ply=ply, view=view)
+
+        if node.depth < ply:
+            node = node._dig(interpreter=interpreter, ply=ply, view=view)
+
+        assert node.depth == ply, f"Guarantee: node.depth == ply (node.depth={node.depth}, ply={ply})"
+        assert isinstance(node, VisibleInformationSetNode), "Guarantee: node is VisibleInformationSetNode"
+        return node
+
+    def _make_walkable(self, interpreter: Interpreter, ply: int, view: View) -> None:
+        if not self.fully_enumerated:
+            record = self.gather_record(
+                has_incomplete_information=interpreter.has_incomplete_information,
+                views={ply: view},
+            )
+
+            possible_states = interpreter.get_possible_states(record=record, ply=ply)
+        else:
+            possible_states = self.possible_states
+        for possible_state in possible_states:
+            if (
+                possible_state in self.possible_states
+                and self.children is not None
+                and any(state == possible_state for state, _ in self.children)
+            ):
+                continue
+            self.possible_states.add(possible_state)
+            for turn, next_state in interpreter.get_all_next_states(possible_state):
+                self._initialize_children()
+                self._branch_by(
+                    interpreter=interpreter,
+                    state=possible_state,
+                    turn=turn,
+                    next_state=next_state,
+                    fully_expanded=False,
+                    fully_enumerated=False,
+                )
+                if self._can_walk(ply=ply, view=view):
+                    return
+
+    def _dig(self, interpreter: Interpreter, ply: int, view: View) -> "VisibleInformationSetNode[_U]":
+        record = self.gather_record(
+            has_incomplete_information=interpreter.has_incomplete_information,
+            views={ply: view},
+        )
+
+        developments = interpreter.get_developments(record=record)
+        node = self
+        while node.depth > record.offset:
+            node = node.parent
+        old_root = node
+        for development in developments:
+            node = old_root
+            for step, development_step in enumerate(development):
+                state = development_step.state
+                turn = development_step.turn
+                if turn is not None:
+                    next_state = development[step + 1].state
+                    node._initialize_children()
+                    node._branch_by(
+                        interpreter=interpreter,
+                        state=state,
+                        turn=turn,
+                        next_state=next_state,
+                        fully_enumerated=False,
+                        fully_expanded=False,
+                    )
+                    node = node.descend(state, turn)
+
+                if node is None or node.depth == ply:
+                    break
+            if node is not None and node.depth == ply and isinstance(node, VisibleInformationSetNode):
+                break
 
         assert isinstance(node, VisibleInformationSetNode), "Guarantee: node is VisibleInformationSetNode"
 
         return node
 
-    def _make_walkable(self, interpreter: Interpreter, ply: int, view: View) -> None:
-        if self._can_walk(ply, view):
-            return
-        if not self.fully_enumerated:
-            record = self.gather_record(
-                has_incomplete_information=interpreter.has_incomplete_information, views={ply: view}
-            )
-            possible_states = interpreter.get_possible_states(record=record, ply=self.depth)
-            self.possible_states.clear()
-        else:
-            possible_states = self.possible_states
-        for possible_state in possible_states:
-            if not self.fully_enumerated:
-                if possible_state in self.possible_states:
-                    continue
-                self.possible_states.add(possible_state)
-            self.branch(interpreter, possible_state)
-            if self._can_walk(ply, view):
-                return
-        self.fully_enumerated = True
+    def _initialize_children(self) -> None:
+        if self.children is None:
+            self._reset_children()
+
+    @abc.abstractmethod
+    def _reset_children(self) -> None:
+        raise NotImplementedError
 
     @abc.abstractmethod
     def _can_walk(self, ply: int, view: View) -> bool:
@@ -363,6 +429,19 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
 
     @abc.abstractmethod
     def _walk(self, ply: int, view: View) -> "ImperfectInformationNode[_U]":
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _branch_by(
+        self,
+        interpreter: Interpreter,
+        state: State,
+        turn: Turn,
+        next_state: State,
+        *,
+        fully_expanded=True,
+        fully_enumerated=True,
+    ) -> "ImperfectInformationNode[_U]":
         raise NotImplementedError
 
     def fill(self, interpreter: Interpreter) -> None:
@@ -387,7 +466,10 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
         return self._gather_record_complete_information(views=views, moves=moves)
 
     def _gather_record_incomplete_information(
-        self, *, views: Optional[MutableMapping[int, View]] = None, moves: Optional[MutableMapping[int, Move]] = None
+        self,
+        *,
+        views: Optional[MutableMapping[int, View]] = None,
+        moves: Optional[MutableMapping[int, Move]] = None,
     ) -> ImperfectInformationRecord:
         last_known_possible_states = None
         last_known_ply = None
@@ -418,11 +500,12 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
         )
 
     def _gather_record_complete_information(
-        self, *, views: Optional[MutableMapping[int, View]] = None, moves: Optional[MutableMapping[int, Move]] = None
+        self,
+        *,
+        views: Optional[MutableMapping[int, View]] = None,
+        moves: Optional[MutableMapping[int, Move]] = None,
     ) -> PerfectInformationRecord:
         states = {}
-        if views is not None:
-            states.update((ply, cast(State, view)) for ply, view in views.items())
 
         node = self
         while node is not None and not states:
@@ -430,7 +513,13 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
                 if node.view is not None:
                     state = cast(State, node.view)
                     states[node.depth] = state
+            elif node.fully_enumerated and len(node.possible_states) == 1:
+                (state,) = node.possible_states
+                states[node.depth] = state
             node = node.parent
+
+        if views is not None:
+            states.update((ply, cast(State, view)) for ply, view in views.items())
         return PerfectInformationRecord(
             states={ply: state for ply, state in states.items()},
         )
@@ -504,22 +593,28 @@ class HiddenInformationSetNode(_AbstractInformationSetNode[_U, Turn], Generic[_U
 
     def expand(self, interpreter: Interpreter) -> Mapping[Tuple[State, Turn], "ImperfectInformationNode[_U]"]:
         if not self.fully_expanded or self.children is None:
-            if self.children is None:
-                self.children = {}
+            self._initialize_children()
             for possible_state in self.possible_states:
                 for turn, next_state in interpreter.get_all_next_states(possible_state):
                     self._branch_by(
+                        interpreter=interpreter,
                         state=possible_state,
                         turn=turn,
                         next_state=next_state,
-                        fully_expanded=True,
+                        fully_expanded=False,
                         fully_enumerated=self.fully_enumerated,
                     )
-            self.fully_expanded = True
+            self.fully_expanded = self.fully_enumerated
 
-        assert self.children is not None, "Guarantee: self.children is not None (expanded)"
-        assert self.fully_expanded, "Guarantee: self.fully_expanded (expanded)"
+        assert self.children is not None, "Guarantee: self.children is not None"
+        assert self.fully_expanded == self.fully_enumerated, "Guarantee: self.fully_expanded == self.fully_enumerated"
         return self.children
+
+    def _reset_children(self) -> None:
+        self.fully_expanded = False
+        self.children = {}
+        self.hidden_child = None
+        self.visible_child = None
 
     def branch(self, interpreter: Interpreter, state: State) -> None:
         if self.children is None or (self.children is not None and not self.fully_expanded):
@@ -528,6 +623,7 @@ class HiddenInformationSetNode(_AbstractInformationSetNode[_U, Turn], Generic[_U
                 self.children = {}
             for turn, next_state in interpreter.get_all_next_states(state):
                 self._branch_by(
+                    interpreter=interpreter,
                     state=state,
                     turn=turn,
                     next_state=next_state,
@@ -546,7 +642,14 @@ class HiddenInformationSetNode(_AbstractInformationSetNode[_U, Turn], Generic[_U
         assert self.children is not None, "Guarantee: self.children is not None"
 
     def _branch_by(
-        self, state: State, turn: Turn, next_state: State, *, fully_expanded=True, fully_enumerated=True
+        self,
+        interpreter: Interpreter,
+        state: State,
+        turn: Turn,
+        next_state: State,
+        *,
+        fully_expanded=True,
+        fully_enumerated=True,
     ) -> None:
         roles_in_control = Interpreter.get_roles_in_control(next_state)
         key = (state, turn)
@@ -574,6 +677,11 @@ class HiddenInformationSetNode(_AbstractInformationSetNode[_U, Turn], Generic[_U
             child = self.visible_child
         child.possible_states.add(next_state)
         self.children[key] = child
+
+    def descend(self, state: State, turn: Turn) -> Optional["InformationSetNode[_U, Any]"]:
+        if self.children is None:
+            return None
+        return self.children.get((state, turn))
 
     def trim(self) -> None:
         if self.children is None or not self.children:
@@ -613,7 +721,7 @@ class HiddenInformationSetNode(_AbstractInformationSetNode[_U, Turn], Generic[_U
 class VisibleInformationSetNode(_AbstractInformationSetNode[_U, Move], Generic[_U]):
     role: Role = field(hash=True)
     possible_states: Set[State] = field(default_factory=set, hash=False)
-    fully_enumerated: bool = field(default=True, hash=False)
+    fully_enumerated: bool = field(default=False, hash=False)
     view: Optional[View] = field(default=None, hash=True)
     move: Optional[Move] = field(default=None, hash=True)
     valuation: Optional[Valuation[_U]] = field(default=None, hash=True)
@@ -627,7 +735,7 @@ class VisibleInformationSetNode(_AbstractInformationSetNode[_U, Move], Generic[_
         repr=False,
         hash=False,
     )
-    fully_expanded: bool = field(default=True, hash=False)
+    fully_expanded: bool = field(default=False, hash=False)
     view_to_visiblechild: Optional[MutableMapping[View, "VisibleInformationSetNode[_U]"]] = field(
         default=None,
         repr=False,
@@ -679,8 +787,12 @@ class VisibleInformationSetNode(_AbstractInformationSetNode[_U, Move], Generic[_
         return ply <= self.depth or (
             self.children
             and (
-                (ply == self.depth + 1 and view in self.view_to_visiblechild)
-                or (ply > self.depth + 1 and self.move in self.move_to_hiddenchild)
+                (ply == self.depth + 1 and self.view_to_visiblechild is not None and view in self.view_to_visiblechild)
+                or (
+                    ply > self.depth + 1
+                    and self.move_to_hiddenchild is not None
+                    and self.move in self.move_to_hiddenchild
+                )
             )
         )
 
@@ -695,11 +807,7 @@ class VisibleInformationSetNode(_AbstractInformationSetNode[_U, Move], Generic[_
 
     def expand(self, interpreter: Interpreter) -> Mapping[Tuple[State, Move], "ImperfectInformationNode[_U]"]:
         if not self.fully_expanded or self.children is None:
-            if self.children is None:
-                self.children = {}
-                self.view_to_visiblechild = {}
-                self.move_to_hiddenchild = {}
-
+            self._initialize_children()
             for possible_state in self.possible_states:
                 for turn, next_state in interpreter.get_all_next_states(possible_state):
                     self._branch_by(
@@ -707,13 +815,18 @@ class VisibleInformationSetNode(_AbstractInformationSetNode[_U, Move], Generic[_
                         state=possible_state,
                         turn=turn,
                         next_state=next_state,
-                        fully_expanded=True,
+                        fully_expanded=False,
                         fully_enumerated=self.fully_enumerated,
                     )
-            self.fully_expanded = True
+            self.fully_expanded = self.fully_enumerated
 
         assert self.children is not None, "Guarantee: self.children is not None (expanded)"
         return self.children
+
+    def _reset_children(self) -> None:
+        self.children = {}
+        self.view_to_visiblechild = {}
+        self.move_to_hiddenchild = {}
 
     def branch(self, interpreter: Interpreter, state: State) -> None:
         if self.children is None or (self.children is not None and not self.fully_expanded):
@@ -784,6 +897,13 @@ class VisibleInformationSetNode(_AbstractInformationSetNode[_U, Move], Generic[_
             child = self.view_to_visiblechild[view]
         child.possible_states.add(next_state)
         self.children[key] = child
+
+    def descend(self, state: State, turn: Turn) -> Optional["InformationSetNode[_U, Any]"]:
+        if self.children is None or self.role not in turn:
+            return None
+        move = turn[self.role]
+        key = (state, move)
+        return self.children.get(key)
 
     def trim(self) -> None:
         if self.children is None or not self.children:

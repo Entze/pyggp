@@ -27,7 +27,7 @@ class ControlContainer:
     next: clingo.Control = field(default_factory=clingo.Control)
     next_state_to_literal: MutableStateLiteralMapping = field(default_factory=dict)
     next_action_to_literal: MutableActionLiteralMapping = field(
-        default_factory=functools.partial(collections.defaultdict, dict)
+        default_factory=functools.partial(collections.defaultdict, dict),
     )
     sees: clingo.Control = field(default_factory=clingo.Control)
     sees_state_to_literal: MutableStateLiteralMapping = field(default_factory=dict)
@@ -141,7 +141,9 @@ class ControlContainer:
 
 
 def lookup_state_literal(
-    ctl: clingo.Control, subrelation: gdl.Subrelation, state_to_literal: MutableStateLiteralMapping
+    ctl: clingo.Control,
+    subrelation: gdl.Subrelation,
+    state_to_literal: MutableStateLiteralMapping,
 ) -> int:
     if subrelation not in state_to_literal:
         symbolic_atom = clingo.Function(name="true", arguments=(subrelation.as_clingo_symbol(),))
@@ -171,7 +173,10 @@ def _set_state(
 
 
 def lookup_action_literal(
-    ctl: clingo.Control, role: Role, move: Move, action_to_literal: MutableActionLiteralMapping
+    ctl: clingo.Control,
+    role: Role,
+    move: Move,
+    action_to_literal: MutableActionLiteralMapping,
 ) -> int:
     if role not in action_to_literal or move not in action_to_literal[role]:
         symbolic_atom = clingo.Function(name="does", arguments=(role.as_clingo_symbol(), move.as_clingo_symbol()))

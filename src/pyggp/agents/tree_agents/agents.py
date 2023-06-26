@@ -62,7 +62,7 @@ class AbstractTreeAgent(InterpreterAgent, TreeAgent[_K, _E], Generic[_K, _E], ab
             end_msg=f"Updated {'tree' if hasattr(self, 'tree') else 'trees'}",
             abort_msg=f"Aborted updating {'tree' if hasattr(self, 'tree') else 'trees'}",
         ):
-            self.update(ply, view)
+            self.update(ply, view, total_time_ns)
 
         used_time = time.monotonic_ns() - used_time
 

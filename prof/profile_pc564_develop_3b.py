@@ -80,7 +80,7 @@ tree_x.move = move_0
 print(
     f"Step 1 {len(tree_o.possible_states)}, "
     f"{format_ns(time.monotonic_ns() - delta)}, "
-    f"{format_ns(time.monotonic_ns() - start)}"
+    f"{format_ns(time.monotonic_ns() - start)}",
 )
 delta = time.monotonic_ns()
 
@@ -97,7 +97,7 @@ tree_o.move = move_1
 print(
     f"Step 2 {len(tree_x.possible_states)}, "
     f"{format_ns(time.monotonic_ns() - delta)}, "
-    f"{format_ns(time.monotonic_ns() - start)}"
+    f"{format_ns(time.monotonic_ns() - start)}",
 )
 delta = time.monotonic_ns()
 
@@ -114,7 +114,7 @@ tree_x.move = move_2
 print(
     f"Step 3 {len(tree_o.possible_states)}, "
     f"{format_ns(time.monotonic_ns() - delta)}, "
-    f"{format_ns(time.monotonic_ns() - start)}"
+    f"{format_ns(time.monotonic_ns() - start)}",
 )
 delta = time.monotonic_ns()
 
@@ -131,7 +131,7 @@ tree_o.move = move_3
 print(
     f"Step 4 { len(tree_x.possible_states)}, "
     f"{format_ns(time.monotonic_ns() - delta)}, "
-    f"{format_ns(time.monotonic_ns() - start)}"
+    f"{format_ns(time.monotonic_ns() - start)}",
 )
 delta = time.monotonic_ns()
 
@@ -148,7 +148,7 @@ tree_x.move = move_4
 print(
     f"Step 5 {len(tree_o.possible_states)}, "
     f"{format_ns(time.monotonic_ns() - delta)}, "
-    f"{format_ns(time.monotonic_ns() - start)}"
+    f"{format_ns(time.monotonic_ns() - start)}",
 )
 delta = time.monotonic_ns()
 
@@ -162,7 +162,7 @@ tree_o.move = move_5
 print(
     f"Step 6 {len(tree_x.possible_states)}, "
     f"{format_ns(time.monotonic_ns() - delta)}, "
-    f"{format_ns(time.monotonic_ns() - start)}"
+    f"{format_ns(time.monotonic_ns() - start)}",
 )
 delta = time.monotonic_ns()
 
@@ -179,7 +179,7 @@ tree_x.move = move_6
 print(
     f"Step 7 {len(tree_o.possible_states)}, "
     f"{format_ns(time.monotonic_ns() - delta)}, "
-    f"{format_ns(time.monotonic_ns() - start)}"
+    f"{format_ns(time.monotonic_ns() - start)}",
 )
 delta = time.monotonic_ns()
 
@@ -196,7 +196,7 @@ tree_o.move = move_7
 print(
     f"Step 8 {len(tree_x.possible_states)}, "
     f"{format_ns(time.monotonic_ns() - delta)}, "
-    f"{format_ns(time.monotonic_ns() - start)}"
+    f"{format_ns(time.monotonic_ns() - start)}",
 )
 delta = time.monotonic_ns()
 
@@ -213,7 +213,7 @@ tree_x.move = move_8
 print(
     f"Step 9 {len(tree_o.possible_states)}, "
     f"{format_ns(time.monotonic_ns() - delta)}, "
-    f"{format_ns(time.monotonic_ns() - start)}"
+    f"{format_ns(time.monotonic_ns() - start)}",
 )
 delta = time.monotonic_ns()
 
@@ -230,7 +230,7 @@ tree_o.move = move_9
 print(
     f"Step 10 {len(tree_x.possible_states)}, "
     f"{format_ns(time.monotonic_ns() - delta)}, "
-    f"{format_ns(time.monotonic_ns() - start)}"
+    f"{format_ns(time.monotonic_ns() - start)}",
 )
 delta = time.monotonic_ns()
 

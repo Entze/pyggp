@@ -31,6 +31,7 @@ def test_expand_to_visible_nodes(mock_interpreter) -> None:
     node = VisibleInformationSetNode(
         role=mock_role1,
         possible_states={mock_state1, mock_state2},
+        fully_enumerated=True,
     )
 
     mock_child1_view = mock.Mock(spec=State, name="mock_child1_view")
@@ -45,6 +46,7 @@ def test_expand_to_visible_nodes(mock_interpreter) -> None:
         parent=node,
         possible_states={mock_child1_state1, mock_child1_state2},
         depth=node.depth + 1,
+        fully_enumerated=True,
     )
 
     mock_child2_view = mock.Mock(spec=State, name="mock_child2_view")
@@ -56,6 +58,7 @@ def test_expand_to_visible_nodes(mock_interpreter) -> None:
         parent=node,
         possible_states={mock_child2_state},
         depth=node.depth + 1,
+        fully_enumerated=True,
     )
 
     children = {
@@ -103,6 +106,7 @@ def test_expand_to_hidden_nodes(mock_interpreter) -> None:
     node = VisibleInformationSetNode(
         role=mock_role1,
         possible_states={mock_state1, mock_state2},
+        fully_enumerated=True,
     )
 
     mock_child1_state1 = mock.Mock(spec=State, name="mock_child1_state1")
@@ -116,6 +120,7 @@ def test_expand_to_hidden_nodes(mock_interpreter) -> None:
         parent=node,
         possible_states={mock_child1_state1, mock_child1_state2, mock_child1_state3},
         depth=node.depth + 1,
+        fully_enumerated=True,
     )
 
     mock_role2 = mock.Mock(spec=Role, name="mock_role2")
@@ -364,6 +369,7 @@ def test_develop_on_perfect_view(ruleset_two_moves_max) -> None:
     root = HiddenInformationSetNode(
         role=role_p2,
         possible_states={init_state},
+        fully_enumerated=True,
     )
 
     control_p2 = gdl.Subrelation(gdl.Relation("control", (gdl.Subrelation(gdl.Relation("p2")),)))
@@ -380,6 +386,7 @@ def test_develop_on_perfect_view(ruleset_two_moves_max) -> None:
         possible_states={state1, state2, state3},
         parent=root,
         depth=root.depth + 1,
+        fully_enumerated=True,
     )
 
     move1 = Move(gdl.Subrelation(gdl.Number(1)))
@@ -431,6 +438,7 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
         possible_states={init_state},
         view=init_view,
         role=role_p1,
+        fully_enumerated=True,
     )
 
     control_p2 = gdl.Subrelation(gdl.Relation("control", (gdl.Subrelation(gdl.Relation("p2")),)))
@@ -445,6 +453,7 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
         possible_states={state_child1_1},
         parent=root,
         depth=root.depth + 1,
+        fully_enumerated=True,
     )
 
     state_child1_2 = State(frozenset({control_p2, t_1_2}))
@@ -454,6 +463,7 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
         possible_states={state_child1_2},
         parent=root,
         depth=root.depth + 1,
+        fully_enumerated=True,
     )
 
     state_child1_3 = State(frozenset({control_p2, t_1_3}))
@@ -463,6 +473,7 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
         possible_states={state_child1_3},
         parent=root,
         depth=root.depth + 1,
+        fully_enumerated=True,
     )
 
     m1 = Move(gdl.Subrelation(gdl.Number(1)))
@@ -476,6 +487,8 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
     }
 
     root.children = root_children
+    root.move_to_hiddenchild = {m1: child1_1, m2: child1_2, m3: child1_3}
+    root.view_to_visiblechild = {}
 
     control_p1 = gdl.Subrelation(gdl.Relation("control", (gdl.Subrelation(gdl.Relation("p1")),)))
     t_2_1 = gdl.Subrelation(gdl.Relation("turn", (gdl.Subrelation(gdl.Number(2)), gdl.Subrelation(gdl.Number(1)))))
@@ -491,6 +504,7 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
         possible_states={state_child2_1_1, state_child2_1_2, state_child2_1_3},
         parent=child1_1,
         depth=child1_1.depth + 1,
+        fully_enumerated=True,
     )
 
     turn_child1_1 = Turn({role_p2: m1})
@@ -514,6 +528,7 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
         possible_states={state_child2_2_1, state_child2_2_2, state_child2_2_3},
         parent=child1_2,
         depth=child1_2.depth + 1,
+        fully_enumerated=True,
     )
 
     child1_2_children = {
@@ -533,6 +548,7 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
         possible_states={state_child2_3_1, state_child2_3_2, state_child2_3_3},
         parent=child1_3,
         depth=child1_3.depth + 1,
+        fully_enumerated=True,
     )
 
     child1_3_children = {
@@ -730,10 +746,19 @@ def test_phantom_connect_5_6_4_revealing(ruleset_phantom_connect_5_6_4) -> None:
     state_0 = init_state
     view_0 = interpreter.get_sees_by_role(state_0, x)
 
-    tree_x: ImperfectInformationNode[float] = VisibleInformationSetNode(possible_states={state_0}, role=x)
-    tree_o: ImperfectInformationNode[float] = HiddenInformationSetNode(possible_states={state_0}, role=o)
+    tree_x: ImperfectInformationNode[float] = VisibleInformationSetNode(
+        possible_states={state_0},
+        role=x,
+        fully_enumerated=True,
+    )
+    tree_o: ImperfectInformationNode[float] = HiddenInformationSetNode(
+        possible_states={state_0},
+        role=o,
+        fully_enumerated=True,
+    )
 
     tree_x = tree_x.develop(interpreter, 0, view_0)
+    tree_x.fill(interpreter)
 
     cell_1_1 = Move(
         gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(1)), gdl.Subrelation(gdl.Number(1))))),
@@ -743,12 +768,14 @@ def test_phantom_connect_5_6_4_revealing(ruleset_phantom_connect_5_6_4) -> None:
     tree_x.move = cell_1_1
 
     tree_o = tree_o.develop(interpreter, 1, view_1)
+    tree_o.fill(interpreter)
 
     state_2 = interpreter.get_next_state(state_1, Turn({o: cell_1_1}))
     view_2 = interpreter.get_sees_by_role(state_2, o)
     tree_o.move = cell_1_1
 
     tree_o = tree_o.develop(interpreter, 2, view_2)
+    tree_o.fill(interpreter)
 
     tree_o.expand(interpreter)
 
