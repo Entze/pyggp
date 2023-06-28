@@ -8,7 +8,6 @@ import rich.progress as rich_progress
 
 import pyggp.game_description_language as gdl
 from pyggp.agents import Agent, ArbitraryAgent, HumanAgent, RandomAgent
-from pyggp.cli._spec_argument_grammar import Spec
 from pyggp.engine_primitives import Role
 from pyggp.exceptions.cli_exceptions import AgentNotFoundCLIError, RolesMismatchCLIError, RulesetNotFoundCLIError
 
@@ -145,7 +144,3 @@ def load_agent_by_name(name: str) -> Type[Agent]:
 def check_roles(required_roles: Collection[Role], received_roles: Collection[Role]) -> None:
     if set(required_roles) != set(received_roles):
         raise RolesMismatchCLIError(required_roles, received_roles)
-
-
-def parse_spec_argument(argument: str) -> Spec:
-    pass

@@ -24,7 +24,7 @@ from pyggp.cli._common import (
     parse_registry,
 )
 from pyggp.engine_primitives import RANDOM, Role
-from pyggp.exceptions.cli_exceptions import RulesetNotFoundCLIError
+from pyggp.exceptions.cli_exceptions import RulesetNotFoundCLIError, VisualizerNotFoundCLIError
 from pyggp.exceptions.match_exceptions import DidNotFinishMatchError, DidNotStartMatchError
 from pyggp.gameclocks import (
     DEFAULT_NO_TIMEOUT_CONFIGURATION,
@@ -34,7 +34,7 @@ from pyggp.gameclocks import (
 )
 from pyggp.interpreters import ClingoInterpreter, Interpreter
 from pyggp.match import Match
-from pyggp.visualizers import Visualizer
+from pyggp.visualizers import SimpleVisualizer, Visualizer
 
 log: logging.Logger = logging.getLogger("pyggp")
 
@@ -118,6 +118,17 @@ def handle_match_command_args(
     )
 
     log.debug("Instantiating visualizer")
+    if visualizer_str is not None:
+        try:
+            visualizer = Visualizer.from_argument_specification_str(
+                argument_specification_str=visualizer_str,
+                ruleset=ruleset,
+            )
+        except VisualizerNotFoundCLIError as visualizer_not_found_error:
+            log.exception(visualizer_not_found_error, exc_info=False)
+            raise typer.Exit(1) from None
+    else:
+        visualizer = SimpleVisualizer()
 
     return MatchCommandParams(
         ruleset=ruleset,

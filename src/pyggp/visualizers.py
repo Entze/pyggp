@@ -1,10 +1,11 @@
 """Visualizers for consecutive states."""
 import abc
+import collections
 import functools
+import importlib
 import re
 from dataclasses import dataclass, field
 from typing import (
-    Callable,
     ClassVar,
     Mapping,
     MutableMapping,
@@ -13,7 +14,6 @@ from typing import (
     ParamSpec,
     Self,
     Sequence,
-    Tuple,
     TypeVar,
     Union,
 )
@@ -25,7 +25,9 @@ import pyggp._clingo as clingo_helper
 import pyggp.game_description_language as gdl
 from pyggp._clingo_interpreter.base import _get_ctl, _get_model, _transform_model
 from pyggp._clingo_interpreter.control_containers import ControlContainer, _set_state
+from pyggp.cli.argument_specification import ArgumentSpecification
 from pyggp.engine_primitives import Role, State
+from pyggp.exceptions.cli_exceptions import VisualizerNotFoundCLIError
 from pyggp.match import Disqualification, Match
 
 _P = ParamSpec("_P")
@@ -78,27 +80,30 @@ class Visualizer(abc.ABC):
         raise NotImplementedError
 
     @staticmethod
-    def parse_str(visualizer_str: str) -> Tuple[Callable[_P, _V], Tuple[str, ...], Mapping[str, str]]:
-        visualizer_str_match = visualizer_str_re.match(visualizer_str)
-        if visualizer_str_match is None:
-            raise
-        visualizer_name = visualizer_str_match.group("name")
-        visualizer_factory = None
-        if visualizer_name.casefold() not in ("null", "simple", "clingostring"):
-            raise
-        if visualizer_name.casefold() == "null":
-            visualizer_factory = NullVisualizer.from_cli
-        elif visualizer_name.casefold() == "simple":
-            visualizer_factory = SimpleVisualizer.from_cli
-        elif visualizer_name.casefold() == "clingostring":
-            visualizer_factory = ClingoStringVisualizer.from_cli
-        else:
-            message = f"Accepted but unhandled visualizer name: {visualizer_name}"
-            raise AssertionError(message)
+    def from_argument_specification_str(
+        argument_specification_str: str,
+        ruleset: gdl.Ruleset,
+    ) -> "Visualizer":
+        argument_specification = ArgumentSpecification.from_str(argument_specification_str)
+        return Visualizer.from_argument_specification(argument_specification=argument_specification, ruleset=ruleset)
 
-        visualizer_args_str = visualizer_str_match.group("args")
-        visualizer_args = visualizer_args_str.split(",")
-        visualizer_kwargs = {}
+    @staticmethod
+    def from_argument_specification(
+        argument_specification: ArgumentSpecification,
+        ruleset: gdl.Ruleset,
+    ) -> "Visualizer":
+        name = argument_specification.name
+        args = argument_specification.args
+        kwargs = argument_specification.kwargs
+
+        try:
+            module_name, class_name = name.rsplit(".", maxsplit=1)
+            module = importlib.import_module(module_name)
+            module_type = getattr(module, class_name)
+        except (ValueError, ModuleNotFoundError, AttributeError):
+            raise VisualizerNotFoundCLIError(name=name, args=args, kwargs=kwargs)
+        module_factory = getattr(module_type, "from_cli", module_type)
+        return module_factory(*args, ruleset=ruleset, **kwargs)
 
 
 @dataclass
@@ -226,6 +231,7 @@ class ClingoStringVisualizer(SimpleVisualizer):
     ctl: clingo.Control = field(default_factory=clingo.Control)
     state_to_literal: MutableMapping[gdl.Subrelation, int] = field(default_factory=dict)
     last_drawn_ply: int = field(default=-1)
+    debug: bool = field(default=False)
     viz_signature: ClassVar[gdl.Relation.Signature] = gdl.Relation.Signature("__viz", 3)
 
     @classmethod
@@ -237,30 +243,40 @@ class ClingoStringVisualizer(SimpleVisualizer):
         )
         ctl.load(path)
         ctl.ground()
-        return cls(ctl=ctl)
+        debug = bool(kwargs.pop("debug", False))
+        return cls(ctl=ctl, debug=debug)
 
     def _draw_ply(self, ply: int) -> None:
         if ply >= len(self.states) or self.states[ply] is None:
             return
         state = self.states[ply]
         assert state is not None
+        coordinates_to_str: MutableMapping[int, MutableMapping[int, str]] = collections.defaultdict(dict)
+        sorted_subrelations = ()
         with _set_state(self.ctl, state_to_literal=self.state_to_literal, current=state):
             model = _get_model(self.ctl)
-            subrelations = _transform_model(model, ClingoStringVisualizer.viz_signature)
-            coordinates_to_subrelation = {
-                subrelation.symbol.arguments[0].number: {
-                    subrelation.symbol.arguments[1].number: subrelation.symbol.arguments[2],
-                }
-                for subrelation in subrelations
-            }
-        coordinates_to_str = {
-            row: {
-                column: subrelation.string if subrelation.is_string else str(subrelation)
-                for column, subrelation in column_to_subrelation.items()
-            }
-            for row, column_to_subrelation in coordinates_to_subrelation.items()
-        }
+            if not self.debug:
+                subrelations = _transform_model(model, ClingoStringVisualizer.viz_signature)
+            else:
+                sorted_subrelations = sorted(_transform_model(model))
+                subrelations = (
+                    subrelation
+                    for subrelation in sorted_subrelations
+                    if subrelation.matches_signature(*ClingoStringVisualizer.viz_signature)
+                )
+            for subrelation in subrelations:
+                row: int = subrelation.symbol.arguments[0].symbol.number
+                column: int = subrelation.symbol.arguments[1].symbol.number
+                element = subrelation.symbol.arguments[2]
+                string = element.symbol.string if element.is_string else str(element)
+                coordinates_to_str[row][column] = string
+
+        print(f"{ply}:")
         for row in sorted(coordinates_to_str):
             for column in sorted(coordinates_to_str[row]):
                 print(coordinates_to_str[row][column], end="")
             print()
+        if self.debug:
+            print("Subrelations:")
+            for subrelation in sorted_subrelations:
+                print(subrelation)
