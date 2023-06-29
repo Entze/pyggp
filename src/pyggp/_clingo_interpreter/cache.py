@@ -1,6 +1,6 @@
 import collections
 from dataclasses import dataclass, field
-from typing import FrozenSet, Mapping, MutableMapping, Optional, Set, Tuple, TypeVar, Union
+from typing import DefaultDict, FrozenSet, Mapping, MutableMapping, Optional, Set, Tuple, TypeVar, Union
 
 from pyggp.engine_primitives import Move, Role, State, Turn, View
 
@@ -14,11 +14,11 @@ _GoalCache = MutableMapping[int, MutableMapping[Union[State, View], Mapping[Role
 _TerminalCache = MutableMapping[int, MutableMapping[Union[State, View], bool]]
 
 
-def _state_to_dict_defaultdict_factory() -> collections.defaultdict[Union[State, View], MutableMapping[_K, _V]]:
+def _state_to_dict_defaultdict_factory() -> DefaultDict[Union[State, View], MutableMapping[_K, _V]]:
     return collections.defaultdict(dict)
 
 
-def _state_to_set_defaultdict_factory() -> collections.defaultdict[Union[State, View], Set[_V]]:
+def _state_to_set_defaultdict_factory() -> DefaultDict[Union[State, View], Set[_V]]:
     return collections.defaultdict(set)
 
 

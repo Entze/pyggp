@@ -1,7 +1,7 @@
 """Provides all subrelations of GDL."""
 import operator
 from dataclasses import dataclass, field
-from typing import ClassVar, NamedTuple, Optional, Sequence, Union
+from typing import TYPE_CHECKING, ClassVar, NamedTuple, Optional, Sequence, Union
 
 import cachetools
 import cachetools.keys as cachetools_keys
@@ -14,6 +14,12 @@ from pyggp._caching import (
     from_clingo_symbol_sizeof,
 )
 from pyggp._clingo import create_function, create_symbolic_term, create_variable
+
+if TYPE_CHECKING:
+    # TODO: Remove this when python 3.8 is no longer supported.
+    SymbolCache = cachetools.LRUCache[Self, clingo.Symbol]
+else:
+    SymbolCache = cachetools.LRUCache
 
 
 @dataclass(frozen=True, order=True)
@@ -609,7 +615,7 @@ class Subrelation:
 
     symbol: Symbol = field(default_factory=Relation)
     "Symbol of the subrelation."
-    _as_clingo_symbol_cache: ClassVar[cachetools.LRUCache[Self, clingo.Symbol]] = cachetools.LRUCache(
+    _as_clingo_symbol_cache: ClassVar[SymbolCache] = cachetools.LRUCache(
         maxsize=500_000,
         getsizeof=as_clingo_symbol_sizeof,
     )
