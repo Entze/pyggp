@@ -22,8 +22,15 @@ SUBRELATION_SIZE: Final[int] = 128
 CLINGO_SYMBOL_SIZE: Final[int] = 128
 CLINGO_AST_SIZE: Final[int] = 128
 # Disables FBT003. Because: Explicitly need True (or False) as function argument.
-BOOL_SIZE: Final[int] = sys.getsizeof(True)  # noqa: FBT003
-INT_SIZE: Final[int] = sys.getsizeof(0)
+
+_bool_size = 1
+with contextlib.suppress(TypeError):
+    _bool_size = sys.getsizeof(True)  # noqa: FBT003
+BOOL_SIZE: Final[int] = _bool_size
+_int_size = 1
+with contextlib.suppress(TypeError):
+    _int_size = sys.getsizeof(0)  # noqa: FBT003
+INT_SIZE: Final[int] = _int_size
 
 size_re = re.compile(r"^(?P<num>\d+(\.\d+)?)\s*((?P<prefix>[kMG]i?)?(?P<unit>[Bb]?))$")
 
