@@ -38,16 +38,16 @@ jobs:
       - name: "Set platform name"
         run: |
           OS_NAME="${{ matrix.os }}"
+          echo "OS_NAME=$OS_NAME"
           PLATFORM_NAME="${OS_NAME/-*/}"
           PLATFORM_NAME="${PLATFORM_NAME/windows/win}"
           PLATFORM_NAME="${PLATFORM_NAME/macos/mac}"
           PLATFORM_NAME="${PLATFORM_NAME/ubuntu/linux}"
           echo "PLATFORM_NAME=$PLATFORM_NAME" >> $GITHUB_ENV
-          echo "$PLATFORM_NAME"
+          echo "PLATFORM_NAME=$PLATFORM_NAME"
       - name: "Rename artifact"
-        run: |
-          mv dist/pyggp pyggp-${{ env.PLATFORM_NAME }}
-          ls -lah pyggp-*
+        run: mv dist/pyggp pyggp-${{ env.PLATFORM_NAME }}
+      - run: ls -lah pyggp-*
       - uses: actions/upload-artifact@v3
         with:
           name: "binaries"
@@ -69,19 +69,23 @@ jobs:
       - name: "Set platform name"
         run: |
           OS_NAME="${{ matrix.os }}"
+          echo "OS_NAME=$OS_NAME"
           PLATFORM_NAME="${OS_NAME/-*/}"
           PLATFORM_NAME="${PLATFORM_NAME/windows/win}"
           PLATFORM_NAME="${PLATFORM_NAME/macos/mac}"
           PLATFORM_NAME="${PLATFORM_NAME/ubuntu/linux}"
-          POSTFIX="${PLATFORM_NAME/win/.exe}"
-          POSTFIX="${PLATFORM_NAME/mac/}"
-          POSTFIX="${PLATFORM_NAME/linux/}"
+          echo "PLATFORM_NAME=$PLATFORM_NAME"
+          POSTFIX=$PLATFORM_NAME
+          POSTFIX="${POSTFIX/win/.exe}"
+          POSTFIX="${POSTFIX%mac}"
+          POSTFIX="${POSTFIX%linux}"
+          echo "POSTFIX=$POSTFIX"
           echo "PLATFORM_NAME=$PLATFORM_NAME" >> $GITHUB_ENV
           echo "POSTFIX=$POSTFIX" >> $GITHUB_ENV
-          echo "${PLATFORM_NAME}${POSTFIX}"
       - uses: actions/download-artifact@v3
         with:
           name: "binaries"
+      - run: ls -lah pyggp-*
       - run: chmod +x pyggp-*
       - run: |
           ./pyggp-${{ env.PLATFORM_NAME }}${{ env.POSTFIX }} --sys-info
