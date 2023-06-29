@@ -58,10 +58,10 @@ class BookBuilder(Generic[_U_co]):
             return
         item = self._queue.popleft()
         if isinstance(item, BookBuilder.Seed):
-            self._handle_seed(*item)
+            self._handle_seed(state=item.state)
         else:
             assert isinstance(item, BookBuilder.Search), "Assumption: item has type Search"
-            self._handle_search(*item)
+            self._handle_search(state=item.state, alpha=item.alpha, beta=item.beta)
 
     def is_done(self) -> bool:
         return self.done
