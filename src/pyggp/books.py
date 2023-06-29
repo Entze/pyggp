@@ -9,7 +9,6 @@ from typing import (
     Mapping,
     MutableMapping,
     MutableSequence,
-    NamedTuple,
     Optional,
     Tuple,
     TypeVar,
@@ -28,10 +27,12 @@ MutableBook = MutableMapping[State, _U_co]
 
 @dataclass
 class BookBuilder(Generic[_U_co]):
-    class Seed(NamedTuple):
+    @dataclass(frozen=True)
+    class Seed:
         state: State
 
-    class Search(NamedTuple, Generic[_U_co]):
+    @dataclass(frozen=True)
+    class Search(Generic[_U_co]):
         state: State
         alpha: _U_co
         beta: _U_co
