@@ -17,7 +17,7 @@ from typing import (
 )
 
 import pyggp.game_description_language as gdl
-from pyggp._logging import format_amount, format_ns, format_rate_ns, log_time
+from pyggp._logging import format_amount, format_ns, format_rate_ns, log_time, rich
 from pyggp.agents.tree_agents.agents import ONE_S_IN_NS, AbstractTreeAgent, TreeAgent
 from pyggp.agents.tree_agents.evaluators import Evaluator, final_goal_normalized_utility_evaluator
 from pyggp.agents.tree_agents.mcts.evaluators import LightPlayoutEvaluator
@@ -63,16 +63,21 @@ class AbstractMCTSAgent(AbstractTreeAgent[_K, _MCTSEvaluation], MonteCarloTreeSe
         self.step_repeater.timeout_ns = search_time_ns
         with log_time(
             log,
-            level=logging.DEBUG,
-            begin_msg=f"Searching {self._get_tree_log_representation(logging.DEBUG)} "
-            f"for at most {format_ns(search_time_ns)}",
-            end_msg="Searched tree",
-            abort_msg="Aborted searching tree",
+            logging.DEBUG,
+            begin_msg=f"Starting MCTS at {rich(self.get_main_tree(logging.DEBUG))} for at most "
+            f"{format_ns(search_time_ns)}",
+            end_msg="Ended MCTS",
+            abort_msg="Aborted MCTS",
         ):
             it, elapsed_ns = self.step_repeater()
 
-        log.info("%s it in %s (%s it/s)", format_amount(it), format_ns(elapsed_ns), format_rate_ns(it, elapsed_ns))
-        log.info("Current %s", self._get_tree_log_representation(logging.INFO))
+        log.info(
+            "Concluded MCTS after %s it in %s (%s it/s)",
+            format_amount(it),
+            format_ns(elapsed_ns),
+            format_rate_ns(it, elapsed_ns),
+        )
+        log.info("Choosing move at %s", rich(self.get_main_tree(logging.INFO)))
 
     def _move_evaluation_as_str(self, move: Move, evaluation: _MCTSEvaluation) -> str:
         book_value, total_playouts, utility = evaluation
@@ -88,31 +93,12 @@ class AbstractMCTSAgent(AbstractTreeAgent[_K, _MCTSEvaluation], MonteCarloTreeSe
         return False
 
     @abc.abstractmethod
-    def _lookup(self, node: ImperfectInformationNode[float]) -> float:
+    def _lookup(self, key: Optional[_K] = None) -> float:
         raise NotImplementedError
 
-    def _get_tree_log_representation(self, log_level: int, tree: Optional[Node[float, _K]] = None) -> str:
-        if log_level < log.level:
-            return "tree"
-        if tree is None:
-            tree = getattr(self, "tree", None)
-        if tree is None:
-            tree = getattr(self, "trees", {self.role: None})[self.role]
-        if tree is None:
-            return "tree"
-        return (
-            "tree ("
-            f"valuation={tree.valuation}, "
-            f"depth={tree.depth}, "
-            f"max_height={tree.max_height}, "
-            f"avg_height={tree.avg_height:.2f}, "
-            f"arity={tree.arity}, "
-            f"fully_expanded={getattr(tree, 'fully_expanded', tree.children is not None)}, "
-            f"transitions={len(tree.children or ())}, "
-            f"fully_enumerated={getattr(tree, 'fully_enumerated', True)}, "
-            f"possible_states={len(getattr(tree, 'possible_states', ((),)))}"
-            ")"
-        )
+    @abc.abstractmethod
+    def get_main_tree(self, target_log_level: int) -> Optional[Node[float, _K]]:
+        raise NotImplementedError
 
 
 class SingleObserverMonteCarloTreeSearchAgent(MonteCarloTreeSearchAgent[_K]):
@@ -235,9 +221,9 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
         with log_time(
             log=log,
             level=logging.DEBUG,
-            begin_msg=f"Developing {self._get_tree_log_representation(logging.DEBUG)}",
-            end_msg="Developed tree",
-            abort_msg="Aborted developing tree",
+            begin_msg=f"Developing at {rich(self.get_main_tree(logging.DEBUG))}",
+            end_msg="Developed to current ply and view",
+            abort_msg="Aborted developing",
         ):
             self.tree = self.tree.develop(interpreter=self.interpreter, ply=ply, view=view)
 
@@ -258,6 +244,10 @@ class MCTSAgent(AbstractSOMCTSAgent[Turn]):
     def _can_lookup(self) -> bool:
         return self.book is not None and self.tree.state in self.book
 
+    def _lookup(self, key: Optional[Turn] = None) -> float:
+        node = self.tree.children[key] if key is not None else self.tree
+        return self.book.get(node.state, float("-inf"))
+
     def descend(self, key: Turn) -> None:
         self.tree.expand(interpreter=self.interpreter)
         self.tree.turn = key
@@ -268,7 +258,7 @@ class MCTSAgent(AbstractSOMCTSAgent[Turn]):
         self.tree.expand(interpreter=self.interpreter)
         return {
             turn: (
-                float("-inf") if not self._can_lookup() else self.book.get(child.state, float("-inf")),
+                float("-inf") if not self._can_lookup() else self._lookup(turn),
                 child.valuation.total_playouts
                 if child.valuation is not None and hasattr(child.valuation, "total_playouts")
                 else 0,
@@ -285,6 +275,11 @@ class MCTSAgent(AbstractSOMCTSAgent[Turn]):
 
     def _key_to_move(self, key: Turn) -> Move:
         return key[self.role]
+
+    def get_main_tree(self, target_log_level: int) -> Optional[Node[float, _K]]:
+        if log.level > target_log_level:
+            return None
+        return self.tree
 
 
 _Action = TypeVar("_Action", Turn, Move)
@@ -334,8 +329,8 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
         with log_time(
             log=log,
             level=logging.DEBUG,
-            begin_msg=f"Filling {self._get_tree_log_representation(logging.DEBUG)} "
-            f"for at most {format_ns(fill_time_ns)}",
+            begin_msg="Filling tree at "
+            f"{rich(self.get_main_tree(logging.DEBUG))} for at most {format_ns(fill_time_ns)}",
             end_msg="Filled tree",
             abort_msg="Aborted filling tree",
         ):
@@ -410,7 +405,7 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
             self.tree.branch(interpreter=self.interpreter, state=determinization)
         return {
             key: (
-                float("-inf") if not self._can_lookup() else self._lookup(child),
+                float("-inf") if not self._can_lookup() else self._lookup(key),
                 child.valuation.total_playouts
                 if child.valuation is not None and hasattr(child.valuation, "total_playouts")
                 else 0,
@@ -419,7 +414,8 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
             for key, child in self.tree.children.items()
         }
 
-    def _lookup(self, node: ImperfectInformationNode[float]) -> float:
+    def _lookup(self, key: Optional[Tuple[State, _Action]] = None) -> float:
+        node = self.tree.children[key] if key is not None else self.tree
         return sum(self.book.get(state, float("-inf")) for state in node.possible_states) / len(node.possible_states)
 
     def _get_move_to_aggregation(
@@ -447,6 +443,11 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
     def _key_to_move(self, key: Tuple[State, _Action]) -> Move:
         assert isinstance(key[1], gdl.Subrelation), "Assumption: key is (state, move)"
         return key[1]
+
+    def get_main_tree(self, target_log_level: int) -> Optional[Node[float, _K]]:
+        if log.level > target_log_level:
+            return
+        return self.tree
 
 
 class MultiObserverMonteCarloTreeSearchAgent(MonteCarloTreeSearchAgent[_K]):
@@ -590,9 +591,9 @@ class MultiObserverInformationSetMCTSAgent(
         with log_time(
             log=log,
             level=logging.DEBUG,
-            begin_msg=f"Developing {self._get_tree_log_representation(logging.DEBUG, self.trees[self.role])}",
-            end_msg="Developed tree",
-            abort_msg="Aborted developing tree",
+            begin_msg=f"Developing at {rich(self.get_main_tree(logging.DEBUG))}",
+            end_msg="Developed to current ply and view",
+            abort_msg="Aborted developing",
         ):
             self.trees[self.role] = self.trees[self.role].develop(
                 interpreter=self.interpreter,
@@ -608,9 +609,8 @@ class MultiObserverInformationSetMCTSAgent(
         with log_time(
             log=log,
             level=logging.DEBUG,
-            begin_msg=f"Filling "
-            f"{self._get_tree_log_representation(logging.DEBUG, self.trees[self.role])} "
-            f"for at most {format_ns(fill_time_ns)}",
+            begin_msg="Filling tree at "
+            f"{rich(self.get_main_tree(logging.DEBUG))} for at most {format_ns(fill_time_ns)}",
             end_msg="Filled tree",
             abort_msg="Aborted filling tree",
         ):
@@ -817,7 +817,7 @@ class MultiObserverInformationSetMCTSAgent(
             self.trees[self.role].branch(interpreter=self.interpreter, state=determinization)
         return {
             key: (
-                float("-inf") if not self._can_lookup() else self._lookup(child),
+                float("-inf") if not self._can_lookup() else self._lookup(key),
                 child.valuation.total_playouts
                 if child.valuation is not None and hasattr(child.valuation, "total_playouts")
                 else 0,
@@ -833,7 +833,8 @@ class MultiObserverInformationSetMCTSAgent(
             and all(state in self.books[self.role] for state in self.trees[self.role].possible_states)
         )
 
-    def _lookup(self, node: ImperfectInformationNode[float]) -> float:
+    def _lookup(self, key: Optional[Tuple[State, _Action]] = None) -> float:
+        node = self.trees[self.role].children[key] if key is not None else self.trees[self.role]
         utilities = tuple(self.books[self.role][state] for state in node.possible_states)
         total = sum(utilities)
         return total / len(utilities)
@@ -869,3 +870,8 @@ class MultiObserverInformationSetMCTSAgent(
             assert isinstance(action, gdl.Subrelation), "Assumption: action is a move"
             move = cast(Move, action)
         return move
+
+    def get_main_tree(self, target_log_level: int) -> Optional[Node[float, _K]]:
+        if log.level > target_log_level:
+            return
+        return self.trees[self.role]

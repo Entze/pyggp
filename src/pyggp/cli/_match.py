@@ -13,6 +13,7 @@ import typer
 from exceptiongroup import ExceptionGroup
 
 import pyggp.game_description_language as gdl
+from pyggp._logging import rich
 from pyggp.actors import LocalActor
 from pyggp.agents import Agent, HumanAgent
 from pyggp.cli._common import (
@@ -24,7 +25,7 @@ from pyggp.cli._common import (
     parse_registry,
 )
 from pyggp.engine_primitives import RANDOM, Role
-from pyggp.exceptions.cli_exceptions import RulesetNotFoundCLIError, VisualizerNotFoundCLIError
+from pyggp.exceptions.cli_exceptions import RolesMismatchCLIError, RulesetNotFoundCLIError, VisualizerNotFoundCLIError
 from pyggp.exceptions.match_exceptions import DidNotFinishMatchError, DidNotStartMatchError
 from pyggp.gameclocks import (
     DEFAULT_NO_TIMEOUT_CONFIGURATION,
@@ -43,42 +44,64 @@ log: logging.Logger = logging.getLogger("pyggp")
 class MatchCommandParams:
     ruleset: gdl.Ruleset
     interpreter: Interpreter
-    role_agentname_map: Mapping[Role, str]
-    agentname_agenttype_map: Mapping[str, Type[Agent]]
-    role_startclockconfig_map: Mapping[Role, GameClock.Configuration]
-    role_playclockconfig_map: Mapping[Role, GameClock.Configuration]
+    role_to_agentname: Mapping[Role, str]
+    agentname_to_agenttype: Mapping[str, Type[Agent]]
+    role_to_startclockconfiguration: Mapping[Role, GameClock.Configuration]
+    role_to_playclockconfiguration: Mapping[Role, GameClock.Configuration]
     visualizer: Visualizer
+
+    def __rich__(self) -> str:
+        ruleset_str = f"rules: {rich(self.ruleset.rules)}\n"
+        interpreter_str = f"interpreter: {rich(self.interpreter)}\n"
+        role_to_agentname_str = f"role_to_agentname: {rich(self.role_to_agentname)}\n"
+        agentname_to_agenttype_str = f"agentname_to_agenttype: {rich(self.agentname_to_agenttype)}\n"
+        role_to_startclockconfiguration_str = (
+            f"role_to_startclockconfiguration: {rich(self.role_to_startclockconfiguration)}\n"
+        )
+        role_to_playclockconfiguration_str = (
+            f"role_to_playclockconfiguration: {rich(self.role_to_playclockconfiguration)}\n"
+        )
+        visualizer_str = f"visualizer: {rich(self.visualizer)}"
+        return (
+            f"{ruleset_str}"
+            f"{interpreter_str}"
+            f"{role_to_agentname_str}"
+            f"{agentname_to_agenttype_str}"
+            f"{role_to_startclockconfiguration_str}"
+            f"{role_to_playclockconfiguration_str}"
+            f"{visualizer_str}"
+        )
 
 
 def handle_match_command_args(
     *,
     files: Sequence[pathlib.Path],
     role_agentname_registry: Sequence[str],
-    role_startclockconfig_registry: Sequence[str],
-    role_playclockconfig_registry: Sequence[str],
+    role_startclockconfiguration_registry: Sequence[str],
+    role_playclockconfiguration_registry: Sequence[str],
     visualizer_str: str,
 ) -> MatchCommandParams:
-    log.debug("Fetching ruleset")
+    log.debug("Handling [bold]match[/bold] command arguments")
+    log.debug("Loading ruleset")
     try:
         ruleset = load_ruleset(files)
     except RulesetNotFoundCLIError as ruleset_not_found_error:
-        message = ruleset_not_found_error.args[0]
-        # Disables TRY400 (Use `logging.exception` instead of `logging.error`). Because: The whole stacktrace is not
-        # needed here.
-        log.error(message)  # noqa: TRY400
+        log.exception(ruleset_not_found_error, exc_info=False)
         raise typer.Exit(1) from None
+    log.debug("Loaded ruleset")
 
     log.debug("Instantiating interpreter")
     interpreter = ClingoInterpreter.from_ruleset(ruleset=ruleset)
     roles = interpreter.get_roles()
+    log.debug("Instantiated interpreter")
 
     log.debug("Mapping roles to agent names")
-    role_agentname_map = {role: "Human" for role in roles}
+    role_to_agentname = {role: "Human" for role in roles}
 
     if RANDOM in roles:
-        role_agentname_map[RANDOM] = "Random"
+        role_to_agentname[RANDOM] = "Random"
 
-    role_agentname_map.update(
+    role_to_agentname.update(
         parse_registry(
             registry=role_agentname_registry,
             default_value="Human",
@@ -86,36 +109,43 @@ def handle_match_command_args(
             str_to_value=get_agentname_from_str,
         ),
     )
-    check_roles(roles, role_agentname_map)
+    try:
+        check_roles(roles, role_to_agentname)
+    except RolesMismatchCLIError as roles_mismatch_error:
+        log.exception(roles_mismatch_error, exc_info=False)
+        raise typer.Exit(1) from None
+    log.debug("Mapped roles to agent names")
 
     log.debug("Mapping agent names to agent types")
-    agentname_agenttype_map = {agentname: load_agent_by_name(agentname) for agentname in role_agentname_map.values()}
+    agentname_to_agenttype = {agentname: load_agent_by_name(agentname) for agentname in role_to_agentname.values()}
+    log.debug("Mapped agent names to agent types")
 
-    log.debug("Mapping clock configs to roles")
-    role_startclockconfig_map = {role: DEFAULT_START_CLOCK_CONFIGURATION for role in roles}
-    role_playclockconfig_map = {role: DEFAULT_PLAY_CLOCK_CONFIGURATION for role in roles}
-    for role, agentname in role_agentname_map.items():
+    log.debug("Mapping clock configurations to roles")
+    role_to_startclockconfiguration = {role: DEFAULT_START_CLOCK_CONFIGURATION for role in roles}
+    role_to_playclockconfiguration = {role: DEFAULT_PLAY_CLOCK_CONFIGURATION for role in roles}
+    for role, agentname in role_to_agentname.items():
         if agentname == "Human" or role == RANDOM:
-            role_startclockconfig_map[role] = DEFAULT_NO_TIMEOUT_CONFIGURATION
-            role_playclockconfig_map[role] = DEFAULT_NO_TIMEOUT_CONFIGURATION
+            role_to_startclockconfiguration[role] = DEFAULT_NO_TIMEOUT_CONFIGURATION
+            role_to_playclockconfiguration[role] = DEFAULT_NO_TIMEOUT_CONFIGURATION
 
-    role_startclockconfig_map.update(
+    role_to_startclockconfiguration.update(
         parse_registry(
-            role_startclockconfig_registry,
+            role_startclockconfiguration_registry,
             default_value=DEFAULT_START_CLOCK_CONFIGURATION,
             str_to_key=get_role_from_str,
             str_to_value=GameClock.Configuration.from_str,
         ),
     )
 
-    role_playclockconfig_map.update(
+    role_to_playclockconfiguration.update(
         parse_registry(
-            role_playclockconfig_registry,
+            role_playclockconfiguration_registry,
             default_value=DEFAULT_PLAY_CLOCK_CONFIGURATION,
             str_to_key=get_role_from_str,
             str_to_value=GameClock.Configuration.from_str,
         ),
     )
+    log.debug("Mapped clock configurations to roles")
 
     log.debug("Instantiating visualizer")
     if visualizer_str is not None:
@@ -129,14 +159,16 @@ def handle_match_command_args(
             raise typer.Exit(1) from None
     else:
         visualizer = SimpleVisualizer()
+    log.debug("Instantiated visualizer")
 
+    log.debug("Handled [bold]match[/bold] command arguments")
     return MatchCommandParams(
         ruleset=ruleset,
         interpreter=interpreter,
-        role_agentname_map=role_agentname_map,
-        agentname_agenttype_map=agentname_agenttype_map,
-        role_startclockconfig_map=role_startclockconfig_map,
-        role_playclockconfig_map=role_playclockconfig_map,
+        role_to_agentname=role_to_agentname,
+        agentname_to_agenttype=agentname_to_agenttype,
+        role_to_startclockconfiguration=role_to_startclockconfiguration,
+        role_to_playclockconfiguration=role_to_playclockconfiguration,
         visualizer=visualizer,
     )
 
@@ -144,14 +176,14 @@ def handle_match_command_args(
 # Disables mypy type-arg. Because exceptiongroup seems not to be typed correctly.
 def _match_error_handler(excgroup: ExceptionGroup) -> None:  # type: ignore[type-arg]
     for exc in excgroup.exceptions:
-        log.exception(exc)
+        log.exception(exc, exc_info=False)
 
 
 def run_match(
     match: Match,
     visualizer: Visualizer,
 ) -> None:
-    log.debug("Starting %s", match)
+    log.info("Starting %s", rich(match))
     aborted = True
     # Disables PyCharms PyTypeChecker. Because exceptiongroup seems not to be typed correctly.
     # noinspection PyTypeChecker
@@ -189,10 +221,10 @@ def run_match(
             visualizer.update_abort()
 
     if not aborted:
-        log.debug("Concluded %s", match)
+        log.info("Concluded %s", rich(match))
         match.conclude()
     else:
-        log.debug("Aborted %s", match)
+        log.info("Aborted %s", rich(match))
         match.abort()
 
     for move_nr, state in enumerate(match.states):
@@ -205,37 +237,31 @@ def run_match(
 def run_local_match(
     ruleset: gdl.Ruleset,
     interpreter: Interpreter,
-    agentname_agenttype_map: Mapping[str, Type[Agent]],
-    role_agentname_map: Mapping[Role, str],
-    role_startclockconfig_map: Mapping[Role, GameClock.Configuration],
-    role_playclockconfig_map: Mapping[Role, GameClock.Configuration],
+    agentname_to_agenttype: Mapping[str, Type[Agent]],
+    role_to_agentname: Mapping[Role, str],
+    role_to_startclockconfiguration: Mapping[Role, GameClock.Configuration],
+    role_to_playclockconfiguration: Mapping[Role, GameClock.Configuration],
     visualizer: Visualizer,
 ) -> None:
-    log.debug("Started orchestrating match")
+    log.debug("Running match locally")
     with contextlib.ExitStack() as stack:
         role_actor_map = {}
-        for role, agent_name in role_agentname_map.items():
-            log.debug(
-                "Instantiating agent [italic]%s[/italic] for role [italic yellow]%s[/italic yellow]",
-                agent_name,
-                role,
-            )
-            agent_type = agentname_agenttype_map[agent_name]
+        for role, agent_name in role_to_agentname.items():
+            agent_type = agentname_to_agenttype[agent_name]
             agent = agent_type()
-            log.debug("Beginning setup for %s with role [italic yellow]%s[/italic yellow]", agent, role)
             stack.enter_context(agent)
             is_human_actor = isinstance(agent, HumanAgent)
             actor = LocalActor(agent=agent, is_human_actor=is_human_actor)
-            log.debug("Instantiating %s for %s with role [italic yellow]%s[/italic yellow]", actor, agent, role)
+            log.debug("Associating role %s with %s and with %s", rich(role), rich(agent), rich(actor))
             role_actor_map[role] = actor
 
         match = Match(
             ruleset=ruleset,
             interpreter=interpreter,
-            role_actor_map=role_actor_map,
-            role_startclock_configuration_map=role_startclockconfig_map,
-            role_playclock_configuration_map=role_playclockconfig_map,
+            role_to_actor=role_actor_map,
+            role_to_startclockconfiguration=role_to_startclockconfiguration,
+            role_to_playclockconfiguration=role_to_playclockconfiguration,
         )
         run_match(match, visualizer)
 
-    log.debug("Finished orchestrating %s", match)
+    log.debug("Ran %s locally", rich(match))

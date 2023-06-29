@@ -40,6 +40,7 @@ from pyggp._clingo_interpreter.possible_states import (
 )
 from pyggp._clingo_interpreter.shape_containers import ShapeContainer
 from pyggp._clingo_interpreter.temporal_rule_containers import TemporalRuleContainer
+from pyggp._logging import rich
 from pyggp.engine_primitives import Development, Move, ParallelMode, Role, State, Turn, View
 from pyggp.exceptions.interpreter_exceptions import (
     GoalNotIntegerInterpreterError,
@@ -371,6 +372,9 @@ class ClingoInterpreter(Interpreter):
             _temporal_rule_container=temporal_rule_container,
             _cache_container=cache_container,
         )
+
+    def __rich__(self) -> str:
+        return f"{self.__class__.__name__}({rich(self.ruleset)}, parallel_mode={rich(self.parallel_mode)})"
 
     def get_roles(self) -> FrozenSet[Role]:
         if self._cache_container.roles is None:

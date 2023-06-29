@@ -27,7 +27,7 @@ from typing import (
 
 from typing_extensions import Self
 
-from pyggp._logging import format_sorted_set, log_time
+from pyggp._logging import format_sorted_set, log_time, rich
 from pyggp.agents.tree_agents.evaluators import Evaluator
 from pyggp.agents.tree_agents.valuations import Valuation
 from pyggp.engine_primitives import Development, Move, Role, State, Turn, View
@@ -150,6 +150,15 @@ class PerfectInformationNode(_AbstractNode[_U, Turn], Generic[_U]):
         hash=False,
     )
 
+    def __rich__(self) -> str:
+        valuation_str = f"valuation={rich(self.valuation)}"
+        depth_str = f"depth={self.depth}"
+        max_height_str = f"max_height={self.max_height}"
+        avg_height_str = f"avg_height={self.avg_height:.2f}"
+        arity_str = f"arity={self.arity}"
+        information_str = f"\\[{valuation_str}, {depth_str}, {max_height_str}, {avg_height_str}, {arity_str}]"
+        return f"{self.__class__.__name__}{information_str}()"
+
     def expand(self, interpreter: Interpreter) -> Mapping[Turn, Self]:
         if self.children is None:
             self.children = {
@@ -271,6 +280,22 @@ class InformationSetNode(Node[_U, Tuple[State, _A]], Protocol[_U, _A]):
 
 
 class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, _A], Generic[_U, _A], abc.ABC):
+    def __rich__(self) -> str:
+        valuation_str = f"valuation={rich(self.valuation)}"
+        depth_str = f"depth={self.depth}"
+        max_height_str = f"max_height={self.max_height}"
+        avg_height_str = f"avg_height={self.avg_height:.2f}"
+        arity_str = f"arity={self.arity}"
+        fully_expanded_str = f"fully_expanded, " if self.fully_expanded else ""
+        transitions_str = f"transitions={len(self.children) if self.children else 0}"
+        fully_enumerated_str = f"fully_enumerated, " if self.fully_enumerated else ""
+        possible_states_str = f"possible_states={len(self.possible_states)}"
+        information_str = (
+            f"\\[{valuation_str}, {depth_str}, {max_height_str}, {avg_height_str}, {arity_str}, "
+            f"{fully_expanded_str}{transitions_str}, {fully_enumerated_str}{possible_states_str}]"
+        )
+        return f"{self.__class__.__name__}{information_str}()"
+
     def evaluate(
         self,
         interpreter: Interpreter,
@@ -322,19 +347,19 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
 
         if node.fully_enumerated:
             with log_time(
-                log=log,
-                level=logging.DEBUG,
-                begin_msg="Cutting node",
-                end_msg="Cut node",
+                log,
+                logging.DEBUG,
+                begin_msg=lambda: "Cutting node from %s possible_states" % len(node.possible_states),
+                end_msg=lambda: "Cut node to %s possible_states" % len(node.possible_states),
                 abort_msg="Aborted cutting node",
             ):
                 node.cut(interpreter=interpreter)
 
             with log_time(
-                log=log,
-                level=logging.DEBUG,
-                begin_msg="Trimming node",
-                end_msg="Trimmed node",
+                log,
+                logging.DEBUG,
+                begin_msg=lambda: "Trimming node from %s transitions" % (len(self.children) if self.children else 0),
+                end_msg=lambda: "Trimmed node to %s transitions" % (len(self.children) if self.children else 0),
                 abort_msg="Aborted trimming node",
             ):
                 node.trim()

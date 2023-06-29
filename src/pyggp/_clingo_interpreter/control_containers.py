@@ -58,12 +58,11 @@ class ControlContainer:
             ),
             context="next",
         )
+        sees_sentences = ruleset.rules if ruleset.sees_rules else ()
+        sees_rules = (*clingo_helper.EXTERNALS, clingo_helper.SHOW_SEES) if ruleset.sees_rules else ()
         sees_ctl = ControlContainer.get_ctl(
-            sentences=ruleset.rules,
-            rules=(
-                *clingo_helper.EXTERNALS,
-                clingo_helper.SHOW_SEES,
-            ),
+            sentences=sees_sentences,
+            rules=sees_rules,
             context="sees",
         )
         legal_ctl = ControlContainer.get_ctl(
@@ -124,6 +123,8 @@ class ControlContainer:
 
     @staticmethod
     def log(message_code: clingo.MessageCode, message: str, context: str) -> None:
+        for level in ("debug", "info", "warning", "error"):
+            message = message.replace(f"<pyggp>:0:0: {level}: ", "")
         if message_code in (
             clingo.MessageCode.OperationUndefined,
             clingo.MessageCode.RuntimeError,
@@ -131,11 +132,12 @@ class ControlContainer:
         ):
             log.error("%s: %s", context, message)
         elif message_code in (
-            clingo.MessageCode.AtomUndefined,
             clingo.MessageCode.GlobalVariable,
             clingo.MessageCode.Other,
         ):
             log.warning("%s: %s", context, message)
+        elif message_code in (clingo.MessageCode.AtomUndefined,):
+            log.info("%s: %s", context, message)
         else:
             log.debug("%s: %s", context, message)
 

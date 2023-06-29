@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Optional, Protocol
 
 import pyggp.game_description_language as gdl
+from pyggp._logging import format_id, format_timedelta
 from pyggp.agents import Agent
 from pyggp.engine_primitives import Move, Role, View
 from pyggp.exceptions.actor_exceptions import TimeoutActorError
@@ -77,7 +78,15 @@ class Actor(Protocol):
 
 
 class _AbstractActor(Actor, abc.ABC):
-    # endregion
+    def __rich__(self) -> str:
+        id_str = f"id={format_id(self)}"
+        is_human_actor_str = "" if not self.is_human_actor else ", is_human_actor"
+        attributes_str = f"{id_str}{is_human_actor_str}"
+        information_str = ""
+        if self.playclock is not None:
+            information_str = f"\\[remaining_time={format_timedelta(self.playclock.get_timeout())}]"
+
+        return f"{self.__class__.__name__}{information_str}({attributes_str})"
 
     def send_start(
         self,

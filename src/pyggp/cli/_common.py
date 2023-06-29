@@ -2,7 +2,7 @@ import importlib
 import logging
 import pathlib
 import sys
-from typing import Callable, Collection, Iterable, Iterator, Optional, Sequence, Tuple, Type, TypeVar
+from typing import Callable, Collection, Final, Iterable, Iterator, Optional, Sequence, Tuple, Type, TypeVar
 
 import rich.progress as rich_progress
 
@@ -13,10 +13,10 @@ from pyggp.exceptions.cli_exceptions import AgentNotFoundCLIError, RolesMismatch
 
 log: logging.Logger = logging.getLogger("pyggp")
 
-_INFO_VERBOSITY = 0
-_WARNING_VERBOSITY = -1
-_ERROR_VERBOSITY = -2
-_CRITICAL_VERBOSITY = -3
+_INFO_VERBOSITY: Final[int] = 1
+_WARNING_VERBOSITY: Final[int] = _INFO_VERBOSITY - 1
+_ERROR_VERBOSITY: Final[int] = _WARNING_VERBOSITY - 1
+_CRITICAL_VERBOSITY: Final[int] = _ERROR_VERBOSITY - 1
 
 
 def determine_log_level(verbose: int = 0, quiet: int = 0) -> int:

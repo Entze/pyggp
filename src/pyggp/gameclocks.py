@@ -8,6 +8,7 @@ from typing import Final, Optional, Tuple, Type
 
 from typing_extensions import Self
 
+from pyggp._logging import format_ns, format_timedelta
 from pyggp.exceptions.gameclock_exceptions import (
     DelayInvalidFloatGameClockConfigurationError,
     IncrementInvalidFloatGameClockConfigurationError,
@@ -103,6 +104,22 @@ class GameClock:
                 f"| {self.increment if self.increment != float('inf') else '∞'} "
                 f"d{self.delay if self.delay != float('inf') else '∞'}"
             )
+
+        def __rich__(self) -> str:
+            if self.total_time == 0.0 and self.increment == 0.0 and self.delay == 0.0:
+                return "0"
+            total_time_str = f"{self.total_time}" if self.total_time != float("inf") else "∞"
+            increment_str = f"{self.increment}" if self.increment != float("inf") else "∞"
+            delay_str = f"{self.delay}" if self.delay != float("inf") else "∞"
+            if self.total_time == 0.0 and self.increment == 0.0:
+                return f"d{delay_str}"
+            if self.increment == 0.0 and self.delay == 0.0:
+                return total_time_str
+            if self.increment == 0.0:
+                return f"{total_time_str} d{delay_str}"
+            if self.delay == 0.0:
+                return f"{total_time_str} | {increment_str}"
+            return f"{total_time_str} | {increment_str} d{delay_str}"
 
         # endregion
 
@@ -327,6 +344,11 @@ class GameClock:
     ) -> None:
         """Stop the game clock."""
         self.stop()
+
+    def __rich__(self) -> str:
+        if not self.can_timeout:
+            return format_timedelta(float("inf"))
+        return f"{format_ns(self.total_time_ns)}"
 
     # endregion
 

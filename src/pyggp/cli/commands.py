@@ -5,6 +5,7 @@ from typing import List
 
 import typer
 
+from pyggp._logging import rich
 from pyggp.cli._common import (
     determine_log_level,
 )
@@ -60,31 +61,37 @@ def match(
 
     log.setLevel(log_level)
     log.debug(
-        "Arguments: log_level=%s, files=%s, registry=%s, startclock=%s, playclock=%s, visualizer=%s",
-        logging.getLevelName(log_level),
-        files,
+        "Received [bold]match[/bold] command "
+        "registry=%s, "
+        "files=%s, "
+        "startclock=%s, "
+        "playclock=%s, "
+        "visualizer=%s, "
+        "log_level=%s",
         registry,
+        files,
         startclock,
         playclock,
         visualizer,
+        logging.getLevelName(log_level),
     )
 
     match_params = handle_match_command_args(
         files=files,
         role_agentname_registry=registry,
-        role_startclockconfig_registry=startclock,
-        role_playclockconfig_registry=playclock,
+        role_startclockconfiguration_registry=startclock,
+        role_playclockconfiguration_registry=playclock,
         visualizer_str=visualizer,
     )
 
-    log.debug("Parameters: %s", match_params)
+    log.debug("Starting match with the following parameters: %s", rich(match_params))
 
     run_local_match(
         ruleset=match_params.ruleset,
         interpreter=match_params.interpreter,
-        agentname_agenttype_map=match_params.agentname_agenttype_map,
-        role_agentname_map=match_params.role_agentname_map,
-        role_startclockconfig_map=match_params.role_startclockconfig_map,
-        role_playclockconfig_map=match_params.role_playclockconfig_map,
+        agentname_to_agenttype=match_params.agentname_to_agenttype,
+        role_to_agentname=match_params.role_to_agentname,
+        role_to_startclockconfiguration=match_params.role_to_startclockconfiguration,
+        role_to_playclockconfiguration=match_params.role_to_playclockconfiguration,
         visualizer=match_params.visualizer,
     )
