@@ -3,7 +3,9 @@ import abc
 import collections
 import functools
 import importlib
+import pathlib
 import re
+import sys
 from dataclasses import dataclass, field
 from typing import (
     ClassVar,
@@ -28,7 +30,7 @@ from pyggp._logging import rich
 from pyggp.cli.argument_specification import ArgumentSpecification
 from pyggp.engine_primitives import Role, State
 from pyggp.exceptions.cli_exceptions import VisualizerNotFoundCLIError
-from pyggp.match import Disqualification, Match
+from pyggp.match import Disqualification, Match, log
 
 _P = ParamSpec("_P")
 _V = TypeVar("_V", bound="Visualizer")
@@ -107,6 +109,18 @@ class Visualizer(abc.ABC):
             raise VisualizerNotFoundCLIError(name=name, args=args, kwargs=kwargs)
         module_factory = getattr(module_type, "from_cli", module_type)
         return module_factory(*args, ruleset=ruleset, **kwargs)
+
+    @staticmethod
+    def determine_filepath(
+        path: Union[str, pathlib.Path],
+    ) -> pathlib.Path:
+        if isinstance(path, str):
+            path = pathlib.Path(path)
+        if (path.exists() and path.is_file()) or not hasattr(sys, "_MEIPASS"):
+            return path
+        # Disables SLF001 (Private member accessed). Because: pyinstaller sets this attribute.
+        base_path = pathlib.Path(sys._MEIPASS).joinpath("visualizers")  # noqa: SLF001
+        return base_path.joinpath(path)
 
 
 @dataclass
@@ -244,13 +258,16 @@ class ClingoStringVisualizer(SimpleVisualizer):
     viz_signature: ClassVar[gdl.Relation.Signature] = gdl.Relation.Signature("__viz", 3)
 
     @classmethod
-    def from_cli(cls, path: str, *args: str, ruleset: gdl.Ruleset, **kwargs: str):
+    def from_cli(cls, *paths: str, ruleset: gdl.Ruleset, **kwargs: str):
         ctl = _get_ctl(
             sentences=ruleset.rules,
             rules=(*clingo_helper.EXTERNALS,),
             logger=functools.partial(ControlContainer.log, context="visualizer"),
         )
-        ctl.load(path)
+        for path in paths:
+            p = Visualizer.determine_filepath(path)
+            ctl.load(str(p))
+            log.debug(f"Loaded %s", p)
         ctl.ground()
         debug = bool(kwargs.pop("debug", False))
         return cls(ctl=ctl, debug=debug)
