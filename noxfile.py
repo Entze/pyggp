@@ -307,19 +307,34 @@ def build(session: nox.Session) -> None:
     session.install(".")
     dependencies = ("pyinstaller",)
     _install(session, *dependencies)
-    src_data = "src/games"
-    dest_data = "games"
+    src_games_data = "src/games"
+    dest_games_data = "games"
+    src_visualizer_data = "src/visualizers"
+    dest_visualizer_data = "visualizers"
+    data_seq = {src_games_data: dest_games_data, src_visualizer_data: dest_visualizer_data}
     sep = ":" if platform.system() != "Windows" else ";"
-    data = f"{src_data}{sep}{dest_data}"
-    session.run(
+    args = [
         "pyinstaller",
         "--onefile",
-        "--add-data",
-        data,
-        "--collect-all",
-        "clingo",
-        "--name",
-        "pyggp",
-        "src/pyggp/__main__.py",
+    ]
+    for src, dest in data_seq.items():
+        args.extend(
+            (
+                "--add-data",
+                f"{src}{sep}{dest}",
+            )
+        )
+    args.extend(
+        (
+            "--collect-all",
+            "clingo",
+            "--name",
+            "pyggp",
+            "src/pyggp/__main__.py",
+        )
+    )
+
+    session.run(
+        *args,
         env={"PYTHONOPTIMIZE": "1"},
     )
