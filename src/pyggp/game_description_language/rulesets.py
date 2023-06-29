@@ -115,3 +115,6 @@ class Ruleset:
 
         """
         return self.infix_str
+
+    def __rich__(self) -> str:
+        return f"Ruleset\\[#rules={len(self.rules)}]()"

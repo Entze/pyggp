@@ -4,7 +4,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Final, Generic, Mapping, Protocol, TypeVar
 
-from pyggp._logging import format_ns, log_time
+from pyggp._logging import format_ns, inflect_without_count, log_time
 from pyggp.agents import Agent, InterpreterAgent
 from pyggp.engine_primitives import Move, View
 
@@ -56,11 +56,12 @@ class AbstractTreeAgent(InterpreterAgent, TreeAgent[_K, _E], Generic[_K, _E], ab
     def calculate_move(self, ply: int, total_time_ns: int, view: View) -> Move:
         used_time = time.monotonic_ns()
         with log_time(
-            log=log,
-            level=logging.DEBUG,
-            begin_msg=f"Updating {'tree' if hasattr(self, 'tree') else 'trees'}",
-            end_msg=f"Updated {'tree' if hasattr(self, 'tree') else 'trees'}",
-            abort_msg=f"Aborted updating {'tree' if hasattr(self, 'tree') else 'trees'}",
+            log,
+            logging.DEBUG,
+            inflect_without_count("tree", count=int(hasattr(self, "tree"))),
+            begin_msg=f"Updating %s",
+            end_msg=f"Updated %s",
+            abort_msg=f"Aborted updating %s",
         ):
             self.update(ply, view, total_time_ns)
 
@@ -83,9 +84,10 @@ class AbstractTreeAgent(InterpreterAgent, TreeAgent[_K, _E], Generic[_K, _E], ab
 
         self._log_options(key_to_evaluation)
         best_key = max(key_to_evaluation, key=key_to_evaluation.get)
+        evaluation = key_to_evaluation[best_key]
         move = self._key_to_move(best_key)
 
-        log.info("Chose %s", move)
+        log.info("Chose %s", self._move_evaluation_as_str(move, evaluation))
         self.descend(best_key)
         return move
 

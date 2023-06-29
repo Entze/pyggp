@@ -47,9 +47,9 @@ def one_player_mock_match(
     return Match(
         ruleset=mock_ruleset,
         interpreter=mock_interpreter,
-        role_actor_map=role_actor_map,
-        role_startclock_configuration_map=role_startclock_configuration_map,
-        role_playclock_configuration_map=role_playclock_configuration_map,
+        role_to_actor=role_actor_map,
+        role_to_startclockconfiguration=role_startclock_configuration_map,
+        role_to_playclockconfiguration=role_playclock_configuration_map,
     )
 
 
@@ -82,27 +82,27 @@ def two_player_mock_match(
     return Match(
         ruleset=mock_ruleset,
         interpreter=mock_interpreter,
-        role_actor_map=role_actor_map,
-        role_startclock_configuration_map=role_startclock_configuration_map,
-        role_playclock_configuration_map=role_playclock_configuration_map,
+        role_to_actor=role_actor_map,
+        role_to_startclockconfiguration=role_startclock_configuration_map,
+        role_to_playclockconfiguration=role_playclock_configuration_map,
     )
 
 
 # noinspection PyUnresolvedReferences
 def test_start_two_player_match(two_player_mock_match: Match) -> None:
     init_state = State(frozenset())
-    role_1, role_2 = sorted(two_player_mock_match.role_actor_map.keys())
-    actor_1 = two_player_mock_match.role_actor_map[role_1]
-    actor_2 = two_player_mock_match.role_actor_map[role_2]
+    role_1, role_2 = sorted(two_player_mock_match.role_to_actor.keys())
+    actor_1 = two_player_mock_match.role_to_actor[role_1]
+    actor_2 = two_player_mock_match.role_to_actor[role_2]
     startclock_config_1 = GameClock.Configuration(total_time=1000.0, increment=0.0, delay=0.0)
     startclock_config_2 = GameClock.Configuration(total_time=1000.0, increment=0.0, delay=0.0)
-    two_player_mock_match.role_startclock_configuration_map = {
+    two_player_mock_match.role_to_startclockconfiguration = {
         role_1: startclock_config_1,
         role_2: startclock_config_2,
     }
 
-    playclock_config_1 = two_player_mock_match.role_playclock_configuration_map[role_1]
-    playclock_config_2 = two_player_mock_match.role_playclock_configuration_map[role_2]
+    playclock_config_1 = two_player_mock_match.role_to_playclockconfiguration[role_1]
+    playclock_config_2 = two_player_mock_match.role_to_playclockconfiguration[role_2]
 
     interpreter = two_player_mock_match.interpreter
     interpreter.get_init_state.return_value = init_state
@@ -135,10 +135,10 @@ def test_start_two_player_match(two_player_mock_match: Match) -> None:
 
 
 def test_start_raises_on_timeout(one_player_mock_match: Match) -> None:
-    (role,) = one_player_mock_match.role_actor_map.keys()
-    actor = one_player_mock_match.role_actor_map[role]
+    (role,) = one_player_mock_match.role_to_actor.keys()
+    actor = one_player_mock_match.role_to_actor[role]
     startclock_config = GameClock.Configuration(total_time=1000.0, increment=0.0, delay=0.0)
-    one_player_mock_match.role_startclock_configuration_map = {
+    one_player_mock_match.role_to_startclockconfiguration = {
         role: startclock_config,
     }
 
@@ -158,14 +158,14 @@ def test_start_raises_on_timeout(one_player_mock_match: Match) -> None:
 
 
 def test_start_raises_on_no_response(one_player_mock_match: Match) -> None:
-    (role,) = one_player_mock_match.role_actor_map.keys()
-    actor = one_player_mock_match.role_actor_map[role]
+    (role,) = one_player_mock_match.role_to_actor.keys()
+    actor = one_player_mock_match.role_to_actor[role]
     startclock_config = GameClock.Configuration(
         total_time=0.1,
         increment=0.0,
         delay=0.0,
     )
-    one_player_mock_match.role_startclock_configuration_map = {
+    one_player_mock_match.role_to_startclockconfiguration = {
         role: startclock_config,
     }
 
@@ -193,10 +193,10 @@ def test_start_raises_on_no_response(one_player_mock_match: Match) -> None:
 def test_execute_ply_two_player_match(two_player_mock_match: Match) -> None:
     interpreter = two_player_mock_match.interpreter
 
-    role_1, role_2 = sorted(two_player_mock_match.role_actor_map.keys())
+    role_1, role_2 = sorted(two_player_mock_match.role_to_actor.keys())
     playclock_1 = mock.MagicMock()
-    actor_1 = two_player_mock_match.role_actor_map[role_1]
-    actor_2 = two_player_mock_match.role_actor_map[role_2]
+    actor_1 = two_player_mock_match.role_to_actor[role_1]
+    actor_2 = two_player_mock_match.role_to_actor[role_2]
 
     actor_1.is_human_actor = False
     actor_1.playclock = playclock_1
@@ -228,10 +228,10 @@ def test_execute_ply_two_player_match(two_player_mock_match: Match) -> None:
 def test_execute_ply_raises_on_timeout(one_player_mock_match: Match) -> None:
     interpreter = one_player_mock_match.interpreter
 
-    (role,) = one_player_mock_match.role_actor_map.keys()
-    actor = one_player_mock_match.role_actor_map[role]
+    (role,) = one_player_mock_match.role_to_actor.keys()
+    actor = one_player_mock_match.role_to_actor[role]
     playclock_config = GameClock.Configuration(total_time=1000.0, increment=0.0, delay=0.0)
-    one_player_mock_match.role_playclock_configuration_map = {
+    one_player_mock_match.role_to_playclockconfiguration = {
         role: playclock_config,
     }
 
@@ -262,10 +262,10 @@ def test_execute_ply_raises_on_timeout(one_player_mock_match: Match) -> None:
 def test_execute_ply_raises_on_actor_error(one_player_mock_match: Match) -> None:
     interpreter = one_player_mock_match.interpreter
 
-    (role,) = one_player_mock_match.role_actor_map.keys()
-    actor = one_player_mock_match.role_actor_map[role]
+    (role,) = one_player_mock_match.role_to_actor.keys()
+    actor = one_player_mock_match.role_to_actor[role]
     playclock_config = GameClock.Configuration(total_time=1000.0, increment=0.0, delay=0.0)
-    one_player_mock_match.role_playclock_configuration_map = {
+    one_player_mock_match.role_to_playclockconfiguration = {
         role: playclock_config,
     }
 
@@ -296,10 +296,10 @@ def test_execute_ply_raises_on_actor_error(one_player_mock_match: Match) -> None
 def test_execute_ply_raises_on_illegal_move(one_player_mock_match: Match) -> None:
     interpreter = one_player_mock_match.interpreter
 
-    (role,) = one_player_mock_match.role_actor_map.keys()
-    actor = one_player_mock_match.role_actor_map[role]
+    (role,) = one_player_mock_match.role_to_actor.keys()
+    actor = one_player_mock_match.role_to_actor[role]
     playclock_config = GameClock.Configuration(total_time=1000.0, increment=0.0, delay=0.0)
-    one_player_mock_match.role_playclock_configuration_map = {
+    one_player_mock_match.role_to_playclockconfiguration = {
         role: playclock_config,
     }
 
@@ -327,9 +327,9 @@ def test_execute_ply_raises_on_illegal_move(one_player_mock_match: Match) -> Non
 def test_conclude_two_player_match(two_player_mock_match: Match) -> None:
     interpreter = two_player_mock_match.interpreter
 
-    role_1, role_2 = sorted(two_player_mock_match.role_actor_map.keys())
-    actor_1 = two_player_mock_match.role_actor_map[role_1]
-    actor_2 = two_player_mock_match.role_actor_map[role_2]
+    role_1, role_2 = sorted(two_player_mock_match.role_to_actor.keys())
+    actor_1 = two_player_mock_match.role_to_actor[role_1]
+    actor_2 = two_player_mock_match.role_to_actor[role_2]
 
     init_state = State(frozenset())
     final_state = State(frozenset())
@@ -357,9 +357,9 @@ def test_conclude_two_player_match(two_player_mock_match: Match) -> None:
 
 
 def test_abort_two_player_match(two_player_mock_match: Match) -> None:
-    role_1, role_2 = sorted(two_player_mock_match.role_actor_map.keys())
-    actor_1 = two_player_mock_match.role_actor_map[role_1]
-    actor_2 = two_player_mock_match.role_actor_map[role_2]
+    role_1, role_2 = sorted(two_player_mock_match.role_to_actor.keys())
+    actor_1 = two_player_mock_match.role_to_actor[role_1]
+    actor_2 = two_player_mock_match.role_to_actor[role_2]
 
     actor_1.send_abort.assert_not_called()
     actor_2.send_abort.assert_not_called()

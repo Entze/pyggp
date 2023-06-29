@@ -13,6 +13,7 @@ import rich.prompt as rich_prompt
 from rich import print
 
 import pyggp.game_description_language as gdl
+from pyggp._logging import format_id, rich
 from pyggp.engine_primitives import Move, Role, View
 from pyggp.gameclocks import GameClock
 from pyggp.interpreters import ClingoInterpreter, Interpreter
@@ -92,17 +93,20 @@ class Agent(Protocol):
 class _AbstractAgent(Agent, abc.ABC):
     """Base class for all agents."""
 
-    # region Methods
+    def __rich__(self) -> str:
+        id_str = f"id={format_id(self)}"
+        attributes_str = id_str
+        return f"{self.__class__.__name__}({attributes_str})"
 
     def set_up(self) -> None:
         """Sets up the agent and all its required resources."""
         # Disables coverage. Because this not really testable.
-        log.debug("Setting up %s", self)  # pragma: no cover
+        log.debug("Setting up %s", rich(self))  # pragma: no cover
 
     def tear_down(self) -> None:
         """Destroys all resources of the agent."""
         # Disables coverage. Because this not really testable.
-        log.debug("Tearing down %s", self)  # pragma: no cover
+        log.debug("Tearing down %s", rich(self))  # pragma: no cover
 
     def prepare_match(
         self,
@@ -123,17 +127,17 @@ class _AbstractAgent(Agent, abc.ABC):
         # Disables coverage. Because this not really testable.
         log.debug(  # pragma: no cover
             "Preparing %s for match, role=%s, ruleset=%s, startclock_config=%s, playclock_config=%s",
-            self,
-            role,
-            ruleset,
-            startclock_config,
-            playclock_config,
+            rich(self),
+            rich(role),
+            rich(ruleset),
+            rich(startclock_config),
+            rich(playclock_config),
         )
 
     def abort_match(self) -> None:
         """Aborts the current match."""
         # Disables coverage. Because this not really testable.
-        log.debug("Aborting match for %s", self)  # pragma: no cover
+        log.debug("Aborting match for %s", rich(self))  # pragma: no cover
 
     def conclude_match(self, view: View) -> None:
         """Concludes the current match.
@@ -143,7 +147,7 @@ class _AbstractAgent(Agent, abc.ABC):
 
         """
         # Disables coverage. Because this not really testable.
-        log.debug("Concluding match for %s, view=%s", self, view)  # pragma: no cover
+        log.debug("Concluding match for %s, view=%s", rich(self), rich(view))  # pragma: no cover
 
     # endregion
 
@@ -179,7 +183,7 @@ class InterpreterAgent(_AbstractAgent, abc.ABC):
 
         """
         super().prepare_match(role, ruleset, startclock_config, playclock_config)
-        log.debug("Setting role, ruleset, startclock_config, playclock_config, and interpreter")
+        log.debug("Setting role, ruleset, startclock_config, playclock_config, and interpreter for %s", rich(self))
         self.role = role
         self.ruleset = ruleset
         self.startclock_config = startclock_config
@@ -195,7 +199,7 @@ class InterpreterAgent(_AbstractAgent, abc.ABC):
 
         """
         super().conclude_match(view)
-        log.debug("Deleting role, ruleset, startclock_config, playclock_config, and interpreter")
+        log.debug("Deleting role, ruleset, startclock_config, playclock_config, and interpreter for %s", rich(self))
         self.role = None
         self.ruleset = None
         self.startclock_config = None
@@ -260,6 +264,7 @@ class RandomAgent(InterpreterAgent):
 MAX_DISPLAYED_OPTIONS: Final[int] = 10
 
 
+@dataclass
 class HumanAgent(InterpreterAgent):
     """Agent that asks the user for a move."""
 

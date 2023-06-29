@@ -25,6 +25,7 @@ import pyggp._clingo as clingo_helper
 import pyggp.game_description_language as gdl
 from pyggp._clingo_interpreter.base import _get_ctl, _get_model, _transform_model
 from pyggp._clingo_interpreter.control_containers import ControlContainer, _set_state
+from pyggp._logging import rich
 from pyggp.cli.argument_specification import ArgumentSpecification
 from pyggp.engine_primitives import Role, State
 from pyggp.exceptions.cli_exceptions import VisualizerNotFoundCLIError
@@ -43,6 +44,9 @@ class Visualizer(abc.ABC):
     states: MutableSequence[Optional[State]] = field(default_factory=list)
     utilities: Mapping[Role, Union[int, None, Disqualification]] = field(default_factory=dict)
     aborted: bool = field(default=False)
+
+    def __rich__(self) -> str:
+        return f"{self.__class__.__name__}()"
 
     def update_state(self, state: State, ply: Optional[int] = None) -> None:
         """Update a state.
@@ -189,8 +193,14 @@ class SimpleVisualizer(Visualizer):
             if len(self.utilities) > 1:
                 self._draw_utility()
             else:
-                for role, utility in self.utilities.items():
-                    print("{[yellow italic]%s[/yellow italic]: [red]%s[/red]}", role, utility)
+                print(
+                    rich(
+                        {
+                            f"[yellow italic]{role}[/yellow italic]": f"[red]{utility}[/red]"
+                            for role, utility in self.utilities.items()
+                        },
+                    ),
+                )
 
     def _draw_ply(self, ply: int) -> None:
         if ply >= len(self.states) or self.states[ply] is None:

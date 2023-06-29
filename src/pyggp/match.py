@@ -27,7 +27,7 @@ import rich.progress as rich_progress
 from typing_extensions import TypeAlias
 
 import pyggp.game_description_language as gdl
-from pyggp._logging import format_timedelta
+from pyggp._logging import format_id, format_timedelta, rich
 from pyggp.actors import Actor
 from pyggp.engine_primitives import Move, Role, State, Turn, View
 from pyggp.exceptions.actor_exceptions import ActorError, TimeoutActorError
@@ -104,24 +104,24 @@ class _SignalProcessor(Generic[R, S, A], abc.ABC):
         log.debug(
             "Will send [italic]%s[/italic] to %s",
             self.signal_name,
-            ", ".join(f"[yellow italic]{role}[/yellow italic]" for role in self.roles),
+            ", ".join(f"[yellow italic]{rich(role)}[/yellow italic]" for role in self.roles),
         )
         role_timeout_map = {}
         for role in self.roles:
             args = self._get_signal_args(role)
-            log.debug("Sending [italic]%s[/italic] to [yellow italic]%s[/yellow italic]", self.signal_name, role)
+            log.debug("Sending [italic]%s[/italic] to [yellow italic]%s[/yellow italic]", self.signal_name, rich(role))
             future = self._signal(**args)
             self.role_future_map[role] = future
             role_timeout = self._get_timeout(role)
             role_timeout_map[role] = role_timeout
             log.debug(
                 "Actor of [yellow italic]%s[/yellow italic] has [green]%s[/green] to respond",
-                role,
+                rich(role),
                 format_timedelta(role_timeout),
                 extra={"highlighter": None},
             )
             display_total = role_timeout if role_timeout != float("inf") else 60.0 * 60.0 * 24.0
-            task_id = self.progress.add_task(f"{role} ({self.signal_name})", total=display_total)
+            task_id = self.progress.add_task(f"{rich(role)} ({self.signal_name})", total=display_total)
             self.role_taskid_map[role] = task_id
 
         self.total_time = max(self.total_time, max(role_timeout_map.values(), default=0.0) + self.polling_interval)
@@ -181,7 +181,7 @@ class _SignalProcessor(Generic[R, S, A], abc.ABC):
                     log.debug(
                         "Received response ([italic]%s[/italic]) from [yellow italic]%s[/yellow italic]",
                         self.signal_name,
-                        role,
+                        rich(role),
                     )
                 else:
                     done = False
@@ -349,7 +349,16 @@ class _PlayProcessor(_SignalProcessor[Move, "_PlayProcessor.PlayArgs", Turn]):
         if not is_legal:
             actor = self.role_actor_map[role]
             ply = self.ply
-            exception = IllegalMoveMatchError(actor=actor, move=response, ply=ply, role=role)
+            view = self.interpreter.get_sees_by_role(current=self.state, role=role)
+            legal_moves = self.interpreter.get_legal_moves_by_role(current=self.state, role=role)
+            exception = IllegalMoveMatchError(
+                actor=actor,
+                move=response,
+                legal_moves=legal_moves,
+                view=view,
+                ply=ply,
+                role=role,
+            )
             self.exceptions.append(exception)
             return True, _DNF_ILLEGAL_MOVE
         return False, None
@@ -443,11 +452,11 @@ class Match:
     "Ruleset of the match."
     interpreter: Interpreter
     "Interpreter of the match."
-    role_actor_map: Mapping[Role, Actor]
+    role_to_actor: Mapping[Role, Actor]
     "Mapping of roles to actors."
-    role_startclock_configuration_map: Mapping[Role, GameClock.Configuration]
+    role_to_startclockconfiguration: Mapping[Role, GameClock.Configuration]
     "Mapping of roles to startclock configurations."
-    role_playclock_configuration_map: Mapping[Role, GameClock.Configuration]
+    role_to_playclockconfiguration: Mapping[Role, GameClock.Configuration]
     "Mapping of roles to playclock configurations."
     states: MutableSequence[State] = field(default_factory=list)
     "Sequence of states."
@@ -460,6 +469,40 @@ class Match:
         return bool(self.utilities) or (bool(self.states) and self.interpreter.is_terminal(self.states[-1]))
 
     # endregion
+
+    def __rich__(self) -> str:
+        id_str = f"id={format_id(self)}, "
+        ruleset_str = f"ruleset={rich(self.ruleset)}, "
+        interpreter_str = f"interpreter={rich(self.interpreter)}, "
+        role_to_actor_registry_str = ", ".join(
+            f"{rich(role)}={rich(actor)}" for role, actor in self.role_to_actor.items()
+        )
+        role_to_actor_str = f"role_to_actor={'{'}{role_to_actor_registry_str}{'}'}, "
+        role_to_startclockconfiguration_registry_str = ", ".join(
+            f"{rich(role)}={rich(startclock_configuration)}"
+            for role, startclock_configuration in self.role_to_startclockconfiguration.items()
+        )
+        role_to_startclockconfiguration_str = (
+            f"role_to_startclockconfiguration={'{'}{role_to_startclockconfiguration_registry_str}{'}'}, "
+        )
+        role_to_playclockconfiguration_registry_str = ", ".join(
+            f"{rich(role)}={rich(playclock_configuration)}"
+            for role, playclock_configuration in self.role_to_playclockconfiguration.items()
+        )
+        role_to_playclockconfiguration_str = (
+            f"role_to_playclockconfiguration={'{'}{role_to_playclockconfiguration_registry_str}{'}'}"
+        )
+        attributes_str = (
+            f"{id_str}"
+            f"{ruleset_str}"
+            f"{interpreter_str}"
+            f"{role_to_actor_str}"
+            f"{role_to_startclockconfiguration_str}"
+            f"{role_to_playclockconfiguration_str}"
+        )
+
+        information_str = f"\\[#states={len(self.states)}{'' if not self.is_finished else ', is_finished'}]"
+        return f"{self.__class__.__name__}{information_str}({attributes_str})"
 
     # region Methods
 
@@ -477,11 +520,11 @@ class Match:
             processor = _StartProcessor(
                 executor=executor,
                 progress=progress,
-                role_actor_map=self.role_actor_map,
-                roles=self.role_actor_map.keys(),
+                role_actor_map=self.role_to_actor,
+                roles=self.role_to_actor.keys(),
                 ruleset=self.ruleset,
-                role_startclock_configuration_map=self.role_startclock_configuration_map,
-                role_playclock_configuration_map=self.role_playclock_configuration_map,
+                role_startclock_configuration_map=self.role_to_startclockconfiguration,
+                role_playclock_configuration_map=self.role_to_playclockconfiguration,
                 polling_interval=polling_interval,
             )
             processor.init()
@@ -499,8 +542,13 @@ class Match:
         """Execute the next ply."""
         current_state = self.states[-1]
         ply = len(self.states) - 1
+        log.info(
+            "Executing ply ply=%s, playclocks=%s",
+            ply,
+            rich({role: actor.playclock for role, actor in self.role_to_actor.items()}),
+        )
         roles_in_control = Interpreter.get_roles_in_control(current_state)
-        humans_in_control = any(self.role_actor_map[role].is_human_actor for role in roles_in_control)
+        humans_in_control = any(self.role_to_actor[role].is_human_actor for role in roles_in_control)
         with contextlib.ExitStack() as exit_stack:
             executor = concurrent_futures.ThreadPoolExecutor()
             exit_stack.callback(executor.shutdown, wait=False)
@@ -514,7 +562,7 @@ class Match:
             processor = _PlayProcessor(
                 executor=executor,
                 progress=progress,
-                role_actor_map=self.role_actor_map,
+                role_actor_map=self.role_to_actor,
                 roles=roles_in_control,
                 state=current_state,
                 ply=ply,
@@ -541,8 +589,8 @@ class Match:
             processor = _ConcludeProcessor(
                 executor=executor,
                 progress=progress,
-                role_actor_map=self.role_actor_map,
-                roles=self.role_actor_map.keys(),
+                role_actor_map=self.role_to_actor,
+                roles=self.role_to_actor.keys(),
                 state=current_state,
                 interpreter=self.interpreter,
             )
@@ -560,8 +608,8 @@ class Match:
             processor = _AbortProcessor(
                 executor=executor,
                 progress=progress,
-                role_actor_map=self.role_actor_map,
-                roles=self.role_actor_map.keys(),
+                role_actor_map=self.role_to_actor,
+                roles=self.role_to_actor.keys(),
             )
             processor.init()
 

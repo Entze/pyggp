@@ -1,13 +1,16 @@
+import base64
 import contextlib
 import datetime
+import inspect
 import logging
 import math
 import time
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Final, Iterable, Mapping, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, Callable, Final, Iterable, Mapping, Optional, Tuple, Type, Union
 
 import inflection
+from typing_extensions import ParamSpec
 
 # Disables SIM108 (Use ternary operator instead of if-else block). Because: TYPE_CHECKING is an exception.
 if TYPE_CHECKING:  # noqa: SIM108
@@ -175,21 +178,62 @@ def format_sorted_list(iterable: Iterable[Any]) -> str:
     return format_sorted_iterable(iterable, pre="[", sep=", ", post="]")
 
 
+def format_id(obj: Any) -> str:
+    id_int = id(obj)
+    id_bytes = (id_int >> (8 * i) & 0xFF for i in range(4))
+    id_hex = "".join(f"{byte:02x}" for byte in id_bytes)
+    id_bytes = bytes.fromhex(id_hex)
+    return base64.b64encode(id_bytes).decode()[0:-2]
+
+
+_P = ParamSpec("_P")
+
+
 @dataclass
 class TimeLogger(NoneContextManager):
     log: logging.Logger
     level: int = field(default=logging.INFO)
-    begin_msg: Optional[str] = field(default=None)
-    end_msg: Optional[str] = field(default=None)
-    abort_msg: Optional[str] = field(default=None)
-    start_time: Optional[float] = field(default=None, repr=False)
-    stop_time: Optional[float] = field(default=None, repr=False)
-    delta: Optional[float] = field(default=None, repr=False)
+    begin_msg: Union[str, Callable[[], str], None] = field(default=None)
+    end_msg: Union[str, Callable[[], str], None] = field(default=None)
+    abort_msg: Union[str, Callable[[], str], None] = field(default=None)
+    start_time: Optional[float] = field(default=None)
+    stop_time: Optional[float] = field(default=None)
+    delta: Optional[float] = field(default=None)
+    args: Tuple[Any, ...] = field(default=())
+
+    def get_begin_msg(self) -> Optional[str]:
+        return self.begin_msg() if callable(self.begin_msg) else self.begin_msg
+
+    def get_end_msg(self) -> Optional[str]:
+        return self.end_msg() if callable(self.end_msg) else self.end_msg
+
+    def get_abort_msg(self) -> Optional[str]:
+        return self.abort_msg() if callable(self.abort_msg) else self.abort_msg
+
+    def log_begin(self) -> None:
+        begin_msg = self.get_begin_msg()
+        if begin_msg is not None:
+            self.log.log(self.level, begin_msg, *self.args)
+
+    def log_end(self) -> None:
+        end_msg = self.get_end_msg()
+        if end_msg is not None:
+            end_msg = f"{end_msg} (in {format_timedelta(self.delta)})"
+        else:
+            end_msg = f"in {format_timedelta(self.delta)}"
+        self.log.log(self.level, end_msg, *self.args)
+
+    def log_abort(self) -> None:
+        abort_msg = self.get_abort_msg()
+        if abort_msg is not None:
+            abort_msg = f"{abort_msg} (after {format_timedelta(self.delta)})"
+        else:
+            abort_msg = f"Aborted after {format_timedelta(self.delta)}"
+        self.log.log(self.level, abort_msg, *self.args)
 
     def __enter__(self) -> None:
-        if self.begin_msg is not None:
-            self.log.log(self.level, self.begin_msg)
         self.start_time = time.monotonic()
+        self.log_begin()
 
     def __exit__(
         self,
@@ -201,14 +245,9 @@ class TimeLogger(NoneContextManager):
         self.stop_time: float = time.monotonic()
         self.delta = self.stop_time - self.start_time
         if exc_val is not None:
-            if self.abort_msg is not None:
-                self.log.log(self.level, "%s (after %s)", self.abort_msg, format_timedelta(self.delta))
-            else:
-                self.log.log(self.level, "Aborted after %s", format_timedelta(self.delta))
-        elif self.end_msg is not None:
-            self.log.log(self.level, "%s (in %s)", self.end_msg, format_timedelta(self.delta))
+            self.log_abort()
         else:
-            self.log.log(self.level, "in %s", format_timedelta(self.delta))
+            self.log_end()
 
         self.start_time = None
         self.stop_time = None
@@ -217,8 +256,33 @@ class TimeLogger(NoneContextManager):
 def log_time(
     log: logging.Logger,
     level: int = logging.INFO,
-    begin_msg: Optional[str] = None,
-    end_msg: Optional[str] = None,
-    abort_msg: Optional[str] = None,
+    *args: Any,
+    begin_msg: Union[str, Callable[[], str], None] = None,
+    end_msg: Union[str, Callable[[], str], None] = None,
+    abort_msg: Union[str, Callable[[], str], None] = None,
 ) -> TimeLogger:
-    return TimeLogger(log=log, level=level, begin_msg=begin_msg, end_msg=end_msg, abort_msg=abort_msg)
+    return TimeLogger(log=log, level=level, begin_msg=begin_msg, end_msg=end_msg, abort_msg=abort_msg, args=args)
+
+
+def rich(obj: Any) -> str:
+    if inspect.isclass(obj):
+        return obj.__name__
+    if hasattr(obj, "__rich_console__"):
+        return "".join(obj.__rich_console__())
+    if hasattr(obj, "__rich__"):
+        return obj.__rich__()
+    if isinstance(obj, datetime.timedelta):
+        return format_timedelta(obj)
+    if isinstance(obj, int):
+        return format_amount(obj)
+    if isinstance(obj, (frozenset, set)):
+        return format_sorted_set(rich(elem) for elem in obj)
+    if isinstance(obj, list):
+        return format_list(rich(elem) for elem in obj)
+    if isinstance(obj, tuple):
+        return format_iterable((rich(elem) for elem in obj), pre="(", post=")")
+    if isinstance(obj, dict):
+        return format_sorted_set(f"{rich(key)}: {rich(value)}" for key, value in obj.items())
+    if hasattr(obj, "__str__"):
+        return str(obj)
+    return repr(obj)
