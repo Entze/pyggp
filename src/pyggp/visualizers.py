@@ -11,8 +11,6 @@ from typing import (
     MutableMapping,
     MutableSequence,
     Optional,
-    ParamSpec,
-    Self,
     Sequence,
     TypeVar,
     Union,
@@ -20,6 +18,7 @@ from typing import (
 
 import clingo
 from rich import print
+from typing_extensions import ParamSpec, Self
 
 import pyggp._clingo as clingo_helper
 import pyggp.game_description_language as gdl

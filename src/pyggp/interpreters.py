@@ -5,6 +5,7 @@ import logging
 import multiprocessing
 from dataclasses import dataclass, field
 from typing import (
+    TYPE_CHECKING,
     Any,
     FrozenSet,
     Iterator,
@@ -57,9 +58,15 @@ from pyggp.exceptions.interpreter_exceptions import (
 )
 from pyggp.records import Record
 
+if TYPE_CHECKING:
+    # TODO: Remove this when python 3.8 is no longer supported.
+    RolesInControlCache = cachetools.Cache[State, FrozenSet[Role]]
+else:
+    RolesInControlCache = cachetools.Cache
+
 log: logging.Logger = logging.getLogger("pyggp")
 
-_get_roles_in_control_cache: cachetools.Cache[State, FrozenSet[Role]] = cachetools.LRUCache(
+_get_roles_in_control_cache: RolesInControlCache = cachetools.LRUCache(
     maxsize=50_000_000,
     getsizeof=get_roles_in_control_sizeof,
 )

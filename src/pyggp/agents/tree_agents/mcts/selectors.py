@@ -10,6 +10,8 @@ import random
 from dataclasses import dataclass
 from typing import Any, Callable, Final, Generic, Mapping, Optional, Protocol, SupportsFloat, Tuple, TypeVar
 
+from typing_extensions import ParamSpec
+
 from pyggp.agents.tree_agents.nodes import Node
 from pyggp.agents.tree_agents.valuations import Valuation
 from pyggp.engine_primitives import Role, State
@@ -35,11 +37,13 @@ class Selector(Protocol[_U_co, _K]):
 
 _A = TypeVar("_A")
 
+_P = ParamSpec("_P")
+
 
 class _FunctionSelectorProtocol(Selector[_U_co, _K], Protocol[_U_co, _K, _A]):
     select_func: Callable[[_A], _K]
     """Function to select a key from the given keys."""
-    get_keys_func: Optional[Callable[[Node[_U_co, _K], ...], _A]]
+    get_keys_func: Optional[Callable[_P, _A]]
     """Function to get the keys from the given node."""
 
 
@@ -67,7 +71,7 @@ class FunctionSelector(
 ):
     select_func: Callable[[_A], _K]
     """Function to select a key from the given keys."""
-    get_keys_func: Optional[Callable[[Node[_U_co, _K], ...], _A]] = None
+    get_keys_func: Optional[Callable[_P, _A]] = None
     """Function to get the keys from the given node."""
 
 
