@@ -25,8 +25,8 @@ class DidNotStartMatchError(AbortedMatchError):
             role: Role inhabited by actor that caused the match to not start
 
         """
-        role_message = f" caused by role {role}" if role is not None else ""
-        actor_message = f" caused by actor {actor}" if actor is not None else ""
+        role_message = f" caused by role {rich(role)}" if role is not None else ""
+        actor_message = f" caused by actor {rich(actor)}" if actor is not None else ""
         message = f"Match did not start{actor_message}{role_message}"
         super().__init__(message)
 

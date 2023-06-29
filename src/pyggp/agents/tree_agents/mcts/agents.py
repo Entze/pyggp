@@ -203,14 +203,15 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
         with log_time(
             log=log,
             level=logging.DEBUG,
-            begin_msg=f"Building book for at most {format_ns(build_time_ns)}",
-            end_msg="Built book",
+            begin_msg=f"Building book from perspective {rich(self.role)} for at most {format_ns(build_time_ns)}",
+            end_msg=f"Built book from perspective {rich(self.role)}",
             abort_msg="Aborted building book",
         ):
             it, elapsed_time = book_building_repeater()
         log.info(
-            "%s book with %s entries in %s (%s entries/s)",
+            "%s book from perspecitve %s with %s entries in %s (%s entries/s)",
             "Finished" if book_builder.done else "Built",
+            rich(self.role),
             format_amount(len(book_builder.book)),
             format_ns(elapsed_time),
             format_rate_ns(len(book_builder.book), elapsed_time),
@@ -482,7 +483,7 @@ class MultiObserverInformationSetMCTSAgent(
         startclock_config: GameClock.Configuration,
         playclock_config: GameClock.Configuration,
     ) -> None:
-        timeout_ns = startclock_config.total_time_ns + startclock_config.delay_ns + time.monotonic_ns()
+        used_time_ns = time.monotonic_ns()
         super().prepare_match(role, ruleset, startclock_config, playclock_config)
 
         self.roles = self.interpreter.get_roles()
@@ -503,7 +504,9 @@ class MultiObserverInformationSetMCTSAgent(
             slack=2.0,
         )
 
-        timeout_ns -= time.monotonic_ns()
+        used_time_ns -= time.monotonic_ns()
+        total_time_ns = startclock_config.total_time_ns + startclock_config.delay_ns
+        timeout_ns = self._get_timeout_ns(total_time_ns=total_time_ns, used_time=used_time_ns)
         self.books = self._build_books(timeout_ns=timeout_ns)
         self.evaluators = {
             role: LightPlayoutEvaluator(
@@ -570,15 +573,17 @@ class MultiObserverInformationSetMCTSAgent(
         with log_time(
             log=log,
             level=logging.DEBUG,
-            begin_msg=f"Building book for Role {role} for at most {format_ns(timeout_ns)}",
-            end_msg="Built book",
+            begin_msg=f"Building book from perspective "
+            f"{rich(role)} for role {rich(self.role)} for at most {format_ns(timeout_ns)}",
+            end_msg=f"Built book from perspective " f"{rich(role)} for role {rich(self.role)}",
             abort_msg="Aborted building book",
         ):
             it, elapsed_time = book_building_repeater()
         log.info(
-            "%s book for Role %s with %s entries in %s (%s entries/s)",
+            "%s book from perspective %s for %s with %s entries in %s (%s entries/s)",
             "Finished" if book_builder.done else "Built",
-            role,
+            rich(role),
+            rich(self.role),
             format_amount(len(book_builder.book)),
             format_ns(elapsed_time),
             format_rate_ns(len(book_builder.book), elapsed_time),

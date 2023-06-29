@@ -471,33 +471,22 @@ class Match:
     # endregion
 
     def __rich__(self) -> str:
-        id_str = f"id={format_id(self)}, "
-        ruleset_str = f"ruleset={rich(self.ruleset)}, "
-        interpreter_str = f"interpreter={rich(self.interpreter)}, "
-        role_to_actor_registry_str = ", ".join(
-            f"{rich(role)}={rich(actor)}" for role, actor in self.role_to_actor.items()
-        )
-        role_to_actor_str = f"role_to_actor={'{'}{role_to_actor_registry_str}{'}'}, "
-        role_to_startclockconfiguration_registry_str = ", ".join(
-            f"{rich(role)}={rich(startclock_configuration)}"
-            for role, startclock_configuration in self.role_to_startclockconfiguration.items()
-        )
+        id_str = f"id={format_id(self)}"
+        ruleset_str = f"ruleset={rich(self.ruleset)}"
+        interpreter_str = f"interpreter={rich(self.interpreter)}"
+        role_to_actor_str = f"role_to_actor={rich(self.role_to_actor)}"
         role_to_startclockconfiguration_str = (
-            f"role_to_startclockconfiguration={'{'}{role_to_startclockconfiguration_registry_str}{'}'}, "
-        )
-        role_to_playclockconfiguration_registry_str = ", ".join(
-            f"{rich(role)}={rich(playclock_configuration)}"
-            for role, playclock_configuration in self.role_to_playclockconfiguration.items()
+            f"role_to_startclockconfiguration={rich(self.role_to_startclockconfiguration)}"
         )
         role_to_playclockconfiguration_str = (
-            f"role_to_playclockconfiguration={'{'}{role_to_playclockconfiguration_registry_str}{'}'}"
+            f"role_to_playclockconfiguration={rich(self.role_to_playclockconfiguration)}"
         )
         attributes_str = (
-            f"{id_str}"
-            f"{ruleset_str}"
-            f"{interpreter_str}"
-            f"{role_to_actor_str}"
-            f"{role_to_startclockconfiguration_str}"
+            f"{id_str}, "
+            f"{ruleset_str}, "
+            f"{interpreter_str}, "
+            f"{role_to_actor_str}, "
+            f"{role_to_startclockconfiguration_str}, "
             f"{role_to_playclockconfiguration_str}"
         )
 

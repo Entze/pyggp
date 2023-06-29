@@ -381,7 +381,18 @@ class ClingoInterpreter(Interpreter):
         )
 
     def __rich__(self) -> str:
-        return f"{self.__class__.__name__}({rich(self.ruleset)}, parallel_mode={rich(self.parallel_mode)})"
+        state_shape = self._shape_container.state_shape
+        state_shape_size_str = f"#P(state)={len(state_shape)}"
+        action_shape = self._shape_container.action_shape
+        all_moves = {move for moves in action_shape.values() for move in moves}
+        action_shape_size = len(all_moves)
+        action_shape_size_str = f"#P(action)={action_shape_size}"
+        information_str = f"\[{state_shape_size_str}, {action_shape_size_str}]"
+        ruleset_str = f"ruleset={rich(self.ruleset)}"
+        parallel_mode_str = f"parallel_mode={rich(self.parallel_mode)}"
+        attributes_str = f"{ruleset_str}, {parallel_mode_str}"
+
+        return f"{self.__class__.__name__}{information_str}({attributes_str})"
 
     def get_roles(self) -> FrozenSet[Role]:
         if self._cache_container.roles is None:
