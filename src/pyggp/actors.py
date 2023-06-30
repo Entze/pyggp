@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Optional, Protocol
 
 import pyggp.game_description_language as gdl
-from pyggp._logging import format_id, format_timedelta
+from pyggp._logging import format_id, format_timedelta, rich
 from pyggp.agents import Agent
 from pyggp.engine_primitives import Move, Role, View
 from pyggp.exceptions.actor_exceptions import TimeoutActorError
@@ -84,7 +84,7 @@ class _AbstractActor(Actor, abc.ABC):
         attributes_str = f"{id_str}{is_human_actor_str}"
         information_str = ""
         if self.playclock is not None:
-            information_str = f"\\[remaining_time={format_timedelta(self.playclock.get_timeout())}]"
+            information_str = f"\\[remaining_time={rich(self.playclock)}]"
 
         return f"{self.__class__.__name__}{information_str}({attributes_str})"
 

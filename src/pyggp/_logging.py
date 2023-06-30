@@ -19,6 +19,8 @@ if TYPE_CHECKING:  # noqa: SIM108
 else:
     NoneContextManager = contextlib.AbstractContextManager
 
+log: logging.Logger = logging.getLogger("pyggp")
+
 
 def inflect(noun: str, count: int = 0) -> str:
     """Inflect a noun based on a count.
@@ -223,8 +225,9 @@ class TimeLogger(NoneContextManager):
             end_msg = f"in {format_timedelta(self.delta)}"
         self.log.log(self.level, end_msg, *self.args)
 
-    def log_abort(self) -> None:
+    def log_abort(self, exc: BaseException) -> None:
         abort_msg = self.get_abort_msg()
+        log.debug(exc, exc_info=False)
         if abort_msg is not None:
             abort_msg = f"{abort_msg} (after {format_timedelta(self.delta)})"
         else:
@@ -245,7 +248,7 @@ class TimeLogger(NoneContextManager):
         self.stop_time: float = time.monotonic()
         self.delta = self.stop_time - self.start_time
         if exc_val is not None:
-            self.log_abort()
+            self.log_abort(exc_val)
         else:
             self.log_end()
 
