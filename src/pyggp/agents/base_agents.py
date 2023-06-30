@@ -285,6 +285,8 @@ class HumanAgent(InterpreterAgent):
             self.interpreter is not None
         ), "Assumption: interpreter is not None (should have been set in prepare_match)"
         assert self.role is not None, "Assumption: role is not None (should have been set in prepare_match)"
+        print("ply:", ply)
+        print(rich(view))
         moves = sorted(self.interpreter.get_legal_moves_by_role(view, self.role))
 
         move: Optional[Move] = None

@@ -79,9 +79,9 @@ class AbstractMCTSAgent(AbstractTreeAgent[_K, _MCTSEvaluation], MonteCarloTreeSe
         )
         log.info("Choosing move at %s", rich(self.get_main_tree(logging.INFO)))
 
-    def _move_evaluation_as_str(self, move: Move, evaluation: _MCTSEvaluation) -> str:
+    def _evaluation_as_str(self, evaluation: _MCTSEvaluation) -> str:
         book_value, total_playouts, utility = evaluation
-        strs = [f"{move}: "]
+        strs = []
         if self._can_lookup():
             strs.append(f"{book_value:.2f} | ")
         avg_utility = utility / total_playouts if total_playouts > 0 else 0.0
@@ -325,7 +325,7 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
             return
         total_quota = self.update_time_quota + self.search_time_quota
         fill_time_scale = self.update_time_quota / total_quota
-        fill_time_ns = self._get_timeout_ns(total_time_ns=total_time_ns, used_time=used_time, scale=fill_time_scale)
+        fill_time_ns = self._get_timeout_ns(total_time_ns=total_time_ns, used_time_ns=used_time, scale=fill_time_scale)
         self.fill_repeater.timeout_ns = fill_time_ns
         with log_time(
             log=log,
@@ -504,9 +504,15 @@ class MultiObserverInformationSetMCTSAgent(
             slack=2.0,
         )
 
-        used_time_ns -= time.monotonic_ns()
+        used_time_ns = time.monotonic_ns() - used_time_ns
         total_time_ns = startclock_config.total_time_ns + startclock_config.delay_ns
-        timeout_ns = self._get_timeout_ns(total_time_ns=total_time_ns, used_time=used_time_ns)
+        timeout_ns = self._get_timeout_ns(
+            total_time_ns=total_time_ns,
+            used_time_ns=used_time_ns,
+            net_zero_time_ns=total_time_ns,
+            zero_time_ns=total_time_ns,
+            scale=0.9,
+        )
         self.books = self._build_books(timeout_ns=timeout_ns)
         self.evaluators = {
             role: LightPlayoutEvaluator(
@@ -547,12 +553,24 @@ class MultiObserverInformationSetMCTSAgent(
     def _build_books(self, timeout_ns: int) -> Optional[Mapping[Role, Book[float]]]:
         if timeout_ns <= ONE_S_IN_NS:
             return
+        start = time.monotonic_ns()
         books = {}
-        main_timeout_ns = timeout_ns // 2
-        other_timeout_ns = (timeout_ns - main_timeout_ns) // (len(self.roles) - 1)
+        other_quota = 1.0
+        main_quota = other_quota * (len(self.roles) - 1)
+        total_quota = main_quota + other_quota
+        main_scale = main_quota / total_quota
+        other_scale = other_quota / total_quota
         for role in self.roles:
-            timeout_ns = main_timeout_ns if role == self.role else other_timeout_ns
-            books[role] = self._build_book(role, timeout_ns)
+            used_time = time.monotonic_ns() - start
+            zero_time_ns = timeout_ns + used_time
+            build_book_timeout_ns = self._get_timeout_ns(
+                total_time_ns=timeout_ns,
+                used_time_ns=used_time,
+                scale=main_scale if role == self.role else other_scale,
+                net_zero_time_ns=zero_time_ns,
+                zero_time_ns=zero_time_ns,
+            )
+            books[role] = self._build_book(role, build_book_timeout_ns)
         return books
 
     def _build_book(self, role: Role, timeout_ns: int) -> Book[float]:
@@ -610,7 +628,7 @@ class MultiObserverInformationSetMCTSAgent(
         used_time = time.monotonic_ns() - used_time
         total_quota = self.update_time_quota + self.search_time_quota
         fill_time_scale = self.update_time_quota / total_quota
-        fill_time_ns = self._get_timeout_ns(total_time_ns=total_time_ns, used_time=used_time, scale=fill_time_scale)
+        fill_time_ns = self._get_timeout_ns(total_time_ns=total_time_ns, used_time_ns=used_time, scale=fill_time_scale)
         with log_time(
             log=log,
             level=logging.DEBUG,
