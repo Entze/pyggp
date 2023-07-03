@@ -8,7 +8,7 @@ row(1). row(2). row(3). row(4). row(5). row(6).
 col(1). col(2). col(3). col(4). col(5).
 win(4).
 
-succ(0, 1). succ(1, 2). succ(2, 3). succ(3, 4). succ(4, 5). succ(5, 6). succ(6,7). succ(7,8).
+succ(0, 1). succ(1, 2). succ(2, 3). succ(3, 4). succ(4, 5). succ(5, 6). succ(6,7).
 
 next(control(R1)) :-
     role(R1), role(R2), distinct(R1,R2), row(Row), col(Col),

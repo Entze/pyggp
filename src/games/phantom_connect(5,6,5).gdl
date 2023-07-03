@@ -1,0 +1,157 @@
+
+
+role(x). role(o).
+
+init(control(x)).
+
+row(1). row(2). row(3). row(4). row(5). row(6).
+col(1). col(2). col(3). col(4). col(5).
+win(5).
+
+succ(0, 1). succ(1, 2). succ(2, 3). succ(3, 4). succ(4, 5). succ(5, 6). succ(6,7).
+
+next(control(R1)) :-
+    role(R1), role(R2), distinct(R1,R2), row(Row), col(Col),
+    true(control(R2)),
+    not true(cell(Col, Row, _Role)),
+    does(R2, cell(Col, Row)).
+
+next(control(R)) :-
+    role(R), row(Row), col(Col),
+    true(control(R)),
+    true(cell(Col, Row, _Role)),
+    does(R, cell(Col, Row)).
+
+next(cell(Col,Row,Role)) :-
+    row(Row), col(Col), role(Role),
+    true(cell(Col,Row,Role)).
+
+next(cell(Col,Row,Role)) :-
+    row(Row), col(Col), role(Role),
+    not true(cell(Col,Row,_Role)),
+    does(Role, cell(Col, Row)).
+
+next(revealed(Role, cell(Col, Row))) :-
+    role(Role), row(Row), col(Col),
+    true(revealed(Role, cell(Col, Row))).
+
+next(revealed(Role, cell(Col, Row))) :-
+    role(Role), row(Row), col(Col),
+    does(Role, cell(Col, Row)).
+
+sees(Everyone, control(Role)) :-
+    role(Everyone), role(Role),
+    true(control(Role)).
+
+sees(Role1, revealed(Role2, cell(Col, Row))) :-
+    role(Role1), role(Role2), row(Row), col(Col),
+    true(revealed(Role1, cell(Col, Row))),
+    true(revealed(Role2, cell(Col, Row))).
+
+sees(Role1, cell(Col,Row,Role2)) :-
+    role(Role1), row(Row), col(Col), role(Role2),
+    true(revealed(Role1, cell(Col,Row))),
+    true(cell(Col,Row,Role2)).
+
+legal(Role, cell(Col, Row)) :-
+    role(Role), row(Row), col(Col),
+    not true(revealed(Role, cell(Col,Row))).
+
+open :-
+    row(Row), col(Col),
+    not true(cell(Col, Row,_)).
+
+connects(Role, Col, Row1, Col, Row2, 2) :-
+    role(Role), row(Row1), row(Row2), col(Col),
+    succ(Row1, Row2),
+    true(cell(Col,Row1,Role)),
+    true(cell(Col,Row2,Role)).
+
+connects(Role, Col, Row1, Col, Row2, N) :-
+    role(Role), row(Row1), row(Row2), col(Col),
+    row(Row0),
+    succ(M, N), succ(Row0, Row1), succ(Row1, Row2),
+    true(cell(Col,Row1,Role)),
+    true(cell(Col,Row2,Role)),
+    connects(Role, Col, Row0, Col, Row1, M).
+
+
+connects(Role, Col1, Row, Col2, Row, 2) :-
+    role(Role), row(Row), col(Col1), col(Col2),
+    succ(Col1, Col2),
+    true(cell(Col1,Row,Role)),
+    true(cell(Col2,Row,Role)).
+
+connects(Role,Col1, Row, Col2, Row, N) :-
+    role(Role), row(Row), col(Col1), col(Col2),
+    col(Col0),
+    succ(M, N), succ(Col0, Col1), succ(Col1, Col2),
+    true(cell(Col1,Row,Role)),
+    true(cell(Col2,Row,Role)),
+    connects(Role, Col0, Row, Col1, Row, M).
+
+
+connects(Role, Col1, Row1, Col2, Row2, 2) :-
+    role(Role), row(Row1), row(Row2), col(Col1), col(Col2),
+    succ(Row1, Row2), succ(Col1, Col2),
+    true(cell(Col1,Row1,Role)),
+    true(cell(Col2,Row2,Role)).
+
+connects(Role, Col1, Row1, Col2, Row2, N) :-
+    role(Role), row(Row1), row(Row2), col(Col1), col(Col2),
+    row(Row0), col(Col0),
+    succ(M, N),
+    succ(Row0, Row1), succ(Row1, Row2),
+    succ(Col0, Col1), succ(Col1, Col2),
+    true(cell(Col1,Row1,Role)),
+    true(cell(Col2,Row2,Role)),
+    connects(Role, Col0, Row0, Col1, Row1, M).
+
+
+connects(Role, Col1, Row2, Col2, Row1, 2) :-
+    role(Role), row(Row1), row(Row2), col(Col1), col(Col2),
+    succ(Row1, Row2), succ(Col1, Col2),
+    true(cell(Col2,Row1,Role)),
+    true(cell(Col1,Row2,Role)).
+
+connects(Role, Col1, Row3, Col2, Row2, N) :-
+    role(Role),
+    row(Row1), row(Row2), row(Row3),
+    col(Col1), col(Col2), col(Col3),
+    succ(M, N),
+    succ(Row1, Row2), succ(Row2, Row3),
+    succ(Col1, Col2), succ(Col2, Col3),
+    true(cell(Col1,Row3,Role)),
+    true(cell(Col2,Row2,Role)),
+    connects(Role, Col2, Row2, Col3, Row1, M).
+
+
+connects(Role, Col1, Row1, Col2, Row2, N) :-
+    role(Role), col(Col1), row(Row1), col(Col2), row(Row2),
+    connects(Role, Col2, Row2, col(Col1), row(Row1), N).
+
+
+line(Role) :-
+    role(Role),
+    connects(Role, _Col1, _Row1, _Col2, _Row2, N),
+    win(N).
+
+goal(Role1, 0) :-
+    role(Role1), role(Role2), distinct(Role1, Role2),
+    line(Role2).
+
+goal(Role1, 50) :-
+    role(Role1), role(Role2), distinct(Role1, Role2),
+    not open,
+    not line(Role1),
+    not line(Role2).
+
+goal(Role1, 100) :-
+    role(Role1),
+    line(Role1).
+
+terminal :-
+    not open.
+
+terminal :-
+    line(_Role).

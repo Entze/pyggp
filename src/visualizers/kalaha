@@ -1,0 +1,71 @@
+
+__viz(-2, S, " ")     :- houses(H'), S'=10+(H'*4), S=0..(S'/2)-2, not true(control(north)).
+__viz(-2, S, " ")     :- houses(H'), S'=10+(H'*4), S=0..(S'/2)-7, true(control(north)).
+__viz(-2, S, "<")     :- houses(H'), S'=10+(H'*4), S=(S'/2)-6, true(control(north)).
+__viz(-2, S, "-")     :- houses(H'), S'=10+(H'*4), S=(S'/2)-5..(S'/2)-3, true(control(north)).
+__viz(-2, S, " ")     :- houses(H'), S'=10+(H'*4), S=(S'/2)-2, true(control(north)).
+__viz(-2, S, north)   :- houses(H'), S'=10+(H'*4), S=(S'/2)-1.
+__viz(-2, S, " ----") :- houses(H'), S'=10+(H'*4), S=(S'/2), true (control(north)).
+__viz(7, S, " ")      :- houses(H'), S'=10+(H'*4), S=0..(S'/2)-2, not true(control(south)).
+__viz(7, S, " ")      :- houses(H'), S'=10+(H'*4), S=0..(S'/2)-7, true(control(south)).
+__viz(7, S, "---- ") :- houses(H'), S'=10+(H'*4), S=(S'/2)-6, true(control(south)).
+__viz(7, S, south)    :- houses(H'), S'=10+(H'*4), S=(S'/2)-1.
+__viz(7, S, " --->")  :- houses(H'), S'=10+(H'*4), S=(S'/2), true(control(south)).
+
+__spacing(1).
+__spacing(3).
+
+__viz(-1, 0, "      |").
+__viz(-1, H+S, " ") :- houses(H'), H''=1..H', H=(H''-1)*5, P=H'+1-H'', __spacing(S).
+__viz(-1, H+2, P)   :- houses(H'), H''=1..H', H=(H''-1)*5, P=H'+1-H''.
+__viz(-1, H+4, "|") :- houses(H'), H''=1..H', H=(H''-1)*5, P=H'+1-H''.
+
+__viz(6, 0, "      |").
+__viz(6, H+S, " ") :- houses(H'), H''=1..H', H=(H''-1)*5, P=H'', __spacing(S).
+__viz(6, H+2, P)   :- houses(H'), H''=1..H', H=(H''-1)*5, P=H''.
+__viz(6, H+4, "|") :- houses(H'), H''=1..H', H=(H''-1)*5, P=H''.
+
+__edge(0).
+__edge(5).
+__viz(E, 0, "+-----") :- __edge(E).
+__viz(E, H, "+---") :- __edge(E), houses(H'), H=1..H'.
+__viz(E, H'+1, "+-----+") :- __edge(E), houses(H').
+
+__viz(1, 0, "|     |").
+__viz(1, H, "     |") :- houses(H'), H=H'*5.
+__viz(2, -6, "|").
+__viz(2, -5, " ") :- true(store(north, NS)), NS < 1000.
+__viz(2, -4, " ") :- true(store(north, NS)), NS < 10.
+__viz(2, -3, NS) :- true(store(north, NS)).
+__viz(2, -2, " ") :- true(store(north, NS)), NS < 100.
+__viz(2, -1, " ") :- true(store(north, NS)), NS < 10000.
+__viz(2, -5, "  ?   ") :- not true(store(north, _)).
+
+__viz(2, 0, "+").
+__viz(2, H, "---+") :- houses(H'), H=1..H'.
+__viz(2, H'+1, " ") :- houses(H'), true(store(south, SS)), SS < 1000.
+__viz(2, H'+2, " ") :- houses(H'), true(store(south, SS)), SS < 10.
+__viz(2, H'+3, SS) :- houses(H'), true(store(south, SS)).
+__viz(2, H'+4, " ") :- houses(H'), true(store(south, SS)), SS < 100.
+__viz(2, H'+5, " ") :- houses(H'), true(store(south, SS)), SS < 10000.
+__viz(2, H'+1, "  ?   ") :- houses(H'), not true(store(south, _)).
+
+__viz(2, H'+6, "|") :- houses(H').
+__viz(3, 0, "|     |").
+__viz(3, H, "     |") :- houses(H'), H=H'*5.
+
+__viz(1, H+1, " ")    :- houses(H'), H''=1..H', H=(H''-1)*5, true(house(north,H'+1-H'',Stones)), Stones < 10.
+__viz(1, H+1, " ")    :- houses(H'), H''=1..H', H=(H''-1)*5, not true(house(north,H'+1-H'',_)).
+__viz(1, H+2, Stones) :- houses(H'), H''=1..H', H=(H''-1)*5, true(house(north,H'+1-H'',Stones)).
+__viz(1, H+2, "?")    :- houses(H'), H''=1..H', H=(H''-1)*5, not true(house(north,H'+1-H'',_)).
+__viz(1, H+3, " ")    :- houses(H'), H''=1..H', H=(H''-1)*5, true(house(north,H'+1-H'',Stones)), Stones < 100.
+__viz(1, H+3, " ")    :- houses(H'), H''=1..H', H=(H''-1)*5, not true(house(north,H'+1-H'',_)).
+__viz(1, H+4, "|")    :- houses(H'), H''=1..H', H=(H''-1)*5.
+
+__viz(3, H+1, " ")    :- houses(H'), H''=1..H', H=(H''-1)*5, true(house(south,H'',Stones)), Stones < 10.
+__viz(3, H+1, " ")    :- houses(H'), H''=1..H', H=(H''-1)*5, not true(house(south,H'',_)).
+__viz(3, H+2, Stones) :- houses(H'), H''=1..H', H=(H''-1)*5, true(house(south,H'',Stones)).
+__viz(3, H+2, "?")    :- houses(H'), H''=1..H', H=(H''-1)*5, not true(house(south,H'',_)).
+__viz(3, H+3, " ")    :- houses(H'), H''=1..H', H=(H''-1)*5, true(house(south,H'',Stones)), Stones < 100.
+__viz(3, H+3, " ")    :- houses(H'), H''=1..H', H=(H''-1)*5, not true(house(south,H'',_)).
+__viz(3, H+4, "|")    :- houses(H'), H''=1..H', H=(H''-1)*5.
