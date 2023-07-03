@@ -197,7 +197,7 @@ class AbstractTreeAgent(InterpreterAgent, TreeAgent[_K, _E], Generic[_K, _E], ab
         worst_key_evaluation = filtered_keys[worst_key]
 
         log.info(
-            "Chose %s (%s, \[%s, %s])",
+            "Chose %s (%s, \\[%s, %s])",
             move,
             self._evaluation_as_str(evaluation),
             self._evaluation_as_str(worst_key_evaluation),

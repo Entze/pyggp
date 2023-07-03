@@ -305,7 +305,11 @@ class HumanAgent(InterpreterAgent):
             else:
                 self._display_moves_only_numbers(ctx, console, moves)
             move_prompt: str = self._prompt(moves) if not only_numbers else self._prompt_only_numbers()
-            move = self._parse_move_prompt(move_prompt, moves)
+            move = (
+                self._parse_move_prompt(move_prompt, moves)
+                if not only_numbers
+                else self._parse_move_str(move_prompt, moves)
+            )
             if move is None:
                 self._help(move_prompt, moves)
 
@@ -314,7 +318,8 @@ class HumanAgent(InterpreterAgent):
 
     def _help(self, move_prompt: str, moves: Sequence[Move]) -> None:
         print(f"[red]Invalid move [italic purple]{move_prompt}.")
-        moves_strs = (*(str(move) for move in moves), *(str(n) for n in range(1, len(moves) + 1)))
+        only_numbers = all(move.is_number for move in moves)
+        moves_strs = (*(str(move) for move in moves), *(str(n) for n in range(1, len(moves) + 1) if not only_numbers))
         similar_moves = difflib.get_close_matches(move_prompt, moves_strs, n=MAX_DISPLAYED_OPTIONS)
         if similar_moves:
             print("Did you mean?")
@@ -327,8 +332,26 @@ class HumanAgent(InterpreterAgent):
         console: rich_console.Console,
         moves: Sequence[Move],
     ) -> None:
+        ranges = []
+        range_start = None
+        last_move = None
+        for move in moves:
+            if range_start is None:
+                range_start = move
+            elif last_move is not None and last_move.symbol.number + 1 != move.symbol.number:
+                ranges.append((range_start, last_move))
+                range_start = move
+            last_move = move
+        ranges.append((range_start, last_move))
+        ranges_strs = []
+        for lower, upper in ranges:
+            if lower == upper:
+                ranges_strs.append(f"{lower}")
+            else:
+                ranges_strs.append(f"{lower}-{upper}")
+
         with ctx:
-            console.print("\n".join(f"\t{move}" for move in moves))
+            console.print(", ".join(ranges_strs))
 
     def _display_moves(self, ctx: AnyContextManager, console: rich_console.Console, moves: Sequence[Move]) -> None:
         with ctx:

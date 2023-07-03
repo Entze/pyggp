@@ -593,7 +593,7 @@ class MultiObserverInformationSetMCTSAgent(
             level=logging.DEBUG,
             begin_msg=f"Building book from perspective "
             f"{rich(role)} for role {rich(self.role)} for at most {format_ns(timeout_ns)}",
-            end_msg=f"Built book from perspective " f"{rich(role)} for role {rich(self.role)}",
+            end_msg=f"Built book from perspective {rich(role)} for role {rich(self.role)}",
             abort_msg="Aborted building book",
         ):
             it, elapsed_time = book_building_repeater()
@@ -661,12 +661,8 @@ class MultiObserverInformationSetMCTSAgent(
         ply = tree.depth
         determinization = tree.get_determinization()
 
-        trees = None
-        if not self.interpreter.is_terminal(determinization):
-            trees = self._recenter_trees(ply=ply, determinization=determinization)
-            assert all(
-                node.depth == tree.depth for node in trees.values()
-            ), "Assumption: all trees are at the same depth"
+        trees = self._recenter_trees(ply=ply, determinization=determinization)
+        assert all(node.depth == tree.depth for node in trees.values()), "Assumption: all trees are at the same depth"
         while (
             tree.children is not None
             and tree.children
@@ -736,6 +732,7 @@ class MultiObserverInformationSetMCTSAgent(
                         break
             if all(tree is not None for tree in trees.values()):
                 break
+
         return trees
 
     def _gather_record(self, states: Mapping[int, State]) -> Record:
