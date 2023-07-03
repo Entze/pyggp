@@ -21,14 +21,18 @@ def _create_developments_ctl(
     shapes: ShapeContainer,
     record: Record,
     *,
-    is_final_view: bool = False,
+    is_final_view: Optional[bool] = None,
 ) -> Tuple[clingo.Control, Sequence[clingo_ast.AST]]:
-    rules = (
+    record_rules = [
         *record.get_state_assertions(shapes.state_shape),
         *record.get_turn_assertions(),
         *record.get_view_assertions(shapes.sees_shape),
         *record.get_incidental_assertions(),
-        clingo_helper.get_terminal_at_assertion(ply=record.horizon, invert=is_final_view),
+    ]
+    if is_final_view is not None:
+        record_rules.append(clingo_helper.get_terminal_at_assertion(ply=record.horizon, invert=is_final_view))
+    rules = (
+        *record_rules,
         *temporal_rules.static,
         *temporal_rules.dynamic,
         *temporal_rules.statemachine,

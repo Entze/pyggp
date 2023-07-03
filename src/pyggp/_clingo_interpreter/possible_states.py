@@ -1,7 +1,7 @@
 import functools
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Deque, MutableMapping, Sequence, Tuple
+from typing import Deque, MutableMapping, Optional, Sequence, Tuple
 
 import clingo
 import clingo.ast as clingo_ast
@@ -89,17 +89,20 @@ def create_possible_states_ctl(
     record: Record,
     ply: int,
     *,
-    is_final_view: bool = False,
+    is_final_view: Optional[bool] = None,
     parallel_mode: ParallelMode = 4,
 ) -> Tuple[clingo.Control, Sequence[clingo_ast.AST]]:
-    rules = (
-        clingo_helper.HIDE,
-        clingo_helper.get_holds_at_ply_show(ply),
+    record_rules = [
         *record.get_state_assertions(shapes.state_shape),
         *record.get_turn_assertions(),
         *record.get_view_assertions(shapes.sees_shape),
-        # *record.get_incidental_assertions(),
-        clingo_helper.get_terminal_at_assertion(ply=record.horizon, invert=is_final_view),
+    ]
+    if is_final_view is not None:
+        record_rules.append(clingo_helper.get_terminal_at_assertion(ply=record.horizon, invert=is_final_view))
+    rules = (
+        clingo_helper.HIDE,
+        clingo_helper.get_holds_at_ply_show(ply),
+        *record_rules,
         *temporal_rules.static,
         *temporal_rules.dynamic,
         *temporal_rules.statemachine,
