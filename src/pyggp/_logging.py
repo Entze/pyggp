@@ -225,9 +225,14 @@ class TimeLogger(NoneContextManager):
             end_msg = f"in {format_timedelta(self.delta)}"
         self.log.log(self.level, end_msg, *self.args)
 
-    def log_abort(self, exc: BaseException) -> None:
+    def log_abort(
+        self,
+        exc_type: Optional[Type[BaseException]] = None,
+        exc_val: Optional[BaseException] = None,
+        exc_tb: Optional[TracebackType] = None,
+    ) -> None:
         abort_msg = self.get_abort_msg()
-        log.debug(exc, exc_info=False)
+        log.log(self.level, exc_val, exc_info=True)
         if abort_msg is not None:
             abort_msg = f"{abort_msg} (after {format_timedelta(self.delta)})"
         else:
@@ -248,7 +253,7 @@ class TimeLogger(NoneContextManager):
         self.stop_time: float = time.monotonic()
         self.delta = self.stop_time - self.start_time
         if exc_val is not None:
-            self.log_abort(exc_val)
+            self.log_abort(exc_type, exc_val, exc_tb)
         else:
             self.log_end()
 
