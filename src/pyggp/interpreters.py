@@ -387,7 +387,7 @@ class ClingoInterpreter(Interpreter):
         all_moves = {move for moves in action_shape.values() for move in moves}
         action_shape_size = len(all_moves)
         action_shape_size_str = f"#P(action)={action_shape_size}"
-        information_str = f"\[{state_shape_size_str}, {action_shape_size_str}]"
+        information_str = f"\[{state_shape_size_str}, {action_shape_size_str}]"  # noqa: W605
         ruleset_str = f"ruleset={rich(self.ruleset)}"
         parallel_mode_str = f"parallel_mode={rich(self.parallel_mode)}"
         attributes_str = f"{ruleset_str}, {parallel_mode_str}"

@@ -322,7 +322,7 @@ def build(session: nox.Session) -> None:
             (
                 "--add-data",
                 f"{src}{sep}{dest}",
-            )
+            ),
         )
     args.extend(
         (
@@ -331,7 +331,7 @@ def build(session: nox.Session) -> None:
             "--name",
             "pyggp",
             "src/pyggp/__main__.py",
-        )
+        ),
     )
 
     session.run(

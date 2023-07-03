@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Optional, Protocol
 
 import pyggp.game_description_language as gdl
-from pyggp._logging import format_id, format_timedelta, rich
+from pyggp._logging import format_id, rich
 from pyggp.agents import Agent
 from pyggp.engine_primitives import Move, Role, View
 from pyggp.exceptions.actor_exceptions import TimeoutActorError
