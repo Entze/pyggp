@@ -13,7 +13,7 @@ import typer
 from exceptiongroup import ExceptionGroup
 
 import pyggp.game_description_language as gdl
-from pyggp._logging import rich
+from pyggp._logging import log_time, rich
 from pyggp.actors import LocalActor
 from pyggp.agents import Agent, HumanAgent
 from pyggp.cli._common import (
@@ -90,10 +90,15 @@ def handle_match_command_args(
         raise typer.Exit(1) from None
     log.debug("Loaded ruleset")
 
-    log.debug("Instantiating interpreter")
-    interpreter = ClingoInterpreter.from_ruleset(ruleset=ruleset)
+    with log_time(
+        level=logging.DEBUG,
+        log=log,
+        begin_msg="Instantiating interpreter",
+        end_msg="Instantiated interpreter",
+        abort_msg="Aborted instantiation of interpreter",
+    ):
+        interpreter = ClingoInterpreter.from_ruleset(ruleset=ruleset)
     roles = interpreter.get_roles()
-    log.debug("Instantiated interpreter")
 
     log.debug("Mapping roles to agent names")
     role_to_agentname = {role: "Human" for role in roles}
@@ -147,19 +152,24 @@ def handle_match_command_args(
     )
     log.debug("Mapped clock configurations to roles")
 
-    log.debug("Instantiating visualizer")
-    if visualizer_str is not None:
-        try:
-            visualizer = Visualizer.from_argument_specification_str(
-                argument_specification_str=visualizer_str,
-                ruleset=ruleset,
-            )
-        except VisualizerNotFoundCLIError as visualizer_not_found_error:
-            log.exception(visualizer_not_found_error, exc_info=False)
-            raise typer.Exit(1) from None
-    else:
-        visualizer = SimpleVisualizer()
-    log.debug("Instantiated visualizer")
+    with log_time(
+        log=log,
+        level=logging.DEBUG,
+        begin_msg="Instantiating visualizer",
+        end_msg="Instantiated visualizer",
+        abort_msg="Aborted instantiation of visualizer",
+    ):
+        if visualizer_str is not None:
+            try:
+                visualizer = Visualizer.from_argument_specification_str(
+                    argument_specification_str=visualizer_str,
+                    ruleset=ruleset,
+                )
+            except VisualizerNotFoundCLIError as visualizer_not_found_error:
+                log.exception(visualizer_not_found_error, exc_info=False)
+                raise typer.Exit(1) from None
+        else:
+            visualizer = SimpleVisualizer()
 
     log.debug("Handled [bold]match[/bold] command arguments")
     return MatchCommandParams(
