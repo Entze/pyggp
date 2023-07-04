@@ -182,7 +182,7 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
         return False
 
     def _build_book(self, timeout_ns: int) -> Book[float]:
-        if timeout_ns < ONE_S_IN_NS:
+        if timeout_ns < 10 * ONE_S_IN_NS:
             return {}
         build_time_ns = (timeout_ns * 9) // 10
 
@@ -551,7 +551,7 @@ class MultiObserverInformationSetMCTSAgent(
         return tree.fully_enumerated
 
     def _build_books(self, timeout_ns: int) -> Optional[Mapping[Role, Book[float]]]:
-        if timeout_ns <= ONE_S_IN_NS:
+        if timeout_ns <= 10 * ONE_S_IN_NS:
             return
         start = time.monotonic_ns()
         books = {}
