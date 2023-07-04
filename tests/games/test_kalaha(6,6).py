@@ -169,7 +169,7 @@ def test_next_state_move_again(kalaha_interpreter, p1, p2, request) -> None:
 
     actual = kalaha_interpreter.get_next_state(state, turn)
 
-    expected = get_state(p1, stores={p1: 1}, houses={p1: {2: 1, 3: 1, 4: 1, 5: 1, 6: 1}})
+    expected = get_state(p1, stores={p1: 1}, houses={p1: {1: 0, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1}})
 
     assert actual == expected
 
@@ -179,7 +179,7 @@ def test_next_state_capture(kalaha_interpreter, p1, p2, request) -> None:
     p1 = request.getfixturevalue(p1)
     p2 = request.getfixturevalue(p2)
 
-    state = get_state(p1, houses={p1: {3: 2}, p2: {5: 3, 1: 1}})
+    state = get_state(p1, houses={p1: {3: 2}, p2: {2: 3, 1: 1}})
 
     move = Move(gdl.Subrelation(gdl.Number(3)))
 
@@ -205,7 +205,7 @@ def test_next_state_spill(kalaha_interpreter, p1, p2, request) -> None:
 
     actual = kalaha_interpreter.get_next_state(state, turn)
 
-    expected = get_state(p1, stores={p1: 1}, houses={p2: {1: 1}})
+    expected = get_state(p2, stores={p1: 1}, houses={p2: {1: 1}})
 
     assert actual == expected
 
@@ -223,7 +223,7 @@ def test_next_state_skips_other_store(kalaha_interpreter, p1, p2, request) -> No
 
     actual = kalaha_interpreter.get_next_state(state, turn)
 
-    expected = get_state(p1, stores={p1: 1}, houses={p1: {1: 2}, p2: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1}})
+    expected = get_state(p2, stores={p1: 1}, houses={p1: {1: 2}, p2: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1}})
 
     assert actual == expected
 
@@ -261,7 +261,7 @@ def test_next_state_overspill(kalaha_interpreter, p1, p2, request) -> None:
 
     expected = get_state(
         p2,
-        stores={p1: 1},
+        stores={p1: 1},  # TODO: p2 is 1 but should be 0
         houses={p1: {4: 2, 5: 1, 6: 1, 1: 1, 2: 1, 3: 1}, p2: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1}},
     )
 
@@ -295,7 +295,7 @@ def test_next_state_overspill_capture(kalaha_interpreter, p1, p2, request) -> No
     p1 = request.getfixturevalue(p1)
     p2 = request.getfixturevalue(p2)
 
-    state = get_state(p1, houses={p1: {3: 13}, p2: {3: 1}})
+    state = get_state(p1, houses={p1: {3: 13}, p2: {4: 1}})
 
     move = Move(gdl.Subrelation(gdl.Number(3)))
 
@@ -306,7 +306,7 @@ def test_next_state_overspill_capture(kalaha_interpreter, p1, p2, request) -> No
     expected = get_state(
         p2,
         stores={p1: 4},
-        houses={p1: {4: 1, 5: 1, 6: 1, 3: 0, 1: 1, 2: 1}, p2: {1: 1, 2: 1, 3: 0, 4: 1, 5: 1}},
+        houses={p1: {4: 1, 5: 1, 6: 1, 3: 0, 1: 1, 2: 1}, p2: {1: 1, 2: 1, 3: 1, 4: 0, 5: 1, 6: 1}},
     )
 
     assert actual == expected
@@ -374,5 +374,14 @@ def test_legal_missing(kalaha_interpreter, p1, p2, request) -> None:
     expected = frozenset(
         (Move(gdl.Subrelation(gdl.Number(m))) for m in (1, 2, 4, 5, 6)),
     )
+
+    assert actual == expected
+
+
+def test_is_terminal(kalaha_interpreter) -> None:
+    state = kalaha_interpreter.get_init_state()
+
+    actual = kalaha_interpreter.is_terminal(state)
+    expected = False
 
     assert actual == expected

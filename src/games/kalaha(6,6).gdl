@@ -1,4 +1,3 @@
-
 role(north).
 role(south).
 
@@ -9,8 +8,21 @@ house(House) :-
     houses(Houses),
     suc(Houses,Houses1), lt(0, House), lt(House, Houses1).
 
+after(Role1, (Role2, House), (Role2, House1)) :-
+    role(Role1), role(Role2), house(House), house(House1),
+    suc(House, House1).
+
+after(Role, (Role, House), (Role, store)) :-
+    role(Role), house(House), houses(House).
+
+after(Role1, (Role1, store), (Role2, 1)) :-
+    role(Role1), role(Role2), distinct(Role1, Role2).
+
+after(Role1, (Role2, House), (Role1, 1)) :-
+    role(Role1), role(Role2), house(House), houses(House), distinct(Role1, Role2).
+
 dom(D) :- suc(D,_E).
-dom(D) :- suc(_E,D).
+dom(D) :- suc(_C,D).
 
 suc(0,1). suc(1,2). suc(2,3). suc(3,4). suc(4,5). suc(5,6). suc(6,7). suc(7,8). suc(8,9). suc(9,10). suc(10,11).
 suc(11,12). suc(12,13). suc(13,14). suc(14,15). suc(15,16). suc(16,17). suc(17,18). suc(18,19). suc(19,20). suc(20,21).
@@ -41,54 +53,245 @@ init(house(Role,House,Stones)) :-
     role(Role), house(House), stones(Stones).
 
 
-next(house(Role,House,StonesN)) :-
-    role(Role), house(House),
-    suc(Stones, Stones1), plus(Stones1, N, StonesN), distinct(0, Stones), distinct(Source, House),
-    reaches(Role, House, _Left),
-    lapped(N),
-    true(house(Role,House,Stones)),
-    does(Role,Source).
-next(house(Role,House,1)) :-
-    role(Role), house(House),
-    lt(0, Left),
-    true(house(Role,House,0)),
-    reaches(Role, House, Left).
-next(house(Role,Source,N)) :-
-    role(Role), house(Source),
-    not reaches(Role, Source, 0),
-    lapped(N).
-
-reaches(Role, House, Stones) :-
-    role(Role), house(House),
-    suc(Stones, StonesMod), mod(Stones1, 13, StonesMod),
-    true(house(Role,Source,Stones1)),
-    does(Role,Source).
-reaches(Role, House, Stones) :-
-    role(Role), house(House),
-    suc(Stones, Stones1),
-    reaches(Role, House, Stones1).
-reaches(Role, store, Stones) :-
-    role(Role),
-    suc(Stones, StonesMod), mod(Stones1, 13, StonesMod),
-    true(house(Role,Source,Stones1)),
-    does(Role,Source).
-reaches(Role, store, Stones) :-
-    role(Role), house(House),
-    houses(House), suc(Stones, Stones1),
-    reaches(Role, House, Stones1).
-reaches(Role2, 1, Stones) :-
+next(control(Role2)) :-
     role(Role2), role(Role1), distinct(Role1, Role2),
-    suc(Stones, Stones1),
-    reaches(Role1, store, Stones1).
+    true(control(Role1)),
+    open(Role2),
+    not move_again.
 
+next(control(Role2)) :-
+    role(Role2), role(Role1), distinct(Role1,Role2),
+    true(control(Role1)),
+    filled(Role2),
+    not move_again.
 
-lapped(N) :-
+filled(Role) :-
+    role(Role),
+    not captures(_Role,_House1),
+    reaches(Role,_House2,_Left).
+
+filled(Role) :-
+    role(Role), house(House),house(OtherHouse), distinct(House,OtherHouse),
+    not captures(_Role,_House,Role,House),
+    reaches(Role, OtherHouse, _Left).
+
+filled(Role) :-
+    role(Role), not lapped(0).
+
+next(control(Role)) :-
+    role(Role),
+    true(control(Role)),
+    not sweep,
+    move_again.
+
+move_again :-
+    role(Role),
+    reaches(Role,store,0),
+    does(Role,_House).
+
+open(Role) :-
+    role(Role), house(House),
+    not true(house(Role,House,0)).
+
+next(house(Role, House, StonesN)) :-
+    role(Role), house(House),
+    not captures(Role, House), not sweep, lapped(N),
+    suc(Stones, Stones1), plus(Stones1, N, StonesN),
+    reaches(Role, House, _Left),
+    true(house(Role,House,Stones)).
+
+next(house(Role, House, StonesN)) :-
+    role(Role), house(House),
+    not captures(Role, House), not sweep,
+    lapped(N), plus(Stones, N, StonesN),
+    not reaches(Role, House, _Left),
+    true(house(Role,House,Stones)),
+    not does(Role,House).
+
+next(house(Role, House, N)) :-
+    role(Role), house(House),
+    not captures(Role, House), not sweep,
+    lapped(N),
+    not reaches(Role, House, _Left),
+    does(Role,House).
+
+next(store(Role, StonesN)) :-
+    role(Role),
+    not captures(_Role,_House), not sweep,
+    lapped(N), suc(Stones, Stones1), plus(Stones1, N, StonesN),
+    reaches(Role, store, _Left),
+    true(store(Role,Stones)).
+
+next(store(Role, StonesN)) :-
+    role(Role),
+    not captures(_Role, _House1), not sweep,
+    lapped(N), plus(Stones, N, StonesN),
+    not reaches(Role, store, _Left),
+    true(store(Role, Stones)),
+    does(Role, _House2).
+
+next(store(Role2, Stones)) :-
+    role(Role2), role(Role1), distinct(Role1, Role2),
+    not captures(_Role,_House1), not sweep,
+    true(store(Role,Stones)),
+    does(Role1, _House2).
+
+reaches(Role, Source1, Stones) :-
     role(Role), house(Source),
-    div(Stones, 13, N),
-    true(house(Role,Source,Stones)),
-    does(Role, Source).
+    after(Role, (Role, Source), (Role, Source1)),
+    suc(Stones, StonesMod), mod(Stones1, 13, StonesMod),
+    true(house(Role,Source,Stones1)),
+    does(Role,Source).
+reaches(Role1, Target, Stones) :-
+    role(Role1), role(Role2), role(Role),
+    suc(Stones, Stones1),
+    after(Role, (Role2, Source), (Role1, Target)),
+    reaches(Role2, Source, Stones1),
+    does(Role,_House).
+lapped(N) :-
+    role(Role), house(House),
+    div(Stones,13,N),
+    true(house(Role,House,Stones)),
+    does(Role, House).
+
+
+captures(Role, House) :- captures(Role, House, _Role, _House).
+captures(Role, House) :- captures(_Role, _House, Role, House).
+
+captures(Role1, House, Role2, OppositeHouse) :-
+    role(Role2), house(OppositeHouse), role(Role1), house(House), distinct(Role1, Role2), houses(Houses),
+    lapped(0),
+    suc(Houses, Houses1), plus(House, OppositeHouse, Houses1),
+    reaches(Role1, House, 0),
+    true(house(Role1,House,0)),
+    does(Role1, _House).
+captures(Role1, House, Role2, OppositeHouse) :-
+    role(Role1), house(House), role(Role2), house(OppositeHouse), distinct(Role1, Role2), houses(Houses),
+    lapped(1),
+    suc(Houses, Houses1), plus(House, OppositeHouse, Houses1),
+    true(house(Role1,House,13)),
+    does(Role1, House).
+
+next(house(Role, House, 0)) :-
+    role(Role), house(House),
+    captures(Role, House).
+
+
+next(store(Role, StonesN)) :-
+    role(Role), house(House), role(Role2), house(OppositeHouse),
+    captures(Role, House, Role2, OppositeHouse), not sweep, lapped(N),
+    suc(OppositeHouseStones, Captured), suc(N, ToStore), plus(Captured, ToStore, StonesN),
+    reaches(Role, store, _Left1),
+    not reaches(Role2, OppositeHouse, _Left2),
+    true(house(Role2,OppositeHouse,OppositeHouseStones)),
+    true(store(Role,Stones)).
+
+next(store(Role, StonesN)) :-
+    role(Role), house(House), role(Role2), house(OppositeHouse),
+    captures(Role, House, Role2, OppositeHouse), not sweep, lapped(N),
+    suc(N, ToOppositeHouse), plus(OppositeHouseStones, ToOppositeHouse, FromOppositeHouse), suc(FromOppositeHouse, Captured), suc(N, ToStore), plus(Captured, ToStore, StonesN),
+    reaches(Role, store, _Left1),
+    reaches(Role2, OppositeHouse, _Left2),
+    true(house(Role2,OppositeHouse,OppositeHouseStones)),
+    true(store(Role,Stones)).
+
+next(store(Role, StonesN)) :-
+    role(Role), house(House), role(Role2), house(OppositeHouse),
+    captures(Role, House, Role2, OppositeHouse), not sweep, lapped(0),
+    suc(OppositeHouseStones, Captured), plus(Stones, Captured, StonesN),
+    not reaches(Role, store, _Left1),
+    not reaches(Role2, OppositeHouse, _Left2),
+    true(house(Role2,OppositeHouse,OppositeHouseStones)),
+    true(store(Role,Stones)).
+
+next(store(Role, StonesN)) :-
+    role(Role), house(House), role(Role2), house(OppositeHouse),
+    captures(Role, House, Role2, OppositeHouse), not sweep, lapped(N), distinct(0, N),
+    plus(OppositeHouseStones,2, Captured), plus(N, Captured, StonesN),
+    not reaches(Role, store, _Left1),
+    not reaches(Role2, OppositeHouse, _Left2),
+    true(house(Role2,OppositeHouse,OppositeHouseStones)),
+    true(store(Role,Stones)).
+
+
+next(store(Role2, Stones)) :-
+    role(Role2), role(Role1), house(House), distinct(Role1,Role2),
+    captures(Role1, House, _,_),
+    true(store(Role2,Stones)).
+
+in_play(Role, 1, Stones) :-
+    role(Role),
+    true(house(Role, 1, Stones)).
+
+in_play(Role, House1, InPlay) :-
+    role(Role), house(House1), house(House),
+    suc(House, House1), plus(Stones, Prev, InPlay),
+    in_play(Role, House, Prev),
+    true(house(Role, House1, Stones)).
+
+in_play(Role, InPlay) :-
+    role(Role), house(House),
+    houses(House),
+    in_play(Role, House, InPlay).
+
+sweep :-
+    role(Role), house(House), houses(House),
+    move_again, lapped(0),
+    in_play(Role, Stones),
+    true(house(Role,House,Stones)),
+    does(Role, House).
+
+sweep :-
+    role(Role), house(House), house(OtherHouse), distinct(House, OtherHouse),
+    captures(_Role, _House, Role, House), lapped(0),
+    not reaches(Role, OtherHouse, _Left),
+    in_play(Role, Stones),
+    true(house(Role,House,Stones)).
+
+sweep :-
+    role(Role1), role(Role2), distinct(Role1, Role2),
+    lapped(0),
+    not move_again,
+    not open(Role2),
+    not reaches(Role2, _, _),
+    true(control(Role1)).
+
+next(house(Role, House, 0)) :-
+    role(Role), house(House),
+    sweep.
+
+next(store(Role, Stones)) :-
+    role(Role),
+    sweep, not captures(_Role,_House),
+    plus(Prev, InPlay, Stones),
+    in_play(Role, InPlay),
+    true(store(Role,Prev)).
+
+next(store(Role, Stones)) :-
+    role(Role), house(House),
+    sweep, captures(Role,House,Role2,OppositeHouse),
+    plus(Prev, StonesN, Stones), plus(InPlay, OppositeHouseStones, StonesN),
+    in_play(Role, InPlay),
+    true(house(Role2,OppositeHouse,OppositeHouseStones)),
+    true(store(Role,Prev)).
+
+next(store(Role, Stones)) :-
+    role(Role), house(House),
+    sweep, captures(_Role,_House,Role,House),
+    plus(Left, HouseStones, InPlay), plus(Prev, Left, Stones),
+    in_play(Role, InPlay),
+    true(house(Role,House,HouseStones)),
+    true(store(Role,Prev)).
 
 
 legal(Role, House) :-
     role(Role), house(House),
     not true(house(Role,House,0)).
+
+goal(Role, Stones) :-
+    role(Role),
+    true(store(Role,Stones)).
+
+terminal :-
+    not open(north),
+    not open(south).
