@@ -97,6 +97,18 @@ class Interpreter(Protocol):
     def has_incomplete_information(self) -> bool:
         """Whether the game has incomplete information."""
 
+    @classmethod
+    def from_ruleset(cls, ruleset: gdl.Ruleset) -> Self:
+        """Create an interpreter from a ruleset.
+
+        Args:
+            ruleset: Ruleset to create the interpreter from
+
+        Returns:
+            Interpreter for the given ruleset
+
+        """
+
     def get_roles(self) -> FrozenSet[Role]:
         """Return the roles in the game.
 

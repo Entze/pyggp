@@ -6,7 +6,7 @@ import logging
 import random
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Final, MutableSequence, Optional, Protocol, Sequence, Type
+from typing import TYPE_CHECKING, Any, Final, MutableSequence, Optional, Protocol, Self, Sequence, Type
 
 import rich.console as rich_console
 import rich.prompt as rich_prompt
@@ -41,6 +41,10 @@ class Agent(Protocol):
     ) -> None:
         """Calls tear_down."""
         self.tear_down()
+
+    @classmethod
+    def from_cli(cls, *args: str, **kwargs: str) -> Self:
+        """Creates an agent from command line arguments."""
 
     def set_up(self) -> None:
         """Sets up the agent and all its required resources."""
@@ -97,6 +101,10 @@ class _AbstractAgent(Agent, abc.ABC):
         id_str = f"id={format_id(self)}"
         attributes_str = id_str
         return f"{self.__class__.__name__}({attributes_str})"
+
+    @classmethod
+    def from_cli(cls, *args: str, **kwargs: str) -> Self:
+        return cls()
 
     def set_up(self) -> None:
         """Sets up the agent and all its required resources."""
@@ -163,6 +171,7 @@ class InterpreterAgent(_AbstractAgent, abc.ABC):
     startclock_config: Optional[GameClock.Configuration] = None
     playclock_config: Optional[GameClock.Configuration] = None
     interpreter: Optional[Interpreter] = field(default=None, repr=False)
+    interpreter_factory: Type[Interpreter] = field(default=ClingoInterpreter, repr=False)
 
     # endregion
 
@@ -189,7 +198,7 @@ class InterpreterAgent(_AbstractAgent, abc.ABC):
         self.startclock_config = startclock_config
         self.playclock_config = playclock_config
         if self.interpreter is None:
-            self.interpreter = ClingoInterpreter.from_ruleset(ruleset)
+            self.interpreter = self.interpreter_factory.from_ruleset(ruleset)
 
     def conclude_match(self, view: View) -> None:
         """Concludes the current match.

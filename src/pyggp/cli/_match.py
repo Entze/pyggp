@@ -259,7 +259,7 @@ def run_local_match(
         role_actor_map = {}
         for role, agent_name in role_to_agentname.items():
             agent_type = agentname_to_agenttype[agent_name]
-            agent = agent_type()
+            agent = agent_type.from_cli()
             stack.enter_context(agent)
             is_human_actor = isinstance(agent, HumanAgent)
             actor = LocalActor(agent=agent, is_human_actor=is_human_actor)
