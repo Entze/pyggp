@@ -375,7 +375,7 @@ def test_developments(kalaha_interpreter, north) -> None:
                 state=next_state,
                 turn=None,
             ),
-        )
+        ),
     )
 
     assert tuple(actual) == expected
