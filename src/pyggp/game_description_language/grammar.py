@@ -62,8 +62,8 @@ infix_grammar = r"""
 
 GDL = Union[Relation, String, Number, Variable, Subrelation, Literal, Ruleset]
 
-parser = lark.Lark(grammar=infix_grammar, start="ruleset", parser="lalr")
-ruleset_parser = parser
+ruleset_parser = lark.Lark(grammar=infix_grammar, start="ruleset", parser="lalr")
+parser = ruleset_parser
 subrelation_parser = lark.Lark(grammar=infix_grammar, start="subrelation", parser="lalr")
 
 
@@ -154,4 +154,18 @@ def parse(string: str) -> Ruleset:
 
     """
     tree = parser.parse(string)
+    return transformer.transform(tree)
+
+
+def parse_subrelation(string: str) -> Subrelation:
+    """Parse a string into a subrelation.
+
+    Args:
+        string: string to parse
+
+    Returns:
+        Subrelation representing string
+
+    """
+    tree = subrelation_parser.parse(string)
     return transformer.transform(tree)
