@@ -7,13 +7,16 @@ import pathlib
 import re
 import sys
 from dataclasses import dataclass, field
+from types import TracebackType
 from typing import (
+    IO,
     ClassVar,
     Mapping,
     MutableMapping,
     MutableSequence,
     Optional,
     Sequence,
+    Type,
     TypeVar,
     Union,
 )
@@ -48,6 +51,12 @@ class Visualizer(abc.ABC):
 
     def __rich__(self) -> str:
         return f"{self.__class__.__name__}()"
+
+    def __enter__(self) -> None:
+        pass
+
+    def __exit__(self, exc_type: Type[BaseException], exc_val: BaseException, exc_tb: TracebackType) -> None:
+        pass
 
     def update_state(self, state: State, ply: Optional[int] = None) -> None:
         """Update a state.
@@ -124,6 +133,23 @@ class Visualizer(abc.ABC):
 
 
 @dataclass
+class TextVisualizer(Visualizer, abc.ABC):
+    path: Optional[pathlib.Path] = field(default=None)
+    file: Optional[IO[str]] = field(default=None)
+
+    def __enter__(self) -> None:
+        super().__enter__()
+        if self.path is not None:
+            self.file = self.path.open("w")
+
+    def __exit__(self, exc_type: Type[BaseException], exc_val: BaseException, exc_tb: TracebackType) -> None:
+        if self.file is not None:
+            self.file.close()
+        self.file = None
+        super().__exit__(exc_type, exc_val, exc_tb)
+
+
+@dataclass
 class NullVisualizer(Visualizer):  # pragma: no cover
     """Visualizer that does nothing."""
 
@@ -158,7 +184,7 @@ class NullVisualizer(Visualizer):  # pragma: no cover
 
 
 @dataclass
-class SimpleVisualizer(Visualizer):
+class SimpleVisualizer(TextVisualizer):
     """Visualizer that dumps states to stdout."""
 
     last_drawn_ply: int = field(default=-1)
@@ -177,8 +203,9 @@ class SimpleVisualizer(Visualizer):
     )
 
     @classmethod
-    def from_cli(cls, *args: str, **kwargs: str) -> Self:
-        return cls()
+    def from_cli(cls, file: Optional[str] = None, *args: str, **kwargs: str) -> Self:
+        path = pathlib.Path(file) if file is not None else None
+        return cls(path=path)
 
     def update_result(self, utilities: Mapping[Role, Union[int, None, Disqualification]]) -> None:
         """Update the result of the match.
@@ -200,7 +227,7 @@ class SimpleVisualizer(Visualizer):
             self.last_drawn_ply = ply
 
         if self.aborted:
-            print("Match aborted!")
+            print("Match aborted!", file=self.file)
 
         if self.utilities:
             if len(self.utilities) > 1:
@@ -213,6 +240,7 @@ class SimpleVisualizer(Visualizer):
                             for role, utility in self.utilities.items()
                         },
                     ),
+                    file=self.file,
                 )
 
     def _draw_ply(self, ply: int) -> None:
@@ -220,15 +248,15 @@ class SimpleVisualizer(Visualizer):
             return
         state = self.states[ply]
         assert state is not None
-        print(f"{ply}: {'{'} ", end="")
+        print(f"{ply}: {'{'} ", end="", file=self.file)
         for n, symbol in enumerate(sorted(state)):
-            print(symbol, end="")
+            print(symbol, end="", file=self.file)
             if n < len(state) - 1:
-                print(", ", end="")
-        print(" }")
+                print(", ", end="", file=self.file)
+        print(" }", file=self.file)
 
     def _draw_utility(self) -> None:
-        print("Utilities: { ", end="")
+        print("Utilities: { ", end="", file=self.file)
         role_rank_map = Match.get_rank(self.utilities)
         utility_colors_max_index = len(self.utility_colors) - 1
         assert utility_colors_max_index >= 0
@@ -243,22 +271,23 @@ class SimpleVisualizer(Visualizer):
             else:
                 pre = ""
                 post = ""
-            print(f"[yellow italic]{role}[/yellow italic]: {pre}{utility}{post}", end="")
+            print(f"[yellow italic]{role}[/yellow italic]: {pre}{utility}{post}", end="", file=self.file)
             if n < len(self.utilities) - 1:
-                print(", ", end="")
-        print(" }")
+                print(", ", end="", file=self.file)
+        print(" }", file=self.file)
 
 
 @dataclass
 class ClingoStringVisualizer(SimpleVisualizer):
     ctl: clingo.Control = field(default_factory=clingo.Control)
     state_to_literal: MutableMapping[gdl.Subrelation, int] = field(default_factory=dict)
-    last_drawn_ply: int = field(default=-1)
-    debug: bool = field(default=False)
+    debug_level: int = field(default=0)
     viz_signature: ClassVar[gdl.Relation.Signature] = gdl.Relation.Signature("__viz", 3)
 
     @classmethod
-    def from_cli(cls, *paths: str, ruleset: gdl.Ruleset, **kwargs: str):
+    def from_cli(cls, *paths: str, ruleset: Optional[gdl.Ruleset] = None, file: Optional[str] = None, **kwargs: str):
+        if ruleset is None:
+            ruleset = gdl.Ruleset()
         ctl = _get_ctl(
             sentences=ruleset.rules,
             rules=(*clingo_helper.EXTERNALS,),
@@ -269,8 +298,9 @@ class ClingoStringVisualizer(SimpleVisualizer):
             ctl.load(str(p))
             log.debug(f"Loaded %s", p)
         ctl.ground()
-        debug = bool(kwargs.pop("debug", False))
-        return cls(ctl=ctl, debug=debug)
+        debug = int(kwargs.pop("debug", 0))
+        path = pathlib.Path(file) if file is not None else None
+        return cls(ctl=ctl, path=path, debug_level=debug)
 
     def _draw_ply(self, ply: int) -> None:
         if ply >= len(self.states) or self.states[ply] is None:
@@ -281,7 +311,7 @@ class ClingoStringVisualizer(SimpleVisualizer):
         sorted_subrelations = ()
         with _set_state(self.ctl, state_to_literal=self.state_to_literal, current=state):
             model = _get_model(self.ctl)
-            if not self.debug:
+            if self.debug_level < 2:
                 subrelations = _transform_model(model, ClingoStringVisualizer.viz_signature)
             else:
                 sorted_subrelations = sorted(_transform_model(model))
@@ -297,12 +327,15 @@ class ClingoStringVisualizer(SimpleVisualizer):
                 string = element.symbol.string if element.is_string else str(element)
                 coordinates_to_str[row][column] = string
 
-        print(f"{ply}:")
+        print(f"{ply}:", end="", file=self.file)
+        if self.debug_level >= 1:
+            print("", rich(state), end="", file=self.file)
+        print(file=self.file)
         for row in sorted(coordinates_to_str):
             for column in sorted(coordinates_to_str[row]):
-                print(coordinates_to_str[row][column], end="")
-            print()
-        if self.debug:
-            print("Subrelations:")
+                print(coordinates_to_str[row][column], end="", file=self.file)
+            print(file=self.file)
+        if self.debug_level >= 2:
+            print("Subrelations:", file=self.file)
             for subrelation in sorted_subrelations:
-                print(subrelation)
+                print(subrelation, file=self.file)

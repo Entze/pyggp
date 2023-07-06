@@ -255,6 +255,7 @@ def run_local_match(
 ) -> None:
     log.debug("Running match locally")
     with contextlib.ExitStack() as stack:
+        stack.enter_context(visualizer)
         role_actor_map = {}
         for role, agent_name in role_to_agentname.items():
             agent_type = agentname_to_agenttype[agent_name]
