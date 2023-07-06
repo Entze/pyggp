@@ -339,7 +339,7 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
                 has_incomplete_information=self.interpreter.has_incomplete_information,
                 views={ply: view},
             )
-            possible_states = self.interpreter.get_possible_states(record=record, ply=ply)
+            possible_states = self.interpreter.get_possible_states(record=record, ply=ply, is_final=False)
             self.tree.possible_states.clear()
             self.fill_repeater(possible_states)
 
@@ -641,7 +641,7 @@ class MultiObserverInformationSetMCTSAgent(
                 has_incomplete_information=self.interpreter.has_incomplete_information,
                 views={ply: view},
             )
-            possible_states = self.interpreter.get_possible_states(record=record, ply=ply)
+            possible_states = self.interpreter.get_possible_states(record=record, ply=ply, is_final=False)
             self.fill_repeater.timeout_ns = fill_time_ns
             tree = self.trees[self.role]
             tree.possible_states.clear()
@@ -660,7 +660,6 @@ class MultiObserverInformationSetMCTSAgent(
         tree = self.trees[self.role]
         ply = tree.depth
         determinization = tree.get_determinization()
-
         trees = self._recenter_trees(ply=ply, determinization=determinization)
         assert all(node.depth == tree.depth for node in trees.values()), "Assumption: all trees are at the same depth"
         while (

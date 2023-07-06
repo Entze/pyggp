@@ -219,7 +219,7 @@ class PerfectInformationNode(_AbstractNode[_U, Turn], Generic[_U]):
 
         record = PerfectInformationRecord(state_record, {}, turn_record)
 
-        developments: Iterable[Development] = interpreter.get_developments(record)
+        developments: Iterable[Development] = interpreter.get_developments(record, last_ply_is_final_state=False)
         development, *_ = developments
 
         for step, development_step in enumerate(development):
@@ -386,7 +386,7 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
             views={ply: view},
         )
 
-        developments = interpreter.get_developments(record=record)
+        developments = interpreter.get_developments(record=record, last_ply_is_final_state=False)
         node = self
         while node.depth > record.offset:
             node = node.parent

@@ -14,7 +14,6 @@ from typing import (
     FrozenSet,
     Iterable,
     Iterator,
-    List,
     Mapping,
     MutableMapping,
     MutableSequence,
@@ -259,23 +258,27 @@ class Interpreter(Protocol):
     def get_developments(
         self,
         record: Record,
+        *,
+        last_ply_is_final_state: Optional[bool] = None,
     ) -> Iterator[Development]:
         """Return all possible developments for the given record.
 
         Args:
             record: Record of the game
+            last_ply_is_final_state: Whether the last ply of the record is a final state
 
         Returns:
             All possible developments for the given record
 
         """
 
-    def get_possible_states(self, record: Record, ply: int) -> Iterator[State]:
+    def get_possible_states(self, record: Record, ply: int, *, is_final: Optional[bool] = None) -> Iterator[State]:
         """Yield all possible states for the given record at the given ply.
 
         Args:
             record: Record of the game
             ply: Ply
+            is_final: Whether the given ply is a final state
 
         Yields:
             All possible states at the given ply
@@ -532,11 +535,14 @@ class AbstractInterpreter(Interpreter):
     def get_developments(
         self,
         record: Record,
+        *,
+        last_ply_is_final_state: Optional[bool] = None,
     ) -> Iterator[Development]:
         """Return all possible developments for the given record.
 
         Args:
             record: Record of the game
+            last_ply_is_final_state: Whether the last ply is a final state
 
         Returns:
             All possible developments for the given record
@@ -544,12 +550,13 @@ class AbstractInterpreter(Interpreter):
         """
         raise NotImplementedError
 
-    def get_possible_states(self, record: Record, ply: int) -> Iterator[State]:
+    def get_possible_states(self, record: Record, ply: int, *, is_final: Optional[bool] = None) -> Iterator[State]:
         """Yield all possible states for the given record at the given ply.
 
         Args:
             record: Record of the game
             ply: Ply
+            is_final: Whether the ply is a final state
 
         Yields:
             All possible states at the given ply
@@ -559,7 +566,7 @@ class AbstractInterpreter(Interpreter):
         horizon = record.horizon
         if not offset <= ply <= horizon:
             raise PlyOutsideOfBoundsError
-        developments = self.get_developments(record)
+        developments = self.get_developments(record, last_ply_is_final_state=is_final)
         shift = ply - offset
         for development in developments:
             yield development[shift].state
@@ -617,7 +624,7 @@ _TerminalCache = MutableMapping[int, MutableMapping[Union[State, View], bool]]
 
 
 def _get_single_nested_defaultdict_factory(
-    factory: Callable[[], _V]
+    factory: Callable[[], _V],
 ) -> Callable[[], DefaultDict[_K1, DefaultDict[_K2, _V]]]:
     return functools.partial(collections.defaultdict, functools.partial(collections.defaultdict, factory))
 
@@ -799,7 +806,7 @@ class ClingoRegroundingInterpreter(CachingInterpreter):
         state_to_rules: _StateToRulesCache = field(default_factory=_get_single_nested_defaultdict_factory(list))
         subrelation_to_rule: _SubrelationToRuleCache = field(default_factory=dict)
         role_to_move_to_rule: _RoleToMoveToRuleCache = field(
-            default_factory=functools.partial(collections.defaultdict, dict)
+            default_factory=functools.partial(collections.defaultdict, dict),
         )
 
     shape_container: ShapeContainer = field(default_factory=ShapeContainer)
@@ -1030,11 +1037,17 @@ class ClingoRegroundingInterpreter(CachingInterpreter):
         self.clingo_ast_cache.role_to_move_to_rule[role][move] = rule
         return rule
 
-    def get_developments(self, record: Record) -> Iterator[Development]:
+    def get_developments(
+        self,
+        record: Record,
+        *,
+        last_ply_is_final_state: Optional[bool] = None,
+    ) -> Iterator[Development]:
         ctl, rules = _create_developments_ctl(
             temporal_rules=self.temporal_rule_container,
             shapes=self.shape_container,
             record=record,
+            is_final_view=last_ply_is_final_state,
         )
         offset = record.offset
         horizon = record.horizon
@@ -1044,12 +1057,13 @@ class ClingoRegroundingInterpreter(CachingInterpreter):
         )
         return developments
 
-    def get_possible_states(self, record: Record, ply: int) -> Iterator[State]:
+    def get_possible_states(self, record: Record, ply: int, *, is_final: Optional[bool] = None) -> Iterator[State]:
         ctl, rules = create_possible_states_ctl(
             temporal_rules=self.temporal_rule_container,
             shapes=self.shape_container,
             record=record,
             ply=ply,
+            is_final_view=is_final,
             parallel_mode=self.parallel_mode,
         )
         offset = record.offset
