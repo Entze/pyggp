@@ -34,7 +34,7 @@ def _get_ctl(
     sentences: Optional[Iterable[gdl.Sentence]] = None,
     rules: Optional[Iterable[clingo_ast.AST]] = None,
     *,
-    logger: Callable[[clingo.MessageCode, str], None],
+    logger: Optional[Callable[[clingo.MessageCode, str], None]] = None,
     models: int = 0,
     parallel_mode: ParallelMode = 1,
 ) -> clingo.Control:
