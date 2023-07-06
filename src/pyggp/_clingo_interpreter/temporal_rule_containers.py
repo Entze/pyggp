@@ -1,5 +1,6 @@
+import collections
 from dataclasses import dataclass
-from typing import Iterator, Mapping, MutableMapping, Optional, Sequence, Tuple, Union
+from typing import Iterator, Mapping, MutableMapping, Optional, Sequence, Set, Tuple, Union
 
 import clingo
 from clingo import ast as clingo_ast
@@ -142,35 +143,53 @@ class TemporalRuleContainer:
     ) -> Tuple[Categorization, Categorization]:
         static_categorization: MutableCategorization = {**base_static_categorization}
         dynamic_categorization: MutableCategorization = {**base_dynamic_categorization}
-        body_only_signatures = set()
+        body_only_signatures: Set[gdl.Relation.Signature] = set()
+        bodysignature_to_headsignatures: MutableMapping[
+            gdl.Relation.Signature,
+            Set[gdl.Relation.Signature],
+        ] = collections.defaultdict(set)
+        for sentence in sentences:
+            head, body = sentence.head, sentence.body
+            for literal in body:
+                bodysignature_to_headsignatures[literal.atom.signature].add(head.signature)
+                if not any(
+                    literal.atom.signature in categorization
+                    for categorization in (
+                        static_categorization,
+                        dynamic_categorization,
+                        base_statemachine_categorization,
+                    )
+                ):
+                    body_only_signatures.add(literal.atom.signature)
+
+        dynamic_signatures = set(dynamic_categorization.keys())
         changes = True
         while changes:
-            changes = False
-            for sentence in sentences:
-                head, body = sentence.head, sentence.body
-                body_only_signatures.update(
-                    literal.atom.signature
-                    for literal in body
-                    if not literal.is_comparison
-                    and not any(
-                        literal.atom.signature in signatures
-                        for signatures in (static_categorization, dynamic_categorization)
-                    )
-                )
-                if any(
-                    head.signature in signatures
-                    for signatures in (static_categorization, dynamic_categorization, base_statemachine_categorization)
-                ):
-                    continue
-                changes = True
-                if any(literal.atom.signature in dynamic_categorization for literal in body):
-                    dynamic_categorization[head.signature] = TemporalInformation.dynamic(name=head.name)
-                    body_only_signatures.discard(head.signature)
-                else:
-                    static_categorization[head.signature] = TemporalInformation.static(name=head.name)
+            dynamic_signature_len = len(dynamic_signatures)
+            for signature, signatures in bodysignature_to_headsignatures.items():
+                if signature in dynamic_signatures:
+                    dynamic_signatures.update(signatures)
+            changes = dynamic_signature_len < len(dynamic_signatures)
+
+        for sentence in sentences:
+            head = sentence.head
+            body_only_signatures.discard(head.signature)
+            if any(
+                head.signature in signatures
+                for signatures in (static_categorization, dynamic_categorization, base_statemachine_categorization)
+            ):
+                continue
+            if head.signature in dynamic_signatures:
+                dynamic_categorization[head.signature] = TemporalInformation.dynamic(name=head.name)
+            else:
+                static_categorization[head.signature] = TemporalInformation.static(name=head.name)
 
         for signature in body_only_signatures:
-            static_categorization[signature] = TemporalInformation.static(name=signature.name)
+            static_categorization[signature] = TemporalInformation(name=signature.name)
+
+        assert set(static_categorization.keys()).isdisjoint(
+            dynamic_categorization.keys(),
+        ), "Guarantee: categorizations are disjoint"
         return static_categorization, dynamic_categorization
 
 
