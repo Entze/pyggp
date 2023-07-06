@@ -2,7 +2,7 @@ import pathlib
 
 import pyggp.game_description_language as gdl
 from pyggp.engine_primitives import Role
-from pyggp.interpreters import ClingoInterpreter, ClingoRegroundingInterpreter
+from pyggp.interpreters import ClingoRegroundingInterpreter
 
 kalaha_str: str = pathlib.Path("../src/games/kalaha(6,3).gdl").read_text()
 

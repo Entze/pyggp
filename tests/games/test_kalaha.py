@@ -4,7 +4,7 @@ from typing import Mapping, Optional
 import pyggp.game_description_language as gdl
 import pytest
 from pyggp.engine_primitives import Development, DevelopmentStep, Move, Role, State, Turn
-from pyggp.interpreters import ClingoInterpreter, ClingoRegroundingInterpreter, Interpreter
+from pyggp.interpreters import ClingoRegroundingInterpreter, Interpreter
 from pyggp.records import PerfectInformationRecord
 
 
