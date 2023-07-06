@@ -4,7 +4,7 @@ from typing import Mapping, Optional
 import pyggp.game_description_language as gdl
 import pytest
 from pyggp.engine_primitives import Development, DevelopmentStep, Move, Role, State, Turn
-from pyggp.interpreters import ClingoInterpreter, Interpreter
+from pyggp.interpreters import ClingoInterpreter, ClingoRegroundingInterpreter, Interpreter
 from pyggp.records import PerfectInformationRecord
 
 
@@ -20,7 +20,7 @@ def kalaha_ruleset(kalaha_str) -> gdl.Ruleset:
 
 @pytest.fixture(scope="session")
 def kalaha_interpreter(kalaha_ruleset) -> Interpreter:
-    return ClingoInterpreter.from_ruleset(kalaha_ruleset)
+    return ClingoRegroundingInterpreter.from_ruleset(kalaha_ruleset)
 
 
 @pytest.fixture()
@@ -363,19 +363,21 @@ def test_developments(kalaha_interpreter, north) -> None:
 
     record = PerfectInformationRecord(states={0: state, 1: next_state})
 
-    actual = kalaha_interpreter.get_developments(record)
+    actual = tuple(kalaha_interpreter.get_developments(record))
 
-    expected = Development(
-        (
-            DevelopmentStep(
-                state=state,
-                turn=turn,
-            ),
-            DevelopmentStep(
-                state=next_state,
-                turn=None,
+    expected = (
+        Development(
+            (
+                DevelopmentStep(
+                    state=state,
+                    turn=turn,
+                ),
+                DevelopmentStep(
+                    state=next_state,
+                    turn=None,
+                ),
             ),
         ),
     )
 
-    assert tuple(actual) == expected
+    assert actual == expected

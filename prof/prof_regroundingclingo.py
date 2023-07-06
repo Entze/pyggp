@@ -9,7 +9,7 @@ from pyggp._clingo_interpreter.base import _get_ctl, _get_model, _transform_mode
 from pyggp.engine_primitives import Move, Role, State
 from pyggp.interpreters import Interpreter
 
-from prof.prof_common_kalaha import kalaha_ruleset
+from prof.prof_common_kalaha43 import kalaha_ruleset
 
 
 def solve(

@@ -3,7 +3,7 @@ from pyggp.agents import MCTSAgent
 from pyggp.engine_primitives import View
 from pyggp.gameclocks import GameClock
 
-from prof.prof_common_kalaha import kalaha_init_state, kalaha_interpreter, kalaha_north
+from prof.prof_common_kalaha66 import kalaha_init_state, kalaha_interpreter, kalaha_north
 
 agent = MCTSAgent(interpreter=kalaha_interpreter)
 
@@ -15,7 +15,10 @@ with agent:
         playclock_config=GameClock.Configuration(total_time=2.5, delay=2.5),
     )
 
-    agent.calculate_move(0, 2_500_000, View(kalaha_init_state))
+    agent.update(0, View(kalaha_init_state), 100_000_000)
 
     for _ in tqdm.trange(100):
         agent.step()
+
+    print(agent.tree.valuation)
+    print("\n".join(f"{turn} -> {child.valuation}" for turn, child in agent.tree.children.items()))
