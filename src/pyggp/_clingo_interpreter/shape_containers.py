@@ -5,7 +5,9 @@ from typing import DefaultDict, Set
 import clingo
 from typing_extensions import Self
 
+import pyggp._clingo as clingo_helper
 import pyggp.game_description_language as gdl
+from pyggp._clingo_interpreter.base import _get_ctl
 from pyggp._clingo_interpreter.control_containers import ControlContainer
 from pyggp.engine_primitives import ActionShape, GoalShape, Move, Role, SeesShape, StateShape
 from pyggp.exceptions.interpreter_exceptions import GoalNotIntegerInterpreterError
@@ -25,6 +27,16 @@ class ShapeContainer:
         action_shape = ShapeContainer.get_action_shape(control_container.next)
         sees_shape = ShapeContainer.get_sees_shape(control_container.sees)
         goal_shape = ShapeContainer.get_goal_shape(control_container.goal)
+        return cls(state_shape=state_shape, action_shape=action_shape, sees_shape=sees_shape, goal_shape=goal_shape)
+
+    @classmethod
+    def from_ruleset(cls, ruleset: gdl.Ruleset) -> Self:
+        ctl = _get_ctl(sentences=ruleset.rules, rules=clingo_helper.EXTERNALS)
+        ctl.ground()
+        state_shape = ShapeContainer.get_state_shape(ctl)
+        action_shape = ShapeContainer.get_action_shape(ctl)
+        sees_shape = ShapeContainer.get_sees_shape(ctl)
+        goal_shape = ShapeContainer.get_goal_shape(ctl)
         return cls(state_shape=state_shape, action_shape=action_shape, sees_shape=sees_shape, goal_shape=goal_shape)
 
     @staticmethod

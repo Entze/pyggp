@@ -16,7 +16,7 @@ from pyggp.exceptions.interpreter_exceptions import (
     UnsatTerminalInterpreterError,
 )
 from pyggp.game_description_language import Number, Relation, String, Subrelation
-from pyggp.interpreters import ClingoInterpreter, Interpreter
+from pyggp.interpreters import ClingoInterpreter, ClingoRegroundingInterpreter, Interpreter
 from pyggp.records import ImperfectInformationRecord, PerfectInformationRecord
 
 
@@ -52,7 +52,7 @@ def test_get_roles_in_control(view: View, expected: FrozenSet[Role]) -> None:
     assert actual == expected
 
 
-@pytest.fixture(params=[ClingoInterpreter.from_ruleset])
+@pytest.fixture(params=[ClingoInterpreter.from_ruleset, ClingoRegroundingInterpreter.from_ruleset])
 def interpreter_factory(request):
     return request.param
 
