@@ -148,6 +148,8 @@ class PerfectInformationRecord(Record):
             yield from get_as_facts(state, name="holds_at", post_arguments=(current_time,))
 
         for ply, state in self.states.items():
+            if ply == 0:
+                continue
             current_time = clingo_helper.create_symbolic_term(clingo.Number(ply))
             yield from get_as_assertions(
                 state,
