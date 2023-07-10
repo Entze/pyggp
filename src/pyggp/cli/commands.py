@@ -52,6 +52,7 @@ def match(
     files: List[pathlib.Path] = typer.Option(..., "--ruleset", "--file", "-f", show_default=False),
     startclock: List[str] = typer.Option(None, "--startclock", "-s", show_default=False),
     playclock: List[str] = typer.Option(None, "--playclock", "-p", show_default=False),
+    clairvoyant: List[str] = typer.Option(None, "--clairvoyant", "-c", show_default=False),
     visualizer: str = typer.Option(None, "--visualizer", show_default=False),
     default_agent: str = typer.Option("Human", "-d", "--default-agent", show_default=True),
     verbose: int = typer.Option(0, "--verbose", "-v", count=True, show_default=False),
@@ -67,6 +68,7 @@ def match(
         "files=%s, "
         "startclock=%s, "
         "playclock=%s, "
+        "clairvoyant=%s, "
         "visualizer=%s, "
         "default_agent=%s, "
         "log_level=%s",
@@ -74,6 +76,7 @@ def match(
         files,
         startclock,
         playclock,
+        clairvoyant,
         visualizer,
         default_agent,
         logging.getLevelName(log_level),
@@ -84,6 +87,7 @@ def match(
         role_agentspec_registry=registry,
         role_startclockconfiguration_registry=startclock,
         role_playclockconfiguration_registry=playclock,
+        clairvoyant_roles=clairvoyant,
         visualizer_str=visualizer,
         default_agent_str=default_agent,
     )
@@ -96,5 +100,6 @@ def match(
         role_to_agentfactory=match_params.role_to_agentfactory,
         role_to_startclockconfiguration=match_params.role_to_startclockconfiguration,
         role_to_playclockconfiguration=match_params.role_to_playclockconfiguration,
+        clairvoyant_roles=match_params.clairvoyant_roles,
         visualizer=match_params.visualizer,
     )

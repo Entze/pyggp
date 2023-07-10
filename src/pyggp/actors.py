@@ -21,6 +21,7 @@ class Actor(Protocol):
     startclock: Optional[GameClock]
     playclock: Optional[GameClock]
     is_human_actor: bool
+    is_clairvoyant: bool
 
     def send_start(
         self,
@@ -165,6 +166,7 @@ class LocalActor(_AbstractActor):
     startclock: Optional[GameClock] = None
     playclock: Optional[GameClock] = None
     is_human_actor: bool = False
+    is_clairvoyant: bool = False
 
     # endregion
 

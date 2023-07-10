@@ -4,6 +4,8 @@ import pathlib
 from dataclasses import dataclass
 from typing import (
     Callable,
+    FrozenSet,
+    Iterable,
     Mapping,
     MutableMapping,
     Sequence,
@@ -50,6 +52,7 @@ class MatchCommandParams:
     role_to_agentfactory: Mapping[Role, Callable[[], Agent]]
     role_to_startclockconfiguration: Mapping[Role, GameClock.Configuration]
     role_to_playclockconfiguration: Mapping[Role, GameClock.Configuration]
+    clairvoyant_roles: FrozenSet[Role]
     visualizer: Visualizer
 
     def __rich__(self) -> str:
@@ -84,6 +87,7 @@ def handle_match_command_args(
     role_agentspec_registry: Sequence[str],
     role_startclockconfiguration_registry: Sequence[str],
     role_playclockconfiguration_registry: Sequence[str],
+    clairvoyant_roles: Sequence[str],
     visualizer_str: str,
     default_agent_str: str,
 ) -> MatchCommandParams:
@@ -165,6 +169,9 @@ def handle_match_command_args(
         ),
     )
     log.debug("Mapped clock configurations to roles")
+    log.debug("Scan clairvoyant roles")
+    clairvoyant_roles = frozenset(get_role_from_str(role_str) for role_str in clairvoyant_roles)
+    log.debug("Scanned clairvoyant roles")
 
     with log_time(
         log=log,
@@ -193,6 +200,7 @@ def handle_match_command_args(
         role_to_agentfactory=role_to_agentfactory,
         role_to_startclockconfiguration=role_to_startclockconfiguration,
         role_to_playclockconfiguration=role_to_playclockconfiguration,
+        clairvoyant_roles=clairvoyant_roles,
         visualizer=visualizer,
     )
 
@@ -264,6 +272,7 @@ def run_local_match(
     role_to_agentfactory: Mapping[Role, Callable[[], Agent]],
     role_to_startclockconfiguration: Mapping[Role, GameClock.Configuration],
     role_to_playclockconfiguration: Mapping[Role, GameClock.Configuration],
+    clairvoyant_roles: Iterable[Role],
     visualizer: Visualizer,
 ) -> None:
     log.debug("Running match locally")
@@ -274,7 +283,8 @@ def run_local_match(
             agent = agent_factory()
             stack.enter_context(agent)
             is_human_actor = isinstance(agent, HumanAgent)
-            actor = LocalActor(agent=agent, is_human_actor=is_human_actor)
+            is_clairvoyant = role in clairvoyant_roles
+            actor = LocalActor(agent=agent, is_human_actor=is_human_actor, is_clairvoyant=is_clairvoyant)
             log.debug("Associating role %s with %s and with %s", rich(role), rich(agent), rich(actor))
             role_actor_map[role] = actor
 

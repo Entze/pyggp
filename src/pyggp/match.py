@@ -315,8 +315,13 @@ class _PlayProcessor(_SignalProcessor[Move, "_PlayProcessor.PlayArgs", Turn]):
         view: View
 
     def _get_signal_args(self, role: Role) -> PlayArgs:
-        view = self.interpreter.get_sees_by_role(current=self.state, role=role)
-        return _PlayProcessor.PlayArgs(actor=self.role_actor_map[role], ply=self.ply, view=view)
+        actor = self.role_actor_map[role]
+        view = (
+            self.interpreter.get_sees_by_role(current=self.state, role=role)
+            if not actor.is_clairvoyant
+            else View(self.state)
+        )
+        return _PlayProcessor.PlayArgs(actor=actor, ply=self.ply, view=view)
 
     def _signal(self, *, actor: Actor, ply: int, view: View) -> Future_Move:
         return self.executor.submit(actor.send_play, ply=ply, view=view)
