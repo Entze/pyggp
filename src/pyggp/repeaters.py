@@ -1,8 +1,9 @@
+import itertools
 import logging
 import math
 import time
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable, Deque, Final, Generic, Optional, Tuple, TypeVar
 
 import more_itertools
@@ -20,35 +21,50 @@ log = logging.getLogger("pyggp")
 @dataclass
 class Repeater(Generic[T]):
     func: Callable[P, T]
-    timeout_ns: int
+    timeout_ns: Optional[int]
+    max_repeats: Optional[int] = None
     shortcircuit: Optional[Callable[P, bool]] = None
-    tail: int = 5
+    tail: int = 100
     weights: Optional[Tuple[float, ...]] = None
     slack: float = 1.0
+    _start_ns: int = field(init=False, repr=False, default=0)
+    _calls: int = field(init=False, repr=False, default=0)
+    _avg_delta_ns: float = field(init=False, repr=False, default=0.0)
+
+    def __post_init__(self):
+        if self.timeout_ns is None and self.max_repeats is None and self.shortcircuit is None:
+            log.warning(
+                "Repeater has no timeout, max_repeats or shortcircuit. No exit condition, likely to loop forever.",
+            )
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Tuple[int, int]:
         if self.timeout_ns == 0:
             return 0, 0
         weights = self.weights
         if weights is None:
-            weights = (1, *(2**i for i in range(0, self.tail - 1)))
+            weights = tuple(itertools.repeat(1, self.tail))
         weights = weights[: self.tail]
         deltas_ns: Deque[int] = deque(maxlen=self.tail)
-        calls: int = 0
-        start_ns: int = time.monotonic_ns()
-        end_ns: int = time.monotonic_ns() + self.timeout_ns
-        avg_delta_ns: float = 0.0
-        while time.monotonic_ns() + avg_delta_ns * self.slack < end_ns and not self._shortcircuit(*args, **kwargs):
+        self._start_ns = time.monotonic_ns()
+        while self.should_loop(*args, **kwargs):
             last_delta_ns = time.monotonic_ns()
             self.func(*args, **kwargs)
             last_delta_ns = time.monotonic_ns() - last_delta_ns
             deltas_ns.append(last_delta_ns)
-            avg_delta_ns = more_itertools.dotproduct(weights, deltas_ns) / sum(weights[: len(deltas_ns)])
-            calls += 1
+            self._avg_delta_ns = more_itertools.dotproduct(weights, deltas_ns) / sum(weights[: len(deltas_ns)])
+            self._calls += 1
 
-        return calls, (time.monotonic_ns() - start_ns)
+        return self._calls, (time.monotonic_ns() - self._start_ns)
+
+    def should_loop(self, *args: P.args, **kwargs: P.kwargs) -> bool:
+        return (
+            (
+                self.timeout_ns is None
+                or self.timeout_ns > ((time.monotonic_ns() - self._start_ns) + self._avg_delta_ns * self.slack)
+            )
+            and (self.max_repeats is None or self.max_repeats > self._calls)
+            and (self.shortcircuit is None or not self._shortcircuit(*args, **kwargs))
+        )
 
     def _shortcircuit(self, *args: P.args, **kwargs: P.kwargs) -> bool:
-        if self.shortcircuit is None:
-            return False
-        return self.shortcircuit(*args, **kwargs)
+        return self.shortcircuit is not None and self.shortcircuit(*args, **kwargs)
