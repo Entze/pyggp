@@ -111,9 +111,7 @@ class Visualizer(abc.ABC):
         kwargs = argument_specification.kwargs
 
         try:
-            module_name, class_name = name.rsplit(".", maxsplit=1)
-            module = importlib.import_module(module_name)
-            module_type = getattr(module, class_name)
+            module_type = argument_specification.load()
         except (ValueError, ModuleNotFoundError, AttributeError):
             raise VisualizerNotFoundCLIError(name=name, args=args, kwargs=kwargs)
         module_factory = getattr(module_type, "from_cli", module_type)

@@ -126,14 +126,10 @@ def load_agentfactory_by_specification(spec: ArgumentSpecification) -> Callable[
         if name_casefold == builtin_agent_name.casefold():
             return functools.partial(builtin_agent_type, *spec.args, **spec.kwargs)
     try:
-        module_name, class_name = spec.name.rsplit(".", maxsplit=1)
-        module = importlib.import_module(module_name)
-        agent_type: Type[Agent] = getattr(module, class_name)
+        agent_type = spec.load()
     except (ValueError, ModuleNotFoundError, AttributeError):
         raise AgentNotFoundCLIError(spec) from None
-    if hasattr(agent_type, "from_cli"):
-        return functools.partial(agent_type.from_cli, *spec.args, **spec.kwargs)
-    return functools.partial(agent_type, *spec.args, **spec.kwargs)
+    return functools.partial(getattr(agent_type, "from_cli", agent_type), *spec.args, **spec.kwargs)
 
 
 def check_roles(required_roles: Collection[Role], received_roles: Collection[Role]) -> None:

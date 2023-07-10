@@ -1,8 +1,11 @@
+import importlib
 from dataclasses import dataclass, field
-from typing import Mapping, Sequence, Tuple
+from typing import Mapping, Sequence, Tuple, Type, TypeVar
 
 import lark
 from typing_extensions import Self
+
+_T_co = TypeVar("_T_co", covariant=True)
 
 
 @dataclass(frozen=True)
@@ -24,6 +27,11 @@ class ArgumentSpecification:
         if not self.args:
             return f"{self.name}({', '.join(f'{k}={v}' for k, v in self.kwargs.items())})"
         return f"{self.name}({', '.join(self.args), ', '.join(f'{k}={v}' for k, v in self.kwargs.items())})"
+
+    def load(self) -> Type[_T_co]:
+        modulename, classname = self.name.rsplit(".", 1)
+        module = importlib.import_module(modulename)
+        return getattr(module, classname)
 
 
 grammar = r"""
