@@ -13,11 +13,15 @@ from typing import (
     Optional,
     Tuple,
     TypeVar,
+    Union,
     cast,
 )
 
+from typing_extensions import Self
+
 import pyggp.game_description_language as gdl
-from pyggp._logging import format_amount, format_ns, format_rate_ns, log_time, rich
+from pyggp._logging import format_amount, format_id, format_ns, format_rate_ns, log_time, rich
+from pyggp.agents import InterpreterAgent
 from pyggp.agents.tree_agents.agents import ONE_S_IN_NS, AbstractTreeAgent, TreeAgent
 from pyggp.agents.tree_agents.evaluators import Evaluator, final_goal_normalized_utility_evaluator
 from pyggp.agents.tree_agents.mcts.evaluators import LightPlayoutEvaluator
@@ -36,7 +40,7 @@ from pyggp.agents.tree_agents.nodes import (
 from pyggp.books import Book, BookBuilder
 from pyggp.engine_primitives import Move, Role, State, Turn, View
 from pyggp.gameclocks import GameClock
-from pyggp.interpreters import Interpreter
+from pyggp.interpreters import ClingoInterpreter, Interpreter
 from pyggp.records import ImperfectInformationRecord, PerfectInformationRecord, Record
 from pyggp.repeaters import Repeater
 
@@ -52,6 +56,7 @@ _MCTSEvaluation = Tuple[_BookValue, _Total_Playouts, _Utility]
 
 class MonteCarloTreeSearchAgent(TreeAgent[_K, _MCTSEvaluation]):
     step_repeater: Optional[Repeater[None]]
+    max_mcts_iterations: Optional[int]
 
     def step(self) -> None:
         ...
@@ -59,6 +64,33 @@ class MonteCarloTreeSearchAgent(TreeAgent[_K, _MCTSEvaluation]):
 
 @dataclass
 class AbstractMCTSAgent(AbstractTreeAgent[_K, _MCTSEvaluation], MonteCarloTreeSearchAgent[_K], Generic[_K], abc.ABC):
+    max_mcts_iterations: Optional[int] = field(default=None, repr=False)
+
+    @classmethod
+    def from_cli(
+        cls,
+        max_mcts_iterations: Union[str, int, None] = None,
+        interpreter: Optional[str] = None,
+        *args: str,
+        **kwargs: str,
+    ) -> Self:
+        interpreter_factory = (
+            InterpreterAgent.interpreter_factory_from_spec_str(interpreter)
+            if interpreter is not None
+            else ClingoInterpreter.from_ruleset
+        )
+        if isinstance(max_mcts_iterations, str):
+            max_mcts_iterations = int(max_mcts_iterations)
+        return cls(*args, interpreter_factory=interpreter_factory, max_mcts_iterations=max_mcts_iterations, **kwargs)
+
+    def __rich__(self) -> str:
+        id_str = f"id={format_id(self)}"
+        interpreter_str = f"interpreter={rich(self.interpreter)}"
+        interpreter_factory_str = f"interpreter_factory={rich(self.interpreter_factory)}"
+        max_mcts_iterations_str = f"max_mcts_iterations={rich(self.max_mcts_iterations)}"
+        attributes_str = f"{id_str}, {interpreter_str}, {interpreter_factory_str}, {max_mcts_iterations_str}"
+        return f"{self.__class__.__name__}({attributes_str})"
+
     def search(self, search_time_ns: int) -> None:
         self.step_repeater.timeout_ns = search_time_ns
         with log_time(
@@ -135,6 +167,7 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
         self.step_repeater = Repeater(
             func=self.step,
             timeout_ns=playclock_config.delay_ns,
+            max_repeats=self.max_mcts_iterations,
             shortcircuit=self._can_lookup,
             slack=1.5,
         )
@@ -494,6 +527,7 @@ class MultiObserverInformationSetMCTSAgent(
         self.step_repeater = Repeater(
             func=self.step,
             timeout_ns=playclock_config.delay_ns,
+            max_repeats=self.max_mcts_iterations,
             shortcircuit=self._can_lookup,
             slack=1.5,
         )

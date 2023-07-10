@@ -2,18 +2,21 @@
 import abc
 import contextlib
 import difflib
+import functools
 import logging
 import random
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Final, MutableSequence, Optional, Protocol, Self, Sequence, Type
+from typing import TYPE_CHECKING, Any, Callable, Final, MutableSequence, Optional, Protocol, Self, Sequence, Type
 
 import rich.console as rich_console
 import rich.prompt as rich_prompt
 from rich import print
+from typing_extensions import ParamSpec
 
 import pyggp.game_description_language as gdl
 from pyggp._logging import format_id, rich
+from pyggp.cli.argument_specification import ArgumentSpecification
 from pyggp.engine_primitives import Move, Role, View
 from pyggp.gameclocks import GameClock
 from pyggp.interpreters import ClingoInterpreter, Interpreter
@@ -160,6 +163,9 @@ class _AbstractAgent(Agent, abc.ABC):
     # endregion
 
 
+_P = ParamSpec("_P")
+
+
 @dataclass
 class InterpreterAgent(_AbstractAgent, abc.ABC):
     """Base class for all agents that use an interpreter."""
@@ -171,9 +177,16 @@ class InterpreterAgent(_AbstractAgent, abc.ABC):
     startclock_config: Optional[GameClock.Configuration] = None
     playclock_config: Optional[GameClock.Configuration] = None
     interpreter: Optional[Interpreter] = field(default=None, repr=False)
-    interpreter_factory: Type[Interpreter] = field(default=ClingoInterpreter, repr=False)
+    interpreter_factory: Callable[_P, Interpreter] = field(default=ClingoInterpreter.from_ruleset, repr=False)
 
     # endregion
+
+    def __rich__(self) -> str:
+        id_str = f"id={format_id(self)}"
+        interpreter_str = f"interpreter={rich(self.interpreter)}"
+        interpreter_factory_str = f"interpreter_factory={rich(self.interpreter_factory)}"
+        attributes_str = f"{id_str}, {interpreter_str}, {interpreter_factory_str}"
+        return f"{self.__class__.__name__}({attributes_str})"
 
     def prepare_match(
         self,
@@ -198,7 +211,7 @@ class InterpreterAgent(_AbstractAgent, abc.ABC):
         self.startclock_config = startclock_config
         self.playclock_config = playclock_config
         if self.interpreter is None:
-            self.interpreter = self.interpreter_factory.from_ruleset(ruleset)
+            self.interpreter = self.interpreter_factory(ruleset=ruleset)
 
     def conclude_match(self, view: View) -> None:
         """Concludes the current match.
@@ -214,6 +227,13 @@ class InterpreterAgent(_AbstractAgent, abc.ABC):
         self.startclock_config = None
         self.playclock_config = None
         self.interpreter = None
+
+    @staticmethod
+    def interpreter_factory_from_spec_str(spec_str: str) -> Callable[[gdl.Ruleset], Interpreter]:
+        spec = ArgumentSpecification.from_str(spec_str)
+        interpreter_type = spec.load()
+        factory = getattr(interpreter_type, "from_ruleset", interpreter_type)
+        return functools.partial(factory, *spec.args, **spec.kwargs)
 
 
 @dataclass
