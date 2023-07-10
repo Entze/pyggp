@@ -2,6 +2,8 @@
 import pathlib
 from typing import Iterable, Mapping, Optional, Sequence
 
+from pyggp._logging import rich
+from pyggp.cli.argument_specification import ArgumentSpecification
 from pyggp.engine_primitives import Role
 
 
@@ -58,9 +60,9 @@ class RolesMismatchCLIError(CLIError):
 class AgentNotFoundCLIError(CLIError):
     """Agent is not found."""
 
-    def __init__(self, name: Optional[str] = None) -> None:
+    def __init__(self, spec: Optional[ArgumentSpecification] = None) -> None:
         """Initializes AgentNotFoundCLIError."""
-        agent_message = f" '{name}'" if name else ""
+        agent_message = f" '{rich(spec)}'" if spec else ""
         message = f"Agent{agent_message} not found"
 
         super().__init__(message)

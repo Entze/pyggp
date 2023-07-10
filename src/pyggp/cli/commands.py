@@ -53,6 +53,7 @@ def match(
     startclock: List[str] = typer.Option(None, "--startclock", "-s", show_default=False),
     playclock: List[str] = typer.Option(None, "--playclock", "-p", show_default=False),
     visualizer: str = typer.Option(None, "--visualizer", show_default=False),
+    default_agent: str = typer.Option("Human", "-d", "--default-agent", show_default=True),
     verbose: int = typer.Option(0, "--verbose", "-v", count=True, show_default=False),
     quiet: int = typer.Option(0, "--quiet", "-q", count=True, show_default=False),
 ) -> None:
@@ -67,21 +68,24 @@ def match(
         "startclock=%s, "
         "playclock=%s, "
         "visualizer=%s, "
+        "default_agent=%s, "
         "log_level=%s",
         registry,
         files,
         startclock,
         playclock,
         visualizer,
+        default_agent,
         logging.getLevelName(log_level),
     )
 
     match_params = handle_match_command_args(
         files=files,
-        role_agentname_registry=registry,
+        role_agentspec_registry=registry,
         role_startclockconfiguration_registry=startclock,
         role_playclockconfiguration_registry=playclock,
         visualizer_str=visualizer,
+        default_agent_str=default_agent,
     )
 
     log.debug("Starting match with the following parameters: %s", rich(match_params))
@@ -89,8 +93,7 @@ def match(
     run_local_match(
         ruleset=match_params.ruleset,
         interpreter=match_params.interpreter,
-        agentname_to_agenttype=match_params.agentname_to_agenttype,
-        role_to_agentname=match_params.role_to_agentname,
+        role_to_agentfactory=match_params.role_to_agentfactory,
         role_to_startclockconfiguration=match_params.role_to_startclockconfiguration,
         role_to_playclockconfiguration=match_params.role_to_playclockconfiguration,
         visualizer=match_params.visualizer,

@@ -16,6 +16,15 @@ class ArgumentSpecification:
         tree = parser.parse(spec)
         return transformer.transform(tree)
 
+    def __rich__(self) -> str:
+        if not self.args and not self.kwargs:
+            return self.name
+        if not self.kwargs:
+            return f"{self.name}({', '.join(self.args)})"
+        if not self.args:
+            return f"{self.name}({', '.join(f'{k}={v}' for k, v in self.kwargs.items())})"
+        return f"{self.name}({', '.join(self.args), ', '.join(f'{k}={v}' for k, v in self.kwargs.items())})"
+
 
 grammar = r"""
 

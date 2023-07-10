@@ -1,3 +1,4 @@
+import functools
 import importlib
 import logging
 import pathlib
@@ -8,6 +9,7 @@ import rich.progress as rich_progress
 
 import pyggp.game_description_language as gdl
 from pyggp.agents import Agent, ArbitraryAgent, HumanAgent, RandomAgent
+from pyggp.cli.argument_specification import ArgumentSpecification
 from pyggp.engine_primitives import Role
 from pyggp.exceptions.cli_exceptions import AgentNotFoundCLIError, RolesMismatchCLIError, RulesetNotFoundCLIError
 
@@ -118,27 +120,20 @@ def get_role_from_str(string: str) -> Role:
     return Role(transformation)
 
 
-def get_agentname_from_str(string: str) -> str:
-    for builtin_agent_name in _BUILTIN_AGENTS:
-        for variation in (string, string.casefold().replace("agent", "")):
-            if variation.casefold() == builtin_agent_name.casefold():
-                return builtin_agent_name.capitalize()
-
-    return string
-
-
-def load_agent_by_name(name: str) -> Type[Agent]:
-    name_casefold = name.casefold()
+def load_agentfactory_by_specification(spec: ArgumentSpecification) -> Callable[[], Agent]:
+    name_casefold = spec.name.casefold()
     for builtin_agent_name, builtin_agent_type in _BUILTIN_AGENTS.items():
         if name_casefold == builtin_agent_name.casefold():
-            return builtin_agent_type
+            return functools.partial(builtin_agent_type, *spec.args, **spec.kwargs)
     try:
-        module_name, class_name = name.rsplit(".", maxsplit=1)
+        module_name, class_name = spec.name.rsplit(".", maxsplit=1)
         module = importlib.import_module(module_name)
         agent_type: Type[Agent] = getattr(module, class_name)
     except (ValueError, ModuleNotFoundError, AttributeError):
-        raise AgentNotFoundCLIError(name) from None
-    return agent_type
+        raise AgentNotFoundCLIError(spec) from None
+    if hasattr(agent_type, "from_cli"):
+        return functools.partial(agent_type.from_cli, *spec.args, **spec.kwargs)
+    return functools.partial(agent_type, *spec.args, **spec.kwargs)
 
 
 def check_roles(required_roles: Collection[Role], received_roles: Collection[Role]) -> None:
