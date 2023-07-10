@@ -46,6 +46,8 @@ class Repeater(Generic[T]):
         weights = weights[: self.tail]
         deltas_ns: Deque[int] = deque(maxlen=self.tail)
         self._start_ns = time.monotonic_ns()
+        self._calls = 0
+        self._avg_delta_ns = 0.0
         while self.should_loop(*args, **kwargs):
             last_delta_ns = time.monotonic_ns()
             self.func(*args, **kwargs)
