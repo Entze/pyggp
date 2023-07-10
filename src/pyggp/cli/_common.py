@@ -1,9 +1,8 @@
 import functools
-import importlib
 import logging
 import pathlib
 import sys
-from typing import Callable, Collection, Final, Iterable, Iterator, Optional, Sequence, Tuple, Type, TypeVar
+from typing import Callable, Collection, Final, Iterable, Iterator, Optional, Sequence, Tuple, TypeVar
 
 import rich.progress as rich_progress
 

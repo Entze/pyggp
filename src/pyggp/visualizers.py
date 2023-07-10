@@ -2,7 +2,6 @@
 import abc
 import collections
 import functools
-import importlib
 import pathlib
 import re
 import sys
