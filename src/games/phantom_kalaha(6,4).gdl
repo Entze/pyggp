@@ -1,0 +1,235 @@
+houses(6).
+stones(4).
+
+suc(0,1). suc(1,2). suc(2,3). suc(3,4). suc(4,5). suc(5,6). suc(6,7). suc(7,8). suc(8,9). suc(9,10). suc(10,11).
+suc(11,12). suc(12,13). suc(13,14). suc(14,15). suc(15,16). suc(16,17). suc(17,18). suc(18,19). suc(19,20). suc(20,21).
+suc(21,22). suc(22,23). suc(23,24). suc(24,25). suc(25,26). suc(26,27). suc(27,28). suc(28,29). suc(29,30). suc(30,31).
+suc(31,32). suc(32,33). suc(33,34). suc(34,35). suc(35,36). suc(36,37). suc(37,38). suc(38,39). suc(39,40). suc(40,41).
+suc(41,42). suc(42,43). suc(43,44). suc(44,45). suc(45,46). suc(46,47). suc(47,48).
+
+role(north).
+role(south).
+
+house(H) :- houses(Houses),
+    lt(0, H), lt(H, Houses1),
+    suc(Houses, Houses1).
+
+
+opposites(House1,House2) :-
+    house(House1), house(House2), houses(Houses),
+    suc(Houses, Houses1),
+    plus(House1, House2, Houses1).
+
+
+dom(D) :- suc(D,_).
+dom(D) :- suc(_,D).
+maxdom(D) :- dom(D), not suc(D,_).
+
+
+lt(A,B) :- suc(A,B).
+lt(A,C) :- suc(A,B), lt(B,C).
+
+
+plus(0,B,B) :- dom(B).
+plus(1,B,S) :- suc(B,S).
+plus(A1,B,S1) :- suc(A,A1), suc(S,S1), plus(A,B,S).
+plus(A,B,S) :- plus(B,A,S).
+
+
+after(Role1, (Role2, House), (Role2, House1)) :-
+    role(Role1), role(Role2), house(House), house(House1),
+    suc(House, House1).
+
+after(Role, (Role, House), (Role, store)) :-
+    role(Role), house(House), houses(House).
+
+after(Role1, (Role1, store), (Role2, 1)) :-
+    role(Role1), role(Role2), distinct(Role1,Role2).
+
+after(Role1, (Role2, House), (Role1, 1)) :-
+    role(Role1), role(Role2), house(House), houses(House), distinct(Role1,Role2).
+
+
+init(control(north)).
+init(store(Role,0)) :- role(Role).
+init(house(Role,House,Stones)) :-
+    role(Role), house(House), stones(Stones).
+
+
+next(control(Role2)) :-
+    role(Role2), role(Role1), distinct(Role1,Role2),
+    true(control(Role1)),
+    not move_again.
+
+next(control(Role)) :-
+    role(Role),
+    true(control(Role)),
+    move_again.
+
+next(house(Role,House,Stones)) :-
+    role(Role), house(House),
+    inhouse(Role,House,Stones).
+
+next(store(Role,Stones)) :-
+    role(Role),
+    instore(Role,Stones).
+
+next(store(Role2,Stones)) :-
+    role(Role2), role(Role1), distinct(Role1,Role2),
+    true(control(Role1)),
+    true(store(Role2, Stones)).
+
+move_again :-
+    role(Role),
+    reaches(Role,store,0),
+    does(Role,_).
+
+reaches(Role,Loc,Stones) :-
+    role(Role), house(House),
+    after(Role,(Role,House), (Role,Loc)),
+    suc(Stones, Stones1),
+    true(house(Role,House,Stones1)),
+    does(Role,House).
+
+reaches(Role2,Loc2,Stones) :-
+    role(Role), role(Role1), role(Role2),
+    after(Role,(Role1,Loc1),(Role2,Loc2)),
+    suc(Stones, Stones1),
+    reaches(Role1,Loc1,Stones1),
+    does(Role,_).
+
+inhouse(Role,House,Stones) :-
+    role(Role), house(House),
+    plus(Untaken,Taken,OldStones), plus(Untaken,DropIn,DroppedIn), plus(Stones,Captured,DroppedIn),
+    taken(Role,House,Taken), dropin(Role,House,DropIn), capture(Role,House,Captured),
+    true(house(Role,House,OldStones)).
+
+instore(Role,Stones) :-
+    role(Role),
+    plus(DropIn,Captured,NewStones),plus(OldStones,NewStones,Stones),
+    dropin(Role,store,DropIn), capture(Role,Captured),
+    true(store(Role,OldStones)).
+
+
+taken(Role,House,0) :-
+    role(Role), house(House),
+    not does(Role,House).
+
+taken(Role,House,Stones) :-
+    role(Role), house(House),
+    true(house(Role,House,Stones)),
+    does(Role,House).
+
+dropin(Role,Loc,DropIn) :-
+    role(Role),
+    suc(DropIn, DropIn1),
+    dropinatleast(Role,Loc,DropIn),
+    not dropinatleast(Role,Loc,DropIn1).
+
+dropinatleast(Role,Loc,Stones) :- dropinatleast(Role,Loc,Hover,Stones).
+
+dropinatleast(Role,House,MaxHover,0) :-
+    role(Role), house(House), maxdom(MaxHover).
+dropinatleast(Role,store,MaxHover,0) :-
+    role(Role), maxdom(MaxHover).
+
+dropinatleast(Role,Loc,Hover,Stones1) :-
+    role(Role),
+    lt(Hover,OldHover),
+    suc(Stones,Stones1),
+    reaches(Role,Loc,Hover),
+    dropinatleast(Role,Loc,OldHover,Stones).
+
+
+capture(Role,House,Capture) :-
+    role(Role), house(House),
+    suc(Capture,Capture1),
+    captureatleast(Role,House,Capture),
+    not captureatleast(Role,House,Capture1).
+
+captureatleast(Role,House,0) :-
+    role(Role), house(House),
+    not captures(Role,House).
+
+captureatleast(Role,House,Capture) :-
+    role(Role), house(House),
+    captures(Role,House),
+    plus(Untaken,DropIn,Capture),plus(Untaken,Taken,Stones),
+    taken(Role,House,Taken),
+    true(house(Role,House,Stones)),
+    dropinatleast(Role,House,DropIn).
+
+capture(Role,Capture) :-
+    role(Role),
+    suc(Capture,Capture1),
+    captureatleast(Role,Capture),
+    not captureatleast(Role,Capture1).
+
+captureatleast(Role,Capture) :-
+    role(Role), house(House), houses(House),
+    capturecumulativeatleast(Role,(Role,House),Capture).
+
+capturecumulativeatleast(Role1,(Role2,1),Capture) :-
+    role(Role1), role(Role2), distinct(Role1,Role2),
+    captureatleast(Role2,1,Capture),
+    does(Role1,_).
+capturecumulativeatleast(Role1,(Role2,House),CumulativeCapture) :-
+    role(Role1), role(Role2), house(House),
+    after(Role1,PrevLoc,(Role2,House)),
+    plus(PrevCumulativeCapture,Capture,CumulativeCapture),
+    capturecumulativeatleast(Role1,PrevLoc,PrevCumulativeCapture),
+    captureatleast(Role2,House,Capture).
+
+captures(Role1,House1) :- captures(Role1,House1,Role2,House2).
+captures(Role2,House2) :- captures(Role1,House1,Role2,House2).
+
+captures(Role1,House1,Role2,House2) :-
+    role(Role1), house(House1), role(Role2), house(House2), distinct(Role1,Role2),
+    opposites(House1,House2),
+    reaches(Role1,House1,0), taken(Role1,House1,Stones),
+    not dropinatleast(Role1,House1,2),
+    true(house(Role1,House1,Stones)),
+    does(Role1,_).
+
+sees(Everyone, control(Role)) :-
+    role(Everyone), role(Role), true(control(Role)).
+
+sees(Role, house(Role,House,Stones)) :-
+    role(Role), house(House),
+    true(house(Role,House,Stones)).
+
+sees(Role, store(Role,Stones)) :-
+    role(Role),
+    true(store(Role,Stones)).
+
+legal(Role,House) :-
+    role(Role), house(House),
+    not true(house(Role,House,0)).
+
+
+goal(Role,Stones) :-
+    role(Role),
+    onside(Role,Stones).
+
+onside(Role,Stones) :-
+    role(Role), house(House), houses(House),
+    onside(Role,House,Stones).
+
+onside(Role,0,Stones) :-
+    role(Role),
+    true(store(Role,Stones)).
+onside(Role,House,Stones) :-
+    role(Role), house(House),
+    suc(PrevHouse,House), plus(PrevStones,HouseStones,Stones),
+    onside(Role,PrevHouse,PrevStones),
+    true(house(Role,House,HouseStones)).
+
+
+terminal :-
+    role(Role),
+    true(control(Role)),
+    not open(Role).
+
+open(Role) :-
+    role(Role), house(House),
+    not true(house(Role,House,0)).
