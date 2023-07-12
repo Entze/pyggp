@@ -848,6 +848,18 @@ class ClingoRegroundingInterpreter(CachingInterpreter):
             disable_cache=disable_cache,
         )
 
+    @classmethod
+    def from_cli(
+        cls,
+        ruleset: gdl.Ruleset,
+        *args: str,
+        disable_cache: Union[str, bool] = False,
+        **kwargs: str,
+    ) -> Self:
+        if isinstance(disable_cache, str):
+            disable_cache = disable_cache.casefold() == "true" or disable_cache == "1"
+        return cls.from_ruleset(ruleset, *args, disable_cache=disable_cache, **kwargs)
+
     def _get_roles(self) -> FrozenSet[Role]:
         if self.clingo_ast_cache.roles is None:
             roles_rules = tuple(sentence.as_clingo_ast() for sentence in self.ruleset.role_rules)

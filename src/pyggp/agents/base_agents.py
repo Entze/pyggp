@@ -232,7 +232,7 @@ class InterpreterAgent(_AbstractAgent, abc.ABC):
     def interpreter_factory_from_spec_str(spec_str: str) -> Callable[[gdl.Ruleset], Interpreter]:
         spec = ArgumentSpecification.from_str(spec_str)
         interpreter_type = spec.load()
-        factory = getattr(interpreter_type, "from_ruleset", interpreter_type)
+        factory = getattr(interpreter_type, "from_cli", getattr(interpreter_type, "from_ruleset", interpreter_type))
         return functools.partial(factory, *spec.args, **spec.kwargs)
 
 

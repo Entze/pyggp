@@ -9,7 +9,7 @@ from pyggp.cli.argument_specification import ArgumentSpecification
     [
         ("name", "name", (), {}),
         ('name("arg1")', "name", ("arg1",), {}),
-        ("name(123)", "name", ("123",), {}),
+        ("name(123)", "name", (123,), {}),
         ('name("arg1", "arg2")', "name", ("arg1", "arg2"), {}),
         ('name(kwarg1="arg1")', "name", (), {"kwarg1": "arg1"}),
         ('name(kwarg1="arg1", kwarg2="arg2")', "name", (), {"kwarg1": "arg1", "kwarg2": "arg2"}),
@@ -20,6 +20,9 @@ from pyggp.cli.argument_specification import ArgumentSpecification
         ("module.class", "module.class", (), {}),
         ('module.class("argument")', "module.class", ("argument",), {}),
         ("name('single-quote')", "name", ("single-quote",), {}),
+        ("name(True)", "name", (True,), {}),
+        ("name(False)", "name", (False,), {}),
+        ("name(None)", "name", (None,), {}),
     ],
 )
 def test_from_str(

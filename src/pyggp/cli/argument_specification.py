@@ -1,6 +1,6 @@
 import importlib
 from dataclasses import dataclass, field
-from typing import Mapping, Sequence, Tuple, Type, TypeVar
+from typing import Mapping, Sequence, Tuple, Type, TypeVar, Union
 
 import lark
 from typing_extensions import Self
@@ -49,7 +49,12 @@ grammar = r"""
     arg: elem
     kwargs: kwarg ("," kwarg)*
     kwarg: CNAME "=" elem
-    elem: STRING | SIGNED_NUMBER
+    ?elem: string | num | boolean | none
+    string: STRING
+    num: SIGNED_NUMBER
+    ?boolean: "True" -> boolean_true
+        | "False" -> boolean_false
+    none: "None"
 
     _seperated{x, sep}: x (sep x)*
 
@@ -60,6 +65,9 @@ grammar = r"""
 """
 
 parser = lark.Lark(grammar=grammar, start="spec_argument", maybe_placeholders=True, parser="earley")
+
+Primitive = Union[str, int, bool, None]
+RawArgsAndKwargs = Tuple[Tuple[Primitive, ...], Mapping[str, Primitive]]
 
 
 class TreeToSpecTransformer(lark.Transformer[lark.Token, ArgumentSpecification]):
@@ -73,37 +81,48 @@ class TreeToSpecTransformer(lark.Transformer[lark.Token, ArgumentSpecification])
     def name(self, children: Sequence[lark.Token]) -> str:
         return ".".join(c.value for c in children)
 
-    def args_only(self, children: Sequence[lark.Token]) -> Tuple[Tuple[str, ...], Mapping[str, str]]:
+    def args_only(self, children: Sequence[lark.Token]) -> RawArgsAndKwargs:
         (args,) = children
         return tuple(args), {}
 
-    def kwargs_only(self, children: Sequence[lark.Token]) -> Tuple[Tuple[str, ...], Mapping[str, str]]:
+    def kwargs_only(self, children: Sequence[lark.Token]) -> RawArgsAndKwargs:
         (kwargs,) = children
         return (), kwargs
 
-    def args_and_kwargs(self, children: Sequence[lark.Token]) -> Tuple[Tuple[str, ...], Mapping[str, str]]:
+    def args_and_kwargs(self, children: Sequence[lark.Token]) -> RawArgsAndKwargs:
         args, kwargs = children
         return args, kwargs
 
-    def args(self, children: Sequence[lark.Token]) -> Tuple[str, ...]:
+    def args(self, children: Sequence[lark.Token]) -> Tuple[Primitive, ...]:
         return tuple(children)
 
-    def arg(self, children: Sequence[lark.Token]) -> str:
+    def arg(self, children: Sequence[lark.Token]) -> Primitive:
         (arg,) = children
         return arg
 
-    def kwargs(self, children: Sequence[lark.Token]) -> Mapping[str, str]:
+    def kwargs(self, children: Sequence[lark.Token]) -> Mapping[str, Primitive]:
         return {k: v for k, v in children}
 
-    def kwarg(self, children: Sequence[lark.Token]) -> Tuple[str, str]:
+    def kwarg(self, children: Sequence[lark.Token]) -> Tuple[str, Primitive]:
         head, tail = children
         return head.value, tail
 
-    def elem(self, children: Sequence[lark.Token]) -> str:
-        (elem,) = children
-        if elem.type == "STRING":
-            return elem.value[1:-1]
-        return elem.value
+    def string(self, children: Sequence[lark.Token]) -> str:
+        (string,) = children
+        return string.value[1:-1]
+
+    def num(self, children: Sequence[lark.Token]) -> int:
+        (num,) = children
+        return int(num.value)
+
+    def boolean_true(self, children: Sequence[lark.Token]) -> bool:
+        return True
+
+    def boolean_false(self, children: Sequence[lark.Token]) -> bool:
+        return False
+
+    def none(self, children: Sequence[lark.Token]) -> None:
+        return None
 
 
 transformer = TreeToSpecTransformer()
