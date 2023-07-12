@@ -54,6 +54,7 @@ def match(
     playclock: List[str] = typer.Option(None, "--playclock", "-p", show_default=False),
     clairvoyant: List[str] = typer.Option(None, "--clairvoyant", "-c", show_default=False),
     visualizer: str = typer.Option(None, "--visualizer", show_default=False),
+    interpreter: str = typer.Option("pyggp.interpreters.ClingoInterpreter", "-i", "--interpreter", show_default=True),
     default_agent: str = typer.Option("Human", "-d", "--default-agent", show_default=True),
     verbose: int = typer.Option(0, "--verbose", "-v", count=True, show_default=False),
     quiet: int = typer.Option(0, "--quiet", "-q", count=True, show_default=False),
@@ -70,6 +71,7 @@ def match(
         "playclock=%s, "
         "clairvoyant=%s, "
         "visualizer=%s, "
+        "interpreter=%s, "
         "default_agent=%s, "
         "log_level=%s",
         registry,
@@ -78,6 +80,7 @@ def match(
         playclock,
         clairvoyant,
         visualizer,
+        interpreter,
         default_agent,
         logging.getLevelName(log_level),
     )
@@ -89,6 +92,7 @@ def match(
         role_playclockconfiguration_registry=playclock,
         clairvoyant_roles=clairvoyant,
         visualizer_str=visualizer,
+        interpreter_str=interpreter,
         default_agent_str=default_agent,
     )
 

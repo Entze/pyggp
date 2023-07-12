@@ -1,4 +1,5 @@
 import contextlib
+import functools
 import logging
 import pathlib
 from dataclasses import dataclass
@@ -37,7 +38,7 @@ from pyggp.gameclocks import (
     DEFAULT_START_CLOCK_CONFIGURATION,
     GameClock,
 )
-from pyggp.interpreters import ClingoInterpreter, Interpreter
+from pyggp.interpreters import Interpreter
 from pyggp.match import Match
 from pyggp.visualizers import SimpleVisualizer, Visualizer
 
@@ -89,6 +90,7 @@ def handle_match_command_args(
     role_playclockconfiguration_registry: Sequence[str],
     clairvoyant_roles: Sequence[str],
     visualizer_str: str,
+    interpreter_str: str,
     default_agent_str: str,
 ) -> MatchCommandParams:
     log.debug("Handling [bold]match[/bold] command arguments")
@@ -100,14 +102,38 @@ def handle_match_command_args(
         raise typer.Exit(1) from None
     log.debug("Loaded ruleset")
 
+    try:
+        interpreter_spec = ArgumentSpecification.from_str(interpreter_str)
+    except lark_exceptions.UnexpectedInput:
+        log.error(f'Could not parse interpreter specification "{interpreter_str}"')
+        raise typer.Exit(1) from None
+
+    try:
+        interpreter_type = interpreter_spec.load()
+    except (ValueError, ModuleNotFoundError, AttributeError):
+        log.error(f'Could not load interpreter "{interpreter_spec}"')
+        raise typer.Exit(1) from None
+
+    interpreter_constructor = getattr(
+        interpreter_type,
+        "from_cli",
+        getattr(interpreter_type, "from_ruleset", interpreter_type),
+    )
+    interpreter_factory = functools.partial(
+        interpreter_constructor,
+        *interpreter_spec.args,
+        ruleset=ruleset,
+        **interpreter_spec.kwargs,
+    )
+
     with log_time(
         level=logging.DEBUG,
         log=log,
-        begin_msg="Instantiating interpreter",
-        end_msg="Instantiated interpreter",
+        begin_msg=f"Instantiating {rich(interpreter_spec)}",
+        end_msg=f"Instantiated {rich(interpreter_spec)}",
         abort_msg="Aborted instantiation of interpreter",
     ):
-        interpreter = ClingoInterpreter.from_ruleset(ruleset=ruleset)
+        interpreter = interpreter_factory()
     roles = interpreter.get_roles()
 
     try:

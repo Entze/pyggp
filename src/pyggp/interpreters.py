@@ -860,6 +860,20 @@ class ClingoRegroundingInterpreter(CachingInterpreter):
             disable_cache = disable_cache.casefold() == "true" or disable_cache == "1"
         return cls.from_ruleset(ruleset, *args, disable_cache=disable_cache, **kwargs)
 
+    def __rich__(self) -> str:
+        state_shape = self.shape_container.state_shape
+        state_shape_size_str = f"#P(state)={len(state_shape)}"
+        action_shape = self.shape_container.action_shape
+        all_moves = {move for moves in action_shape.values() for move in moves}
+        action_shape_size = len(all_moves)
+        action_shape_size_str = f"#P(action)={action_shape_size}"
+        information_str = f"\[{state_shape_size_str}, {action_shape_size_str}]"  # noqa: W605
+        ruleset_str = f"ruleset={rich(self.ruleset)}"
+        parallel_mode_str = f"parallel_mode={rich(self.parallel_mode)}"
+        attributes_str = f"{ruleset_str}, {parallel_mode_str}"
+
+        return f"{self.__class__.__name__}{information_str}({attributes_str})"
+
     def _get_roles(self) -> FrozenSet[Role]:
         if self.clingo_ast_cache.roles is None:
             roles_rules = tuple(sentence.as_clingo_ast() for sentence in self.ruleset.role_rules)
@@ -1130,20 +1144,6 @@ class ClingoInterpreter(ClingoRegroundingInterpreter):
             temporal_rule_container=temporal_rule_container,
             disable_cache=disable_cache,
         )
-
-    def __rich__(self) -> str:
-        state_shape = self.shape_container.state_shape
-        state_shape_size_str = f"#P(state)={len(state_shape)}"
-        action_shape = self.shape_container.action_shape
-        all_moves = {move for moves in action_shape.values() for move in moves}
-        action_shape_size = len(all_moves)
-        action_shape_size_str = f"#P(action)={action_shape_size}"
-        information_str = f"\[{state_shape_size_str}, {action_shape_size_str}]"  # noqa: W605
-        ruleset_str = f"ruleset={rich(self.ruleset)}"
-        parallel_mode_str = f"parallel_mode={rich(self.parallel_mode)}"
-        attributes_str = f"{ruleset_str}, {parallel_mode_str}"
-
-        return f"{self.__class__.__name__}{information_str}({attributes_str})"
 
     def _get_roles(self) -> FrozenSet[Role]:
         model = _get_model(self.control_container.role)
