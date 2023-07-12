@@ -111,8 +111,8 @@ class Visualizer(abc.ABC):
 
         try:
             module_type = argument_specification.load()
-        except (ValueError, ModuleNotFoundError, AttributeError):
-            raise VisualizerNotFoundCLIError(name=name, args=args, kwargs=kwargs)
+        except (ValueError, ModuleNotFoundError, AttributeError) as e:
+            raise VisualizerNotFoundCLIError(name=name, args=args, kwargs=kwargs) from e
         module_factory = getattr(module_type, "from_cli", module_type)
         return module_factory(*args, ruleset=ruleset, **kwargs)
 

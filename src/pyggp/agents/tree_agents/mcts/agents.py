@@ -733,9 +733,9 @@ class MultiObserverInformationSetMCTSAgent(
         self._backpropagate(tree=tree, trees=trees, utilities=utilities)
 
     def _recenter_trees(self, ply: int, determinization: State) -> Mapping[Role, ImperfectInformationNode[float]]:
-        states = {0: self.interpreter.get_init_state()}
-        if ply > 0:
-            states[ply] = determinization
+        if ply == 0:
+            return self.trees
+        states = {0: self.interpreter.get_init_state(), ply: determinization}
 
         record = self._gather_record(states=states)
         developments = self.interpreter.get_developments(record=record)
