@@ -5,12 +5,14 @@ import time
 from dataclasses import dataclass, field
 from typing import (
     Any,
+    Callable,
     FrozenSet,
     Generic,
     Iterator,
     Mapping,
     MutableMapping,
     Optional,
+    ParamSpec,
     Tuple,
     TypeVar,
     Union,
@@ -38,6 +40,7 @@ from pyggp.agents.tree_agents.nodes import (
     VisibleInformationSetNode,
 )
 from pyggp.books import Book, BookBuilder
+from pyggp.cli.argument_specification import ArgumentSpecification
 from pyggp.engine_primitives import Move, Role, State, Turn, View
 from pyggp.gameclocks import GameClock
 from pyggp.interpreters import ClingoInterpreter, Interpreter
@@ -57,20 +60,30 @@ _MCTSEvaluation = Tuple[_BookValue, _Total_Playouts, _Utility]
 class MonteCarloTreeSearchAgent(TreeAgent[_K, _MCTSEvaluation]):
     step_repeater: Optional[Repeater[None]]
     max_mcts_iterations: Optional[int]
+    max_expansion_depth: Optional[int]
 
     def step(self) -> None:
         ...
 
 
+_P = ParamSpec("_P")
+
+
 @dataclass
 class AbstractMCTSAgent(AbstractTreeAgent[_K, _MCTSEvaluation], MonteCarloTreeSearchAgent[_K], Generic[_K], abc.ABC):
     max_mcts_iterations: Optional[int] = field(default=None, repr=False)
+    max_expansion_depth: Optional[int] = field(default=None, repr=False)
+    selector_factory: Callable[_P, Selector[float, _K]] = field(default=UCTSelector, repr=False)
+    skip_book: bool = field(default=False, repr=False)
 
     @classmethod
     def from_cli(
         cls,
         max_mcts_iterations: Union[str, int, None] = None,
+        max_expansion_depth: Union[str, int, None] = None,
         interpreter: Optional[str] = None,
+        selector: Optional[str] = None,
+        skip_book: Union[str, bool] = False,
         *args: str,
         **kwargs: str,
     ) -> Self:
@@ -79,16 +92,40 @@ class AbstractMCTSAgent(AbstractTreeAgent[_K, _MCTSEvaluation], MonteCarloTreeSe
             if interpreter is not None
             else ClingoInterpreter.from_ruleset
         )
+        selector_factory = ArgumentSpecification.get_factory_from_str(selector) if selector is not None else UCTSelector
         if isinstance(max_mcts_iterations, str):
             max_mcts_iterations = int(max_mcts_iterations)
-        return cls(*args, interpreter_factory=interpreter_factory, max_mcts_iterations=max_mcts_iterations, **kwargs)
+        if isinstance(max_expansion_depth, str):
+            max_expansion_depth = int(max_expansion_depth)
+        if isinstance(skip_book, str):
+            skip_book = skip_book.casefold() in ("true", "1")
+        return cls(
+            *args,
+            interpreter_factory=interpreter_factory,
+            selector_factory=selector_factory,
+            max_mcts_iterations=max_mcts_iterations,
+            max_expansion_depth=max_expansion_depth,
+            skip_book=skip_book,
+            **kwargs,
+        )
 
     def __rich__(self) -> str:
         id_str = f"id={format_id(self)}"
         interpreter_str = f"interpreter={rich(self.interpreter)}"
         interpreter_factory_str = f"interpreter_factory={rich(self.interpreter_factory)}"
+        selector_factory_str = f"selector_factory={rich(self.selector_factory)}"
         max_mcts_iterations_str = f"max_mcts_iterations={rich(self.max_mcts_iterations)}"
-        attributes_str = f"{id_str}, {interpreter_str}, {interpreter_factory_str}, {max_mcts_iterations_str}"
+        max_expansion_depth_str = f"max_expansion_depth={rich(self.max_expansion_depth)}"
+        attributes_str = ", ".join(
+            (
+                id_str,
+                interpreter_str,
+                interpreter_factory_str,
+                selector_factory_str,
+                max_mcts_iterations_str,
+                max_expansion_depth_str,
+            )
+        )
         return f"{self.__class__.__name__}({attributes_str})"
 
     def search(self, search_time_ns: int) -> None:
@@ -162,7 +199,7 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
 
         self.tree = self._get_root()
 
-        self.selector = UCTSelector(self.role)
+        self.selector = self.selector_factory(role=self.role)
 
         self.step_repeater = Repeater(
             func=self.step,
@@ -190,8 +227,11 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
         assert self.interpreter is not None, "Requirement: interpreter is not None"
         assert self.evaluator is not None, "Requirement: evaluator is not None"
         node = self.tree
+        ply = node.depth
 
-        while node.children:
+        while node.children and (
+            self.max_expansion_depth is None or (node.depth - ply) < (self.max_expansion_depth - 1)
+        ):
             key = self.selector(node)
             node = node.children[key]
 
@@ -215,7 +255,7 @@ class AbstractSOMCTSAgent(AbstractMCTSAgent, SingleObserverMonteCarloTreeSearchA
         return False
 
     def _build_book(self, timeout_ns: int) -> Book[float]:
-        if timeout_ns < 10 * ONE_S_IN_NS:
+        if timeout_ns < 10 * ONE_S_IN_NS or self.skip_book:
             return {}
         build_time_ns = (timeout_ns * 9) // 10
 
@@ -378,6 +418,7 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
 
     def step(self) -> None:
         node = self.tree
+        ply = node.depth
         determinization: State = node.get_determinization()
 
         while (
@@ -385,6 +426,7 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
             and node.children
             and any(state == determinization for (state, _) in node.children)
             and not self.interpreter.is_terminal(determinization)
+            and (self.max_expansion_depth is None or (node.depth - ply) < (self.max_expansion_depth - 1))
         ):
             key = self.selector(node=node, state=determinization)
             node = node.children[key]
@@ -522,7 +564,7 @@ class MultiObserverInformationSetMCTSAgent(
         self.roles = self.interpreter.get_roles()
         self.trees = self._get_roots()
 
-        self.selectors = {role: UCTSelector(role) for role in self.roles}
+        self.selectors = {role: self.selector_factory(role=role) for role in self.roles}
 
         self.step_repeater = Repeater(
             func=self.step,
@@ -585,7 +627,7 @@ class MultiObserverInformationSetMCTSAgent(
         return tree.fully_enumerated
 
     def _build_books(self, timeout_ns: int) -> Optional[Mapping[Role, Book[float]]]:
-        if timeout_ns <= 10 * ONE_S_IN_NS:
+        if timeout_ns <= 10 * ONE_S_IN_NS or self.skip_book:
             return
         start = time.monotonic_ns()
         books = {}
@@ -701,6 +743,7 @@ class MultiObserverInformationSetMCTSAgent(
             and tree.children
             and not self.interpreter.is_terminal(determinization)
             and any(determinization == state for state, _ in tree.children)
+            and (self.max_expansion_depth is None or (tree.depth - ply) < (self.max_expansion_depth - 1))
         ):
             assert (
                 trees is not None
@@ -734,7 +777,7 @@ class MultiObserverInformationSetMCTSAgent(
 
     def _recenter_trees(self, ply: int, determinization: State) -> Mapping[Role, ImperfectInformationNode[float]]:
         if ply == 0:
-            return self.trees
+            return {role: tree for role, tree in self.trees.items() if role != self.role}
         states = {0: self.interpreter.get_init_state(), ply: determinization}
 
         record = self._gather_record(states=states)

@@ -134,7 +134,7 @@ class UCTSelector(Selector[_U_co, _K]):
             and child.valuation.total_playouts > 0
         }
         key_to_exploration_factor: Mapping[_K, float] = {
-            key: math.log(parent_total_playouts) / child.valuation.total_playouts
+            key: math.sqrt(math.log(parent_total_playouts) / child.valuation.total_playouts)
             for key, child in node.children.items()
             if parent_total_playouts > 0 and child.valuation is not None and hasattr(child.valuation, "total_playouts")
         }

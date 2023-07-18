@@ -1,10 +1,12 @@
+import functools
 import importlib
 from dataclasses import dataclass, field
-from typing import Mapping, Sequence, Tuple, Type, TypeVar, Union
+from typing import Callable, Mapping, ParamSpec, Sequence, Tuple, Type, TypeVar, Union
 
 import lark
 from typing_extensions import Self
 
+_P = ParamSpec("_P")
 _T_co = TypeVar("_T_co", covariant=True)
 
 
@@ -32,6 +34,13 @@ class ArgumentSpecification:
         modulename, classname = self.name.rsplit(".", 1)
         module = importlib.import_module(modulename)
         return getattr(module, classname)
+
+    @staticmethod
+    def get_factory_from_str(spec: str) -> Callable[_P, _T_co]:
+        spec = ArgumentSpecification.from_str(spec)
+        type_ = spec.load()
+        constructor = getattr(type_, "from_cli", type_)
+        return functools.partial(constructor, *spec.args, **spec.kwargs)
 
 
 grammar = r"""
