@@ -71,21 +71,21 @@ class GameClock:
         def total_time_ns(self) -> int:
             """Total time in nanoseconds."""
             if self.total_time == float("inf"):
-                return ONE_HOUR_IN_NS
+                return ONE_HOUR_IN_NS * 24
             return int(self.total_time * 1e9)
 
         @property
         def increment_ns(self) -> int:
             """Increment in nanoseconds."""
             if self.increment == float("inf"):
-                return ONE_HOUR_IN_NS
+                return ONE_HOUR_IN_NS * 24
             return int(self.increment * 1e9)
 
         @property
         def delay_ns(self) -> int:
             """Delay in nanoseconds."""
             if self.delay == float("inf"):
-                return ONE_HOUR_IN_NS
+                return ONE_HOUR_IN_NS * 24
             return int(self.delay * 1e9)
 
         # endregion
