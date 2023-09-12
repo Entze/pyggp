@@ -22,7 +22,7 @@ from typing import (
 from typing_extensions import Self
 
 import pyggp.game_description_language as gdl
-from pyggp._logging import format_amount, format_id, format_ns, format_rate_ns, log_time, rich
+from pyggp._logging import format_amount, format_id, format_ns, format_rate_ns, format_timedelta, log_time, rich
 from pyggp.agents import InterpreterAgent
 from pyggp.agents.tree_agents.agents import ONE_S_IN_NS, AbstractTreeAgent, TreeAgent
 from pyggp.agents.tree_agents.evaluators import Evaluator, final_goal_normalized_utility_evaluator
@@ -61,6 +61,7 @@ class MonteCarloTreeSearchAgent(TreeAgent[_K, _MCTSEvaluation]):
     step_repeater: Optional[Repeater[None]]
     max_mcts_iterations: Optional[int]
     max_expansion_depth: Optional[int]
+    max_fill_time_s: float
 
     def step(self) -> None:
         ...
@@ -73,6 +74,7 @@ _P = ParamSpec("_P")
 class AbstractMCTSAgent(AbstractTreeAgent[_K, _MCTSEvaluation], MonteCarloTreeSearchAgent[_K], Generic[_K], abc.ABC):
     max_mcts_iterations: Optional[int] = field(default=None, repr=False)
     max_expansion_depth: Optional[int] = field(default=None, repr=False)
+    max_fill_time_s: float = field(default=float("inf"), repr=False)
     selector_factory: Callable[_P, Selector[float, _K]] = field(default=UCTSelector, repr=False)
     skip_book: bool = field(default=False, repr=False)
 
@@ -81,6 +83,7 @@ class AbstractMCTSAgent(AbstractTreeAgent[_K, _MCTSEvaluation], MonteCarloTreeSe
         cls,
         max_mcts_iterations: Union[str, int, None] = None,
         max_expansion_depth: Union[str, int, None] = None,
+        max_fill_time_s: Union[str, float, None] = None,
         interpreter: Optional[str] = None,
         selector: Optional[str] = None,
         skip_book: Union[str, bool] = False,
@@ -99,12 +102,17 @@ class AbstractMCTSAgent(AbstractTreeAgent[_K, _MCTSEvaluation], MonteCarloTreeSe
             max_expansion_depth = int(max_expansion_depth)
         if isinstance(skip_book, str):
             skip_book = skip_book.casefold() in ("true", "1")
+        if isinstance(max_fill_time_s, (str, int)):
+            max_fill_time_s = float(max_fill_time_s)
+        elif max_fill_time_s is None:
+            max_fill_time_s = float("inf")
         return cls(
             *args,
             interpreter_factory=interpreter_factory,
             selector_factory=selector_factory,
             max_mcts_iterations=max_mcts_iterations,
             max_expansion_depth=max_expansion_depth,
+            max_fill_time_s=max_fill_time_s,
             skip_book=skip_book,
             **kwargs,
         )
@@ -116,6 +124,7 @@ class AbstractMCTSAgent(AbstractTreeAgent[_K, _MCTSEvaluation], MonteCarloTreeSe
         selector_factory_str = f"selector_factory={rich(self.selector_factory)}"
         max_mcts_iterations_str = f"max_mcts_iterations={rich(self.max_mcts_iterations)}"
         max_expansion_depth_str = f"max_expansion_depth={rich(self.max_expansion_depth)}"
+        max_fill_time_s_str = f"max_fill_time_s={format_timedelta(self.max_fill_time_s)}"
         attributes_str = ", ".join(
             (
                 id_str,
@@ -124,6 +133,7 @@ class AbstractMCTSAgent(AbstractTreeAgent[_K, _MCTSEvaluation], MonteCarloTreeSe
                 selector_factory_str,
                 max_mcts_iterations_str,
                 max_expansion_depth_str,
+                max_fill_time_s_str,
             )
         )
         return f"{self.__class__.__name__}({attributes_str})"
@@ -398,7 +408,10 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
             return
         total_quota = self.update_time_quota + self.search_time_quota
         fill_time_scale = self.update_time_quota / total_quota
-        fill_time_ns = self._get_timeout_ns(total_time_ns=total_time_ns, used_time_ns=used_time, scale=fill_time_scale)
+        max_time_ns = int(self.max_fill_time_s * ONE_S_IN_NS) if self.max_fill_time_s < float("inf") else None
+        fill_time_ns = self._get_timeout_ns(
+            total_time_ns=total_time_ns, used_time_ns=used_time, scale=fill_time_scale, max_time_ns=max_time_ns
+        )
         self.fill_repeater.timeout_ns = fill_time_ns
         with log_time(
             log=log,
@@ -704,7 +717,10 @@ class MultiObserverInformationSetMCTSAgent(
         used_time = time.monotonic_ns() - used_time
         total_quota = self.update_time_quota + self.search_time_quota
         fill_time_scale = self.update_time_quota / total_quota
-        fill_time_ns = self._get_timeout_ns(total_time_ns=total_time_ns, used_time_ns=used_time, scale=fill_time_scale)
+        max_time_ns = int(self.max_fill_time_s * ONE_S_IN_NS) if self.max_fill_time_s < float("inf") else None
+        fill_time_ns = self._get_timeout_ns(
+            total_time_ns=total_time_ns, used_time_ns=used_time, scale=fill_time_scale, max_time_ns=max_time_ns
+        )
         with log_time(
             log=log,
             level=logging.DEBUG,
