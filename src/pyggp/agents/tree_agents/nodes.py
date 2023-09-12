@@ -372,6 +372,8 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
 
         while node.depth < ply and node._can_walk(ply=ply, view=view):
             node = node._walk(ply=ply, view=view)
+            if isinstance(node, HiddenInformationSetNode):
+                node.fully_enumerated = False
 
         if node.depth < ply:
             node = node._dig(interpreter=interpreter, ply=ply, view=view)
