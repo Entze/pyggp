@@ -77,7 +77,7 @@ visiblyblocked(Role, Cell1, Cell2) :-
     role(Role), cell(Cell1), cell(Cell2),
     visiblyblocked(Role, Cell2, Cell1).
 
-unblockable(Role,(Cell1,Cell2)) :-
+unblockable(Role, (Cell1, Cell2)) :-
     role(Role), finishcell(Cell1), finishcell(Cell2),
     crossing((Cell1, Cell2)).
 unblockable(Role, Crossing) :-
@@ -130,8 +130,14 @@ next(control(Role2)) :-
     role(Role2), role(Role1),
     distinct(Role1, Role2).
 
+next(at(Role2, Cell)) :-
+    does(Role1, _Action),
+    true(at(Role2, Cell)),
+    role(Role2), cell(Cell),
+    role(Role1), distinct(Role1, Role2).
+
 next(at(Role, Cell)) :-
-    not does(Role, move(_Move)),
+    does(Role, block(_Crossing)),
     true(at(Role, Cell)),
     role(Role), cell(Cell).
 
