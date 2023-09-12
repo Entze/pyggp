@@ -44,6 +44,15 @@ class Sentence:
         """
         return self.infix_str
 
+    def __repr__(self) -> str:
+        """Return the infix string representation of the sentence.
+
+        Returns:
+            String representation of the sentence
+
+        """
+        return self.infix_str
+
     def __rich__(self) -> str:
         """Return the rich enhanced infix string representation of the sentence.
 
