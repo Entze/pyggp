@@ -579,6 +579,10 @@ def test_develop_on_perfect_view_after_move(ruleset_three_moves_max) -> None:  #
     assert tree.view == view
 
 
+def test_prune_removes_impossible_states_from_child_if_move_is_set() -> None:
+    pass
+
+
 @pytest.fixture()
 def ruleset_phantom_connect_5_6_4() -> gdl.Ruleset:
     rules = """

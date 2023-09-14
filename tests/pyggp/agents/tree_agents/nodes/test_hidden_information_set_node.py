@@ -271,6 +271,10 @@ def test_develop_returns_visible_if_visible_and_hidden_children(mock_interpreter
     assert current is child1
 
 
+def test_prune_removes_states_that_cannot_lead_to_view() -> None:
+    pass
+
+
 @pytest.fixture()
 def tic_tac_toe_ruleset() -> gdl.Ruleset:
     tic_tac_toe = """

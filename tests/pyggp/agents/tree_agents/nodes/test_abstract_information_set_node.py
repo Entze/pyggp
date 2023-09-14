@@ -57,3 +57,11 @@ def test_evaluate_sets_valuation(mock_interpreter, mock_evaluator, mock_valuatio
     assert node.valuation == mock_valuation
     mock_evaluator.assert_called_once_with(state=mock_state, interpreter=mock_interpreter)
     mock_valuation_factory.assert_called_once_with(mock_utility)
+
+
+def test_prune_removes_states_from_child_that_has_no_longer_reachable_states() -> None:
+    pass
+
+
+def test_prune_leaves_states_in_child_that_only_has_reachable_states() -> None:
+    pass
