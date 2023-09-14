@@ -348,6 +348,8 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
         assert node.view is None or node.view == view, "Assumption: node.view == view (consistency)"
         node.view = view
 
+        node._invalidate_ambigous_nodes()
+
         if node.fully_enumerated:
             with log_time(
                 log,
@@ -458,6 +460,20 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
         fully_enumerated=True,
     ) -> "ImperfectInformationNode[_U]":
         raise NotImplementedError
+
+    def _invalidate_ambigous_nodes(self) -> None:
+        invalidate_full_enumeration = False
+
+        node = self.parent
+
+        while node is not None and node.depth > 0 and not isinstance(node, VisibleInformationSetNode):
+            invalidate_full_enumeration = True
+            node.fully_enumerated = False
+            node.fully_expanded = False
+            node = node.parent
+
+        self.fully_enumerated = self.fully_enumerated and not invalidate_full_enumeration
+        self.fully_expanded = self.fully_expanded and not invalidate_full_enumeration
 
     def fill(self, interpreter: Interpreter) -> None:
         if self.fully_enumerated:

@@ -239,18 +239,11 @@ def test_possible_states_with_dark_split_corridor_1(
             child.expand(interpreter=corridor_interpreter)
             for grandchild in child.children.values():
                 grandchild.expand(interpreter=corridor_interpreter)
-        # for _ in tqdm.trange(350):
-        #    agent_left.step()
         tree.move = move_0
 
         agent_left.update(2, view_2, 0)
 
         tree = agent_left.trees[corridor_left]
-        # tree.expand(interpreter=corridor_interpreter)
-        # for child in tree.children.values():
-        #    child.expand(interpreter=corridor_interpreter)
-        # for _ in tqdm.trange(350):
-        #    agent_left.step()
         tree.move = move_2
 
         assert state_2 in tree.possible_states
@@ -273,6 +266,7 @@ def test_possible_states_with_dark_split_corridor_2(
     block_c2_c3,
     block_c1_c2,
     move_east,
+    control_left,
     at_right_c1,
     at_left_b1,
 ) -> None:
@@ -310,19 +304,29 @@ def test_possible_states_with_dark_split_corridor_2(
         )
 
         tree = agent_left.trees[corridor_left]
+
         tree.expand(interpreter=corridor_interpreter)
         for child in tree.children.values():
             child.expand(interpreter=corridor_interpreter)
             for grandchild in child.children.values():
                 grandchild.expand(interpreter=corridor_interpreter)
+
         agent_left.update(0, view_0, 100 * ONE_S_IN_NS)
         tree = agent_left.trees[corridor_left]
+        assert len(tree.possible_states) == 1
         tree.move = move_0
         agent_left.update(2, view_2, 100 * ONE_S_IN_NS)
         tree = agent_left.trees[corridor_left]
+        assert len(tree.possible_states) == 15
         tree.move = move_2
+
+        tree.expand(interpreter=corridor_interpreter)
+        for child in tree.children.values():
+            child.expand(interpreter=corridor_interpreter)
+
         agent_left.update(4, view_4, 100 * ONE_S_IN_NS)
 
         tree = agent_left.trees[corridor_left]
 
         assert impossible not in tree.possible_states
+        assert len(tree.possible_states) == 15
