@@ -107,6 +107,8 @@ class AbstractTreeAgent(InterpreterAgent, TreeAgent[_K, _E], Generic[_K, _E], ab
         *,
         net_zero_time_ns: Optional[int] = None,
         zero_time_ns: Optional[int] = None,
+        min_time_ns: int = 0,
+        max_time_ns: Optional[int] = None,
         scale: float = 0.975,
         min_buffer: int = ONE_S_IN_NS,
         max_buffer: int = 5 * ONE_S_IN_NS,
@@ -129,8 +131,10 @@ class AbstractTreeAgent(InterpreterAgent, TreeAgent[_K, _E], Generic[_K, _E], ab
         min_time = int(net_zero_time_ns * scale) - MAX_BUFFER
 
         timeout_ns = int((net_zero_time_ns + using_time) * scale)
-        timeout_ns = max(0, timeout_ns, min_time)
-        timeout_ns = min(timeout_ns, max_time)
+        timeout_ns = max(min_time_ns, timeout_ns, min_time)
+        if max_time_ns is None:
+            max_time_ns = max_time
+        timeout_ns = min(timeout_ns, max_time, max_time_ns)
         return timeout_ns
 
     def _guess_remaining_moves(self) -> int:

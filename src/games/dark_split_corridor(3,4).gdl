@@ -1,0 +1,239 @@
+
+role(left).
+role(right).
+
+succ(a, b). succ(b, c).
+succ(1, 2). succ(2, 3). succ(3, 4).
+
+col(a). col(b). col(c).
+row(1). row(2). row(3). row(4).
+
+startcol(b).
+
+firstcol(C) :-
+    col(C),
+    not succ(_, C).
+lastcol(C) :-
+    col(C),
+    not succ(C, _).
+firstrow(R) :-
+    row(R),
+    not succ(_, R).
+lastrow(R) :-
+    row(R),
+    not succ(R, _).
+
+cell((C, R)) :-
+    col(C), row(R).
+
+finishcell((C, R)) :-
+    col(C), lastrow(R).
+
+direction(north). direction(east). direction(south). direction(west).
+
+cell_direction_cell((C, R2), north, (C, R1)) :-
+    cell((C, R2)), cell((C, R1)),
+    col(C), row(R2), row(R1),
+    succ(R1, R2).
+
+cell_direction_cell((C1, R), east, (C2, R)) :-
+    cell((C1, R)), cell((C2, R)),
+    col(C1), row(R), col(C2),
+    succ(C1, C2).
+
+cell_direction_cell((C, R1), south, (C, R2)) :-
+    cell((C, R1)), cell((C, R2)),
+    col(C), row(R1), row(R2),
+    succ(R1, R2).
+
+cell_direction_cell((C2, R), west, (C1, R)) :-
+    cell((C2, R)), cell((C1, R)),
+    col(C2), row(R), col(C1),
+    succ(C1, C2).
+
+crossing((Cell1, Cell2)) :-
+    cell(Cell1), cell(Cell2),
+    cell_direction_cell(Cell1, south, Cell2).
+
+crossing((Cell1, Cell2)) :-
+    cell(Cell1), cell(Cell2),
+    cell_direction_cell(Cell1, east, Cell2).
+
+quadrant((Cell, Right, Bottom, Diag)) :-
+    cell(Cell), cell(Right), cell(Bottom), cell(Diag),
+    cell_direction_cell(Cell, east, Right), cell_direction_cell(Cell, south, Bottom), cell_direction_cell(Right, south, Diag), cell_direction_cell(Bottom, east, Diag).
+
+blocked(Role, Cell1, Cell2) :-
+    true(border(Role, (Cell1, Cell2))),
+    role(Role), crossing((Cell1, Cell2)).
+blocked(Role, Cell1, Cell2) :-
+    role(Role), cell(Cell1), cell(Cell2),
+    blocked(Role, Cell2, Cell1).
+
+visiblyblocked(Role, Cell1, Cell2) :-
+    true(revealed(Role, (Cell1, Cell2))),
+    role(Role), crossing((Cell1, Cell2)).
+visiblyblocked(Role, Cell1, Cell2) :-
+    role(Role), cell(Cell1), cell(Cell2),
+    visiblyblocked(Role, Cell2, Cell1).
+
+unblockable(Role, (Cell1, Cell2)) :-
+    role(Role), finishcell(Cell1), finishcell(Cell2),
+    crossing((Cell1, Cell2)).
+unblockable(Role, Crossing) :-
+    role(Role), crossing(Crossing),
+    true(border(Role, Crossing)).
+unblockable(Role, Crossing) :-
+    role(Role), crossing(Crossing),
+    critical(Role, Crossing).
+
+critical(Role, Crossing) :-
+    role(Role), crossing(Crossing),
+    finishcell(FinishCell),
+    not reachable(Role, Crossing, FinishCell).
+
+reachable(Role2, AssumedBorder, Cell) :-
+    true(control(Role1)),
+    true(at(Role2, Cell)),
+    not true(border(Role2, AssumedBorder)),
+    role(Role2), crossing(AssumedBorder), cell(Cell),
+    role(Role1), distinct(Role1, Role2).
+
+reachable(Role2, AssumedBorder, Cell) :-
+    true(control(Role1)),
+    not true(border(Role2, AssumedBorder)),
+    not true(border(Role2, (Cell, AdjacentCell))),
+    role(Role2), crossing(AssumedBorder), cell(Cell),
+    role(Role1), distinct(Role1, Role2),
+    crossing((Cell, AdjacentCell)), distinct((Cell, AdjacentCell), AssumedBorder),
+    reachable(Role2, AssumedBorder, AdjacentCell).
+
+reachable(Role2, AssumedBorder, Cell) :-
+    true(control(Role1)),
+    not true(border(Role2, AssumedBorder)),
+    not true(border(Role2, (AdjacentCell, Cell))),
+    role(Role2), crossing(AssumedBorder), cell(Cell),
+    role(Role1), distinct(Role1, Role2),
+    crossing((AdjacentCell, Cell)), distinct((AdjacentCell, Cell), AssumedBorder),
+    reachable(Role2, AssumedBorder, AdjacentCell).
+
+init(at(Role, (StartCol, FirstRow))) :- role(Role), startcol(StartCol), firstrow(FirstRow).
+init(control(left)).
+
+next(control(Role2)) :-
+    true(control(Role1)),
+    role(Role2), role(Role1),
+    distinct(Role1, Role2).
+
+next(at(Role2, Cell)) :-
+    does(Role1, _Action),
+    true(at(Role2, Cell)),
+    role(Role2), cell(Cell),
+    role(Role1), distinct(Role1, Role2).
+
+next(at(Role, Cell)) :-
+    does(Role, block(_Crossing)),
+    true(at(Role, Cell)),
+    role(Role), cell(Cell).
+
+next(at(Role, Cell2)) :-
+    does(Role, move(Direction)),
+    true(at(Role, Cell1)),
+    role(Role), cell(Cell1), cell(Cell2),
+    cell_direction_cell(Cell1, Direction, Cell2),
+    not blocked(Role, Cell1, Cell2).
+
+next(at(Role, Cell1)) :-
+    does(Role, move(Direction)),
+    true(at(Role, Cell1)),
+    role(Role), cell(Cell1), cell(Cell2),
+    cell_direction_cell(Cell1, Direction, Cell2),
+    blocked(Role, Cell1, Cell2).
+
+next(revealed(Role, (Cell1, Cell2))) :-
+    does(Role, move(Direction)),
+    true(at(Role, Cell1)),
+    true(border(Role, (Cell1, Cell2))),
+    role(Role), crossing((Cell1, Cell2)),
+    direction(Direction),
+    cell_direction_cell(Cell1, Direction, Cell2).
+
+next(revealed(Role, (Cell1, Cell2))) :-
+    does(Role, move(Direction)),
+    true(at(Role, Cell2)),
+    true(border(Role, (Cell1, Cell2))),
+    role(Role), crossing((Cell1, Cell2)),
+    direction(Direction),
+    cell_direction_cell(Cell2, Direction, Cell1).
+
+next(revealed(Role, Crossing)) :-
+    true(revealed(Role, Crossing)),
+    role(Role), crossing(Crossing).
+
+next(border(Role2, Crossing)) :-
+    does(Role1, block(Crossing)),
+    role(Role2), crossing(Crossing), role(Role1),
+    distinct(Role1, Role2).
+
+next(border(Role, Crossing)) :-
+    true(border(Role, Crossing)),
+    role(Role), crossing(Crossing).
+
+sees(Everyone, control(Role)) :-
+    true(control(Role)),
+    role(Everyone), role(Role).
+
+sees(Everyone, at(Role, Cell)) :-
+    true(at(Role, Cell)),
+    role(Everyone), role(Role), cell(Cell).
+
+sees(Role, revealed(Role, Crossing)) :-
+    true(revealed(Role, Crossing)),
+    role(Role), crossing(Crossing).
+
+sees(Role2, border(Role1, Crossing)) :-
+    true(border(Role1, Crossing)),
+    role(Role2), role(Role1), crossing(Crossing),
+    distinct(Role1, Role2).
+
+sees(Role, border(Role, Crossing)) :-
+    true(border(Role, Crossing)),
+    true(revealed(Role, Crossing)),
+    role(Role), crossing(Crossing).
+
+legal(Role, move(Direction)) :-
+    true(at(Role, Cell1)),
+    role(Role), direction(Direction),
+    cell(Cell1), cell(Cell2),
+    cell_direction_cell(Cell1, Direction, Cell2),
+    not visiblyblocked(Role, Cell1, Cell2).
+
+legal(Role2, block(Crossing)) :-
+    not unblockable(Role1, Crossing),
+    role(Role2), crossing(Crossing),
+    role(Role1), distinct(Role1, Role2).
+
+goal(Role1, 0) :-
+    finished(Role2),
+    not finished(Role1),
+    role(Role1), role(Role2),
+    distinct(Role1, Role2).
+
+goal(Role1, 50) :-
+    finished(Role1),
+    finished(Role2),
+    role(Role1), role(Role2),
+    distinct(Role1, Role2).
+
+goal(Role2, 100) :-
+    finished(Role2),
+    not finished(Role1),
+    role(Role1), role(Role2),
+    distinct(Role1, Role2).
+
+finished(Role) :-
+    true(at(Role, (_, LastRow))),
+    role(Role), lastrow(LastRow).
+
+
+terminal :- finished(_Role).

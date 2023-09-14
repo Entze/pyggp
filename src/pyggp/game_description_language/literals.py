@@ -107,6 +107,14 @@ class Literal:
         """
         return self.infix_str
 
+    def __repr__(self) -> str:
+        """Return the infix string representation of the literal.
+
+        Returns:
+            The string representation
+        """
+        return self.infix_str
+
     def __rich__(self) -> str:
         """Return the rich enhanced infix string representation of the literal.
 

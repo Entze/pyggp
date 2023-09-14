@@ -89,6 +89,15 @@ class Primitive:
         """
         return str(self)  # pragma: no cover
 
+    def __repr__(self) -> str:
+        """Return the infix string representation of the primitive.
+
+        Returns:
+            Infix string representation of the primitive
+
+        """
+        return self.infix_str
+
     # endregion
 
     # region Methods
@@ -682,6 +691,15 @@ class Subrelation:
 
         Returns:
             String representation of the subrelation.
+
+        """
+        return self.infix_str
+
+    def __repr__(self) -> str:
+        """Return the infix string representation of the subrelation.
+
+        Returns:
+            Infix string representation of the subrelation.
 
         """
         return self.infix_str

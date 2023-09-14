@@ -270,7 +270,10 @@ class InformationSetNode(Node[_U, Tuple[State, _A]], Protocol[_U, _A]):
         """Retrieves a possible state."""
 
     def cut(self, interpreter: Interpreter) -> None:
-        """Remove impossible states from possible_states."""
+        """Remove impossible states from possible_states using local information."""
+
+    def purge(self, interpreter: Interpreter) -> None:
+        """Remove impossible states from possible_states using ancestors and descendants."""
 
     def gather_record(self, *, has_incomplete_information: bool = True) -> Record:
         """Gathers a minimal record to reconstruct current possible states."""
@@ -345,6 +348,8 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
         assert node.view is None or node.view == view, "Assumption: node.view == view (consistency)"
         node.view = view
 
+        node._invalidate_ambigous_nodes()
+
         if node.fully_enumerated:
             with log_time(
                 log,
@@ -354,6 +359,15 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
                 abort_msg="Aborted cutting node",
             ):
                 node.cut(interpreter=interpreter)
+
+            with log_time(
+                log,
+                logging.DEBUG,
+                begin_msg=lambda: "Purging node from %s possible_states" % len(node.possible_states),
+                end_msg=lambda: "Purged node to %s possible_states" % len(node.possible_states),
+                abort_msg="Aborted purging node",
+            ):
+                node.purge(interpreter=interpreter)
 
             with log_time(
                 log,
@@ -447,6 +461,20 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
     ) -> "ImperfectInformationNode[_U]":
         raise NotImplementedError
 
+    def _invalidate_ambigous_nodes(self) -> None:
+        invalidate_full_enumeration = False
+
+        node = self.parent
+
+        while node is not None and node.depth > 0 and not isinstance(node, VisibleInformationSetNode):
+            invalidate_full_enumeration = True
+            node.fully_enumerated = False
+            node.fully_expanded = False
+            node = node.parent
+
+        self.fully_enumerated = self.fully_enumerated and not invalidate_full_enumeration
+        self.fully_expanded = self.fully_expanded and not invalidate_full_enumeration
+
     def fill(self, interpreter: Interpreter) -> None:
         if self.fully_enumerated:
             return
@@ -456,6 +484,9 @@ class _AbstractInformationSetNode(InformationSetNode[_U, _A], _AbstractNode[_U, 
         possible_states = interpreter.get_possible_states(record=record, ply=self.depth)
         self.possible_states = set(possible_states)
         self.fully_enumerated = True
+
+    def purge(self, interpreter: Interpreter) -> None:
+        pass  # TODO: implement?
 
     def gather_record(
         self,
