@@ -23,25 +23,42 @@ __cols(C) :- C = #count { C' : col(C') }.
 __rows(R) :- R = #count { R' : row(R') }.
 
 
-__legend_width(2).
+__row_legend_str_width(1) :- __rows(R), 0 <= R < 10.
+__row_legend_str_width(2) :- __rows(R), 10 <= R < 100.
+__row_legend_str_width(3) :- __rows(R), 100 <= R < 1000.
+
+__row_legend_str_horizontal_offset(1).
+__row_legend_whitespace_horizontal_offset(0).
+__row_legend_whitespace_horizontal_offset(SO + SW) :-
+    __row_legend_str_horizontal_offset(SO),
+    __row_legend_str_width(SW).
+
+__row_legend_str_vertical_offset(N) :- __rowheight(RH), N = RH / 2.
+__row_legend_whitespace_vertical_offset(N) :-
+    __rowheight(RH),
+    __row_legend_str_vertical_offset(VO),
+    N = 0..RH, N != VO.
 
 __mapping(a, 1).
+__mapping(1, 1).
 __mapping(S, N) :- succ(S', S), __mapping(S', N'), N = N' + 1.
 
+__row_legend_width(LSW + 2) :- __row_legend_str_width(LSW).
 
 __role_offset(left, 0).
-__role_offset(right, Cs * (CW + 1) + LW) :- __cols(Cs), __colwidth(CW), __legend_width(LW).
+__role_offset(right, Cs * (CW + 1) + LW + 1) :- __cols(Cs), __colwidth(CW), __row_legend_width(LW).
 
 __viz(RC, CC, " ") :-
     not true(at(Role, Cell)),
     role(Role), col(C), row(R),
     Cell = (C, R),
     __mapping(C, C'),
+    __mapping(R, R'),
     __rowheight(RH), __colwidth(CW),
     __role_offset(Role, Offset),
     __cell_row_pawn_offset(RPO),
     __cell_col_pawn_offset(CPO),
-    RC = 1 + (R-1) * (RH+1) + RPO,
+    RC = 1 + (R'-1) * (RH+1) + RPO,
     CC = 1 + (C'-1) * (CW+1) + CPO + Offset.
 
 __viz(RC, CC, Pawn) :-
@@ -49,42 +66,46 @@ __viz(RC, CC, Pawn) :-
     role(Role), col(C), row(R),
     Cell = (C, R),
     __mapping(C, C'),
+    __mapping(R, R'),
     __role_pawn(Role, Pawn),
     __rowheight(RH), __colwidth(CW),
     __role_offset(Role, Offset),
     __cell_row_pawn_offset(RPO),
     __cell_col_pawn_offset(CPO),
-    RC = 1 + (R-1) * (RH+1) + RPO,
+    RC = 1 + (R'-1) * (RH+1) + RPO,
     CC = 1 + (C'-1) * (CW+1) + CPO + Offset.
 
 __viz(RC, CC, " ") :-
     role(Role), col(C), row(R),
     __mapping(C, C'),
+    __mapping(R, R'),
     __rowheight(RH), __colwidth(CW),
     __role_offset(Role, Offset),
     __cell_row_whitespace_offset(RWO),
     __cell_col_whitespace_offset(CWO),
-    RC = 1 + (R-1) * (RH+1) + RWO,
+    RC = 1 + (R'-1) * (RH+1) + RWO,
     CC = 1 + (C'-1) * (CW+1) + CWO + Offset.
 
 __viz(RC, CC, " ") :-
     role(Role), col(C), row(R),
     __mapping(C, C'),
+    __mapping(R, R'),
     __rowheight(RH), __colwidth(CW),
     __role_offset(Role, Offset),
     __cell_row_pawn_offset(RPO),
     __cell_col_whitespace_offset(CWO),
-    RC = 1 + (R-1) * (RH+1) + RPO,
+    RC = 1 + (R'-1) * (RH+1) + RPO,
     CC = 1 + (C'-1) * (CW+1) + CWO + Offset.
 
 __viz(RC, CC, " ") :-
     role(Role), col(C), row(R),
     __mapping(C, C'),
+    __mapping(R, R'),
     __rowheight(RH), __colwidth(CW),
     __role_offset(Role, Offset),
     __cell_row_whitespace_offset(RWO),
     __cell_col_pawn_offset(CPO),
-    RC = 1 + (R-1) * (RH+1) + RWO,
+    RC = 1 + (R'-1) * (RH+1) + RWO,
     CC = 1 + (C'-1) * (CW+1) + CPO + Offset.
 
 __viz(0, Offset, "┏") :-
@@ -118,29 +139,32 @@ __viz(0, CC, "┓") :-
 __viz(RC, Offset, "┃") :-
     row(R),
     __rowheight(RH),
+    __mapping(R, R'),
     __role_offset(Role, Offset),
     Wall=0..(RH-1),
-    RC = 1 + (R-1) * (RH + 1) + Wall.
+    RC = 1 + (R'-1) * (RH + 1) + Wall.
 
 __viz(RC, CC, "┠") :-
     firstcol(FC),
     crossing(((FC, R), (FC, _))),
     __mapping(FC, FC'),
+    __mapping(R, R'),
     __rowheight(RH),
     __colwidth(CW),
     __role_offset(Role, Offset),
-    RC = 1 + (R-1) * (RH + 1) + RH,
+    RC = 1 + (R'-1) * (RH + 1) + RH,
     CC = (FC'-1) * (CW + 1) + Offset.
 
 __viz(RC, CC, "┃") :-
     row(R), lastcol(LC),
     __mapping(LC, LC'),
+    __mapping(R, R'),
     __rowheight(RH),
     __colwidth(CW),
     __role_offset(Role, Offset),
     __cell_col_border_offset(BO),
     Wall=0..(RH-1),
-    RC = 1 + (R-1) * (RH + 1) + Wall,
+    RC = 1 + (R'-1) * (RH + 1) + Wall,
     CC = 1 + (LC'-1) * (CW + 1) + BO + Offset.
 
 
@@ -149,31 +173,34 @@ __viz(RC, CC, "┨") :-
     crossing(CR),
     CR = ((LC, R), (LC, _)),
     __mapping(LC, LC'),
+    __mapping(R, R'),
     __role_offset(Role, Offset),
     __rowheight(RH),
     __colwidth(CW),
     __cell_col_border_offset(BO),
-    RC = 1 + (R-1) * (RH + 1) + RH,
+    RC = 1 + (R'-1) * (RH + 1) + RH,
     CC = 1 + (LC'-1) * (CW + 1) + BO + Offset.
 
 __viz(RC, CC, "┗") :-
     lastrow(LR), firstcol(FC),
     __mapping(FC, FC'),
+    __mapping(LR, LR'),
     __role_offset(Role, Offset),
     __rowheight(RH),
     __colwidth(CW),
-    RC = 1 + (LR-1) * (RH + 1) + RH,
+    RC = 1 + (LR'-1) * (RH + 1) + RH,
     CC = (FC'-1) * (CW + 1) + Offset.
 
 __viz(RC, CC, "━") :-
     lastrow(LR),
     col(C),
     __mapping(C, C'),
+    __mapping(LR, LR'),
     __rowheight(RH),
     __colwidth(CW),
     __role_offset(Role, Offset),
     Wall=0..(CW-1), __colwidth(CW),
-    RC = 1 + (LR-1) * (RH + 1) + RH,
+    RC = 1 + (LR'-1) * (RH + 1) + RH,
     CC = 1 + (C'-1) * (CW + 1) + Wall + Offset.
 
 __viz(RC, CC, "┷") :-
@@ -181,21 +208,23 @@ __viz(RC, CC, "┷") :-
     crossing(CR),
     CR = ((C, LR), (_, LR)),
     __mapping(C, C'),
+    __mapping(LR, LR'),
     __role_offset(Role, Offset),
     __colwidth(CW),
     __rowheight(RH),
     __cell_col_border_offset(BO),
-    RC = 1 + (LR-1) * (RH + 1) + RH,
+    RC = 1 + (LR'-1) * (RH + 1) + RH,
     CC = 1 + (C'-1) * (CW + 1) + BO + Offset.
 
 __viz(RC, CC, "┛") :-
     lastrow(LR), lastcol(LC),
     __mapping(LC, LC'),
+    __mapping(LR, LR'),
     __role_offset(Role, Offset),
     __colwidth(CW),
     __rowheight(RH),
     __cell_col_border_offset(BO),
-    RC = 1 + (LR-1) * (RH + 1) + RH,
+    RC = 1 + (LR'-1) * (RH + 1) + RH,
     CC = 1 + (LC'-1) * (CW + 1) + BO + Offset.
 
 __viz(RC, CC, "┆") :-
@@ -203,12 +232,13 @@ __viz(RC, CC, "┆") :-
     not true(border(Role, CR)),
     CR = ((C, R), (_, R)),
     __mapping(C, C'),
+    __mapping(R, R'),
     __role_offset(Role, Offset),
     __colwidth(CW),
     __rowheight(RH),
     __cell_col_border_offset(BO),
     Wall = 0..(RH-1),
-    RC = 1 + (R-1) * (RH + 1) + Wall,
+    RC = 1 + (R'-1) * (RH + 1) + Wall,
     CC = 1 + (C'-1) * (CW + 1) + BO + Offset.
 
 __viz(RC, CC, "┃") :-
@@ -216,12 +246,13 @@ __viz(RC, CC, "┃") :-
     true(border(Role, CR)),
     CR = ((C, R), (_, R)),
     __mapping(C, C'),
+    __mapping(R, R'),
     __role_offset(Role, Offset),
     __colwidth(CW),
     __rowheight(RH),
     __cell_col_border_offset(BO),
     Wall = 0..(RH-1),
-    RC = 1 + (R-1) * (RH + 1) + Wall,
+    RC = 1 + (R'-1) * (RH + 1) + Wall,
     CC = 1 + (C'-1) * (CW + 1) + BO + Offset.
 
 __viz(RC, CC, "┄") :-
@@ -229,11 +260,12 @@ __viz(RC, CC, "┄") :-
     CR = ((C, R), (C, _)),
     not true(border(Role, CR)),
     __mapping(C, C'),
+    __mapping(R, R'),
     __role_offset(Role, Offset),
     __colwidth(CW),
     __rowheight(RH),
     Wall = 0..(CW-1),
-    RC = 1 + (R-1) * (RH + 1) + RH,
+    RC = 1 + (R'-1) * (RH + 1) + RH,
     CC = 1 + (C'-1) * (CW + 1) + Wall + Offset.
 
 __viz(RC, CC, "━") :-
@@ -241,20 +273,83 @@ __viz(RC, CC, "━") :-
     CR = ((C, R), (C, _)),
     true(border(Role, CR)),
     __mapping(C, C'),
+    __mapping(R, R'),
     __role_offset(Role, Offset),
     __colwidth(CW),
     __rowheight(RH),
     Wall = 0..(CW-1),
-    RC = 1 + (R-1) * (RH + 1) + RH,
+    RC = 1 + (R'-1) * (RH + 1) + RH,
     CC = 1 + (C'-1) * (CW + 1) + Wall + Offset.
 
 __viz(RC, CC, "┼") :-
     quadrant(Q),
     Q = ((C, R), _, _, _),
     __mapping(C, C'),
+    __mapping(R, R'),
     __role_offset(Role, Offset),
     __colwidth(CW),
     __rowheight(RH),
     __cell_col_border_offset(BO),
-    RC = 1 + (R-1) * (RH + 1) + RH,
+    RC = 1 + (R'-1) * (RH + 1) + RH,
     CC = 1 + (C'-1) * (CW + 1) + BO + Offset.
+
+__viz(RC, CC, R) :-
+    row(R),
+    __mapping(R, R'),
+    __role_offset(Role, Offset),
+    __rowheight(RH),
+    __row_legend_str_vertical_offset(VO),
+    __row_legend_str_horizontal_offset(HO),
+    RC = 1 + (R'-1) * (RH + 1) + VO,
+    CC = Offset - 1 - HO.
+
+__viz(0, Offset - 1 - Space, " ") :-
+    __role_offset(Role, Offset),
+    __row_legend_width(LW),
+    Space = 0..(LW-1).
+
+__viz(RC, CC, " ") :-
+    row(R),
+    __mapping(R, R'),
+    __role_offset(Role, Offset),
+    __rowheight(RH),
+    __row_legend_whitespace_vertical_offset(VO),
+    __row_legend_width(LW),
+    Space = 0..(LW-1),
+    RC = 1 + (R'-1) * (RH + 1) + VO,
+    CC = Offset - 1 - Space.
+
+
+__viz(RC, CC, " ") :-
+    row(R),
+    __mapping(R, R'),
+    __role_offset(Role, Offset),
+    __rowheight(RH),
+    __row_legend_str_vertical_offset(VO),
+    __row_legend_whitespace_horizontal_offset(HO),
+    RC = 1 + (R'-1) * (RH + 1) + VO,
+    CC = Offset - 1 - HO.
+
+__viz(RC, CC, " ") :-
+    row(R), lastcol(LC),
+    __mapping(R, R'),
+    __mapping(LC, LC'),
+    __role_offset(right, Offset),
+    __rowheight(RH),
+    __colwidth(CW),
+    __cell_col_border_offset(BO),
+    __row_legend_str_vertical_offset(VO),
+    RC = 1 + (R'-1) * (RH + 1) + VO,
+    CC = 1 + (LC'-1) * (CW + 1) + BO + Offset + 1.
+
+__viz(RC, CC, R) :-
+    row(R), lastcol(LC),
+    __mapping(R, R'),
+    __mapping(LC, LC'),
+    __role_offset(right, Offset),
+    __rowheight(RH),
+    __colwidth(CW),
+    __cell_col_border_offset(BO),
+    __row_legend_str_vertical_offset(VO),
+    RC = 1 + (R'-1) * (RH + 1) + VO,
+    CC = 1 + (LC'-1) * (CW + 1) + BO + Offset + 2.

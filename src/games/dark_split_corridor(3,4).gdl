@@ -89,19 +89,14 @@ unblockable(Role, Crossing) :-
 
 critical(Role, Crossing) :-
     role(Role), crossing(Crossing),
-    unreachable(Role, Crossing, _).
+    finishcell(FinishCell),
+    not reachable(Role, Crossing, FinishCell).
 
-unreachable(Role2, Crossing, Cell) :-
+reachable(Role2, AssumedBorder, Cell) :-
     true(control(Role1)),
-    not true(border(Role2, Crossing)),
-    role(Role2), crossing(Crossing), cell(Cell),
-    role(Role1), distinct(Role1, Role2),
-    not reachable(Role2, Crossing, Cell).
-
-reachable(Role2, AssumedBorder, FinishCell) :-
-    true(control(Role1)),
+    true(at(Role2, Cell)),
     not true(border(Role2, AssumedBorder)),
-    role(Role2), crossing(AssumedBorder), finishcell(FinishCell),
+    role(Role2), crossing(AssumedBorder), cell(Cell),
     role(Role1), distinct(Role1, Role2).
 
 reachable(Role2, AssumedBorder, Cell) :-
