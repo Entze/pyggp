@@ -112,6 +112,7 @@ class Literal:
 
         Returns:
             The string representation
+
         """
         return self.infix_str
 

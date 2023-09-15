@@ -7,12 +7,12 @@ import logging
 import random
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Callable, Final, MutableSequence, Optional, Protocol, Self, Sequence, Type
+from typing import TYPE_CHECKING, Any, Callable, Final, MutableSequence, Optional, Protocol, Sequence, Type
 
 import rich.console as rich_console
 import rich.prompt as rich_prompt
 from rich import print
-from typing_extensions import ParamSpec
+from typing_extensions import ParamSpec, Self
 
 import pyggp.game_description_language as gdl
 from pyggp._logging import format_id, rich

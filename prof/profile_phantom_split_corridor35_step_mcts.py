@@ -1,6 +1,6 @@
 import tqdm
 from pyggp._logging import rich
-from pyggp.agents import MCTSAgent, MOISMCTSAgent
+from pyggp.agents import MOISMCTSAgent
 from pyggp.engine_primitives import View
 from pyggp.gameclocks import GameClock
 from rich import print

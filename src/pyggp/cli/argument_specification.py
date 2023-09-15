@@ -1,10 +1,10 @@
 import functools
 import importlib
 from dataclasses import dataclass, field
-from typing import Callable, Mapping, ParamSpec, Sequence, Tuple, Type, TypeVar, Union
+from typing import Callable, Mapping, Sequence, Tuple, Type, TypeVar, Union
 
 import lark
-from typing_extensions import Self
+from typing_extensions import ParamSpec, Self
 
 _P = ParamSpec("_P")
 _T_co = TypeVar("_T_co", covariant=True)

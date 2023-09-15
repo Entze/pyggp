@@ -1,5 +1,5 @@
 import tqdm
-from pyggp.agents import MCTSAgent, MOISMCTSAgent
+from pyggp.agents import MOISMCTSAgent
 from pyggp.engine_primitives import View
 from pyggp.gameclocks import GameClock
 

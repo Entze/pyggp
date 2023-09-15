@@ -11,7 +11,9 @@ from pyggp.interpreters import ClingoInterpreter, Interpreter
 
 @pytest.fixture()
 def corridor_str() -> str:
-    return pathlib.Path("../src/games/dark_split_corridor(3,4).gdl").read_text()
+    if pathlib.Path("../src/games/dark_split_corridor(3,4).gdl").exists():
+        return pathlib.Path("../src/games/dark_split_corridor(3,4).gdl").read_text()
+    return pathlib.Path("src/games/dark_split_corridor(3,4).gdl").read_text()
 
 
 @pytest.fixture()
@@ -291,7 +293,7 @@ def test_possible_states_with_dark_split_corridor_2(
             at_left_b1,
             control_left,
             border_role_cell_cell(corridor_right, cell("b", 3), cell("b", 4)),
-        }
+        },
     )
 
     agent_left = MOISMCTSAgent(interpreter=corridor_interpreter, skip_book=True)

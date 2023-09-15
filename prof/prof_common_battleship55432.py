@@ -2,7 +2,7 @@ import pathlib
 
 import pyggp.game_description_language as gdl
 from pyggp.engine_primitives import Role
-from pyggp.interpreters import ClingoInterpreter, ClingoRegroundingInterpreter
+from pyggp.interpreters import ClingoInterpreter
 
 battleship_str: str = pathlib.Path("../src/games/battleship(5,5,(4,3,2)).gdl").read_text()
 

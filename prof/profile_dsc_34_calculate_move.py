@@ -3,8 +3,7 @@ from pyggp._logging import rich
 from pyggp.agents import MOISMCTSAgent
 from pyggp.agents.tree_agents.agents import ONE_S_IN_NS
 from pyggp.engine_primitives import Move
-from pyggp.gameclocks import DEFAULT_NO_TIMEOUT_CONFIGURATION, DEFAULT_START_CLOCK_CONFIGURATION, GameClock
-from pyggp.records import ImperfectInformationRecord, Record
+from pyggp.gameclocks import DEFAULT_START_CLOCK_CONFIGURATION, GameClock
 from rich import print
 
 from prof.prof_common_dark_split_corridor34 import (
@@ -35,48 +34,48 @@ block_b2_b3 = Move(
         gdl.Relation(
             "block",
             (b2_b3,),
-        )
-    )
+        ),
+    ),
 )
 block_a3_a4 = Move(
     gdl.Subrelation(
         gdl.Relation(
             "block",
             (a3_a4,),
-        )
-    )
+        ),
+    ),
 )
 block_b3_b4 = Move(
     gdl.Subrelation(
         gdl.Relation(
             "block",
             (b3_b4,),
-        )
-    )
+        ),
+    ),
 )
 block_c2_c3 = Move(
     gdl.Subrelation(
         gdl.Relation(
             "block",
             (c2_c3,),
-        )
-    )
+        ),
+    ),
 )
 block_c3_c4 = Move(
     gdl.Subrelation(
         gdl.Relation(
             "block",
             (c3_c4,),
-        )
-    )
+        ),
+    ),
 )
 move_east = Move(
     gdl.Subrelation(
         gdl.Relation(
             "move",
             (east,),
-        )
-    )
+        ),
+    ),
 )
 
 move_south = Move(
@@ -84,8 +83,8 @@ move_south = Move(
         gdl.Relation(
             "move",
             (south,),
-        )
-    )
+        ),
+    ),
 )
 
 

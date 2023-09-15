@@ -31,6 +31,7 @@ import cachetools
 import cachetools.keys as cachetools_keys
 import clingo
 import clingo.ast as clingo_ast
+import rich.markup as rich_markup
 from typing_extensions import Self
 
 import pyggp._clingo as clingo_helper
@@ -867,7 +868,7 @@ class ClingoRegroundingInterpreter(CachingInterpreter):
         all_moves = {move for moves in action_shape.values() for move in moves}
         action_shape_size = len(all_moves)
         action_shape_size_str = f"#P(action)={action_shape_size}"
-        information_str = f"\[{state_shape_size_str}, {action_shape_size_str}]"  # noqa: W605
+        information_str = rich_markup.escape(f"[{state_shape_size_str}, {action_shape_size_str}]")
         ruleset_str = f"ruleset={rich(self.ruleset)}"
         parallel_mode_str = f"parallel_mode={rich(self.parallel_mode)}"
         attributes_str = f"{ruleset_str}, {parallel_mode_str}"

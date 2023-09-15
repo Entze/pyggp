@@ -10,6 +10,8 @@ from pyggp.records import PerfectInformationRecord
 
 @pytest.fixture(scope="session")
 def kalaha_str() -> str:
+    if pathlib.Path("src/games/kalaha(4,3).gdl").exists():
+        return pathlib.Path("src/games/kalaha(4,3).gdl").read_text()
     return pathlib.Path("../src/games/kalaha(4,3).gdl").read_text()
 
 

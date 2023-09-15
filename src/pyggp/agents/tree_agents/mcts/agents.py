@@ -12,14 +12,13 @@ from typing import (
     Mapping,
     MutableMapping,
     Optional,
-    ParamSpec,
     Tuple,
     TypeVar,
     Union,
     cast,
 )
 
-from typing_extensions import Self
+from typing_extensions import ParamSpec, Self
 
 import pyggp.game_description_language as gdl
 from pyggp._logging import format_amount, format_id, format_ns, format_rate_ns, format_timedelta, log_time, rich
@@ -134,7 +133,7 @@ class AbstractMCTSAgent(AbstractTreeAgent[_K, _MCTSEvaluation], MonteCarloTreeSe
                 max_mcts_iterations_str,
                 max_expansion_depth_str,
                 max_fill_time_s_str,
-            )
+            ),
         )
         return f"{self.__class__.__name__}({attributes_str})"
 
@@ -410,7 +409,10 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
         fill_time_scale = self.update_time_quota / total_quota
         max_time_ns = int(self.max_fill_time_s * ONE_S_IN_NS) if self.max_fill_time_s < float("inf") else None
         fill_time_ns = self._get_timeout_ns(
-            total_time_ns=total_time_ns, used_time_ns=used_time, scale=fill_time_scale, max_time_ns=max_time_ns
+            total_time_ns=total_time_ns,
+            used_time_ns=used_time,
+            scale=fill_time_scale,
+            max_time_ns=max_time_ns,
         )
         self.fill_repeater.timeout_ns = fill_time_ns
         with log_time(
@@ -719,7 +721,10 @@ class MultiObserverInformationSetMCTSAgent(
         fill_time_scale = self.update_time_quota / total_quota
         max_time_ns = int(self.max_fill_time_s * ONE_S_IN_NS) if self.max_fill_time_s < float("inf") else None
         fill_time_ns = self._get_timeout_ns(
-            total_time_ns=total_time_ns, used_time_ns=used_time, scale=fill_time_scale, max_time_ns=max_time_ns
+            total_time_ns=total_time_ns,
+            used_time_ns=used_time,
+            scale=fill_time_scale,
+            max_time_ns=max_time_ns,
         )
         with log_time(
             log=log,
