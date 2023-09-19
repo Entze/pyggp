@@ -3,7 +3,7 @@ from typing import Any
 
 import cachetools
 from pyggp.game_description_language import Subrelation
-from pyggp.interpreters import Interpreter
+from pyggp.interpreters import CachingInterpreter, Interpreter
 
 
 class LRUCacheWithInfo(cachetools.LRUCache):
@@ -56,20 +56,20 @@ def cache_info(cache: Any) -> CacheInfo:
     return CacheInfo()
 
 
-def print_cache_info(interpreter: Interpreter):
+def print_cache_info(interpreter: CachingInterpreter):
     print("subrelation_as_clingo_symbol_cache: ", cache_info(Subrelation._as_clingo_symbol_cache))
     print("Subrelation.from_clingo_symbol: ", cache_info(Subrelation.from_clingo_symbol))
-    print("interpreter.get_next_state: ", cache_info(interpreter._cache_container.next))
-    print("interpreter.get_all_next_states: ", cache_info(interpreter._cache_container.all_next))
-    print("interpreter.get_sees: ", cache_info(interpreter._cache_container.sees))
-    print("interpreter.get_legal_moves: ", cache_info(interpreter._cache_container.legal))
-    print("interpreter.get_goals: ", cache_info(interpreter._cache_container.goal))
-    print("interpreter.is_terminal: ", cache_info(interpreter._cache_container.terminal))
+    print("interpreter.get_next_state: ", cache_info(interpreter.cache.next))
+    print("interpreter.get_all_next_states: ", cache_info(interpreter.cache.all_next))
+    print("interpreter.get_sees: ", cache_info(interpreter.cache.sees))
+    print("interpreter.get_legal_moves: ", cache_info(interpreter.cache.legal))
+    print("interpreter.get_goals: ", cache_info(interpreter.cache.goal))
+    print("interpreter.is_terminal: ", cache_info(interpreter.cache.terminal))
     print("Interpreter.get_roles_in_control:", cache_info(Interpreter.get_roles_in_control))
 
 
-def clear_caches(interpreter: Interpreter):
+def clear_caches(interpreter: CachingInterpreter):
     Subrelation._as_clingo_symbol_cache.clear()
     Subrelation.from_clingo_symbol.cache_clear()
-    interpreter._cache_container.clear()
+    interpreter.cache.clear()
     Interpreter.get_roles_in_control.cache_clear()
