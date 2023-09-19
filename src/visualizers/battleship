@@ -8,6 +8,14 @@ __ship_letter(cruiser, "C").
 __ship_letter(submarine, "S").
 __ship_letter(destroyer, "D").
 
+__hit_letter("X").
+__shot_letter("o").
+
+__ship_sunkletter(carrier, "a").
+__ship_sunkletter(battleship, "b").
+__ship_sunkletter(cruiser, "c").
+__ship_sunkletter(submarine, "s").
+__ship_sunkletter(destroyer, "d").
 
 __cols(C) :- C = #count { C' : col(C') }.
 __rows(R) :- R = #count { R' : row(R') }.
@@ -201,6 +209,7 @@ __viz(RC, CC, " ") :-
     cell(Cell),
     Cell=(C, R),
     not true(occupies(Role, Cell, _)),
+    not true(shot(Role, Cell)),
     __mapping(R, R'), __mapping(C, C'),
     __role_offset(Role, Offset),
     __rowheight(RH), __colwidth(CW),
@@ -212,10 +221,52 @@ __viz(RC, CC, L) :-
     cell(Cell),
     Cell=(C, R),
     true(occupies(Role, Cell, Ship)),
+    not true(shot(Role, Cell)),
+    not true(sunk(Role, Ship)),
     __mapping(R, R'), __mapping(C, C'),
     __role_offset(Role, Offset),
     __rowheight(RH), __colwidth(CW),
     __cell_col_letter_offset(CLO), __cell_row_letter_offset(RWO),
     __ship_letter(Ship, L),
+    RC = 1 + (R'-1) * (RH + 1) + RWO,
+    CC = 1 + (C'-1) * (CW + 1) + CLO + Offset.
+
+__viz(RC, CC, SL) :-
+    cell(Cell),
+    Cell=(C, R),
+    true(occupies(Role, Cell, Ship)),
+    true(shot(Role, Cell)),
+    __mapping(R, R'), __mapping(C, C'),
+    __role_offset(Role, Offset),
+    __rowheight(RH), __colwidth(CW),
+    __cell_col_letter_offset(CLO), __cell_row_letter_offset(RWO),
+    __ship_sunkletter(Ship, SL),
+    RC = 1 + (R'-1) * (RH + 1) + RWO,
+    CC = 1 + (C'-1) * (CW + 1) + CLO + Offset.
+
+__viz(RC, CC, X) :-
+    cell(Cell),
+    Cell=(C, R),
+    not true(occupies(Role, Cell, _)),
+    true(hit(Role, Cell)),
+    __mapping(R, R'), __mapping(C, C'),
+    __role_offset(Role, Offset),
+    __rowheight(RH), __colwidth(CW),
+    __cell_col_letter_offset(CLO), __cell_row_letter_offset(RWO),
+    __hit_letter(X),
+    RC = 1 + (R'-1) * (RH + 1) + RWO,
+    CC = 1 + (C'-1) * (CW + 1) + CLO + Offset.
+
+__viz(RC, CC, O) :-
+    cell(Cell),
+    Cell=(C, R),
+    not true(occupies(Role, Cell, _)),
+    not true(hit(Role, Cell)),
+    true(shot(Role, Cell)),
+    __mapping(R, R'), __mapping(C, C'),
+    __role_offset(Role, Offset),
+    __rowheight(RH), __colwidth(CW),
+    __cell_col_letter_offset(CLO), __cell_row_letter_offset(RWO),
+    __shot_letter(O),
     RC = 1 + (R'-1) * (RH + 1) + RWO,
     CC = 1 + (C'-1) * (CW + 1) + CLO + Offset.

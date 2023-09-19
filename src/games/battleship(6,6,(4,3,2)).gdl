@@ -5,8 +5,8 @@ role(right).
 init(control(left)).
 init(control(right)).
 
-           succ(a,b). succ(b,c). succ(c,d). succ(d,e).
-succ(0,1). succ(1,2). succ(2,3). succ(3,4). succ(4,5).
+           succ(a,b). succ(b,c). succ(c,d). succ(d,e). succ(e,f).
+succ(0,1). succ(1,2). succ(2,3). succ(3,4). succ(4,5). succ(5,6).
 
 ship_length(battleship,4).
 ship_length(cruiser,3).
@@ -16,8 +16,8 @@ succ(battleship, cruiser). succ(cruiser, destroyer).
 
 ship(Ship) :- ship_length(Ship, _Length).
 
-row(1). row(2). row(3). row(4). row(5).
-col(a). col(b). col(c). col(d). col(e).
+row(1). row(2). row(3). row(4). row(5). row(6).
+col(a). col(b). col(c). col(d). col(e). col(f).
 
 firstcol(C) :-
     col(C),
@@ -90,6 +90,10 @@ cell_diagonalcell(Cell, Cell1) :-
     cell(Cell), cell(Cell1),
     cell_direction_cell(Cell, horizontal, CellA),
     cell_direction_cell(CellA, vertical, Cell1).
+cell_diagonalcell(Cell, Cell1) :-
+    cell(Cell), cell(Cell1),
+    cell_direction_cell(CellA, horizontal, Cell),
+    cell_direction_cell(CellA, vertical, Cell1).
 cell_diagonalcell(Cell1, Cell2) :-
     cell_diagonalcell(Cell2, Cell1).
 
@@ -110,6 +114,29 @@ next(occupies(Role, Cell, Ship)) :-
 next(occupies(Role, Cell, Ship)) :-
     role(Role), cell(Cell), ship(Ship),
     placing(Role, Cell, _Direction, Ship, _Length).
+
+next(shot(Role, Cell)) :-
+    true(shot(Role, Cell)),
+    role(Role), cell(Cell).
+
+next(shot(Role2, Cell)) :-
+    does(Role1, shoot(Cell)),
+    role(Role2), cell(Cell),
+    role(Role1), distinct(Role1, Role2).
+
+next(hit(Role, Cell)) :-
+    true(hit(Role, Cell)),
+    role(Role), cell(Cell).
+
+next(hit(Role2, Cell)) :-
+    true(occupies(Role2, Cell, Ship)),
+    does(Role1, shoot(Cell)),
+    role(Role2), cell(Cell), ship(Ship),
+    role(Role1), distinct(Role1, Role2).
+
+next(sunk(Role, Ship)) :-
+    role(Role), ship(Ship),
+    not unsunk(Role, Ship).
 
 placing(Role, Cell, Direction, Ship, Length) :-
     does(Role, place(Cell, Direction)),
@@ -136,6 +163,61 @@ toplace(Role, Ship1) :-
     not unplaced(Role, Ship),
     unplaced(Role, Ship1),
     succ(Ship, Ship1).
+
+unsunk(Role, Ship) :-
+    true(occupies(Role, Cell, Ship)),
+    role(Role), cell(Cell), ship(Ship),
+    not shot(Role, Cell).
+
+unsunk(Role, Ship) :-
+    unplaced(Role, Ship),
+    role(Role), ship(Ship).
+
+shot(Role2, Cell) :-
+    does(Role1, shoot(Cell)),
+    role(Role2), cell(Cell),
+    role(Role1), distinct(Role1, Role2).
+
+shot(Role, Cell) :-
+    true(shot(Role, Cell)),
+    role(Role), cell(Cell).
+
+sees(Everyone, control(Role)) :-
+    true(control(Role)),
+    role(Everyone), role(Role).
+
+sees(Role, occupies(Role, Cell, Ship)) :-
+    true(occupies(Role, Cell, Ship)),
+    role(Role).
+
+sees(Everyone, occupies(Role, Cell, Ship)) :-
+    true(occupies(Role, Cell, Ship)),
+    true(sunk(Role, Ship)),
+    role(Everyone), role(Role), cell(Cell), ship(Ship).
+
+sees(Everyone, shot(Role, Cell)) :-
+    true(shot(Role, Cell)),
+    role(Everyone), role(Role).
+
+sees(Everyone, hit(Role, Cell)) :-
+    true(hit(Role, Cell)),
+    role(Everyone), role(Role).
+
+sees(Everyone, sunk(Role, Ship)) :-
+    true(sunk(Role, Ship)),
+    role(Everyone), role(Role).
+
+legal(Role, place(Cell, Direction)) :-
+    role(Role), cell(Cell), direction(Direction),
+    ship(Ship), ship_length(Ship, Length),
+    toplace(Role, Ship),
+    not forbidden(Role, Cell, Direction, Length).
+
+legal(Role1, shoot(Cell)) :-
+    role(Role1), cell(Cell),
+    role(Role2), distinct(Role1, Role2),
+    not true(shot(Role2, Cell)),
+    not toplace(Role1, _Ship).
 
 forbidden(Role, Cell, Direction, 1) :-
     true(occupies(Role, Cell, _Ship)),
@@ -166,8 +248,28 @@ forbidden(Role, Cell, Direction, Length1) :-
     succ(Length, Length1), cell_direction_cell(Cell, Direction, Cell1),
     forbidden(Role, Cell1, Direction, Length).
 
-legal(Role, place(Cell, Direction)) :-
-    role(Role), cell(Cell), direction(Direction),
-    ship(Ship), ship_length(Ship, Length),
-    toplace(Role, Ship),
-    not forbidden(Role, Cell, Direction, Length).
+alive(Role) :-
+    role(Role), ship(Ship),
+    not true(sunk(Role, Ship)).
+
+terminal :-
+    role(Role),
+    not alive(Role).
+
+goal(Role1, 0) :-
+    alive(Role2),
+    role(Role1),
+    role(Role2), distinct(Role1, Role2),
+    not alive(Role1).
+
+goal(Role1, 50) :-
+    role(Role1),
+    role(Role2), distinct(Role1, Role2),
+    not alive(Role1),
+    not alive(Role2).
+
+goal(Role1, 100) :-
+    alive(Role1),
+    role(Role1),
+    role(Role2), distinct(Role1, Role2),
+    not alive(Role2).
