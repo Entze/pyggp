@@ -1,0 +1,100 @@
+
+role(white). role(black).
+
+file(a). file(b). file(c).
+rank(1). rank(2). rank(3).
+
+succ(a, b). succ(b, c).
+succ(1, 2). succ(2, 3).
+
+cell((F, R)) :- file(F), rank(R).
+
+init(occupies_cell(white, (a, 1))).
+init(occupies_cell(white, (b, 1))).
+init(occupies_cell(white, (c, 1))).
+init(occupies_cell(black, (a, 3))).
+init(occupies_cell(black, (b, 3))).
+init(occupies_cell(black, (c, 3))).
+init(control(white)).
+
+cell_orthogonalneighbor((F,R), (F,R1)) :- file(F), rank(R), rank(R1), succ(R, R1).
+cell_orthogonalneighbor((F,R), (F1,R)) :- file(F), file(F1), rank(R), succ(F, F1).
+cell_orthogonalneighbor(C1, C2) :- cell_orthogonalneighbor(C2, C1).
+
+cell_diagonalneighbor((F,R), (F1,R1)) :- file(F), file(F1), rank(R), rank(R1), succ(F, F1), succ(R, R1).
+cell_diagonalneighbor((F,R), (F1,R1)) :- file(F), file(F1), rank(R), rank(R1), succ(F1, F), succ(R, R1).
+cell_diagonalneighbor((F,R), (F1,R1)) :- file(F), file(F1), rank(R), rank(R1), succ(F, F1), succ(R1, R).
+cell_diagonalneighbor((F,R), (F1,R1)) :- file(F), file(F1), rank(R), rank(R1), succ(F1, F), succ(R1, R).
+
+cell_neighbor(C1, C2) :- cell_orthogonalneighbor(C1, C2).
+cell_neighbor(C1, C2) :- cell_diagonalneighbor(C1, C2).
+
+action(move(C1,C2)) :- cell(C1), cell(C2), cell_neighbor(C1, C2).
+
+next(control(R1)) :-
+  true(control(R2)),
+  role(R1), role(R2),
+  distinct(R1, R2).
+
+next(occupies_cell(R, C)) :-
+  true(occupies_cell(R, C)),
+  does(_, move(C1, C2)),
+  cell(C), cell(C1), cell(C2),
+  distinct(C, C1),
+  distinct(C, C2).
+
+next(occupies_cell(R, C2)) :-
+  true(occupies_cell(R, C1)),
+  does(R, move(C1, C2)),
+  role(R),
+  cell(C1), cell(C2).
+
+legal(R, move(C1, C2)) :-
+  true(occupies_cell(R, C1)),
+  not true(occupies_cell(_, C2)),
+  role(R),
+  cell(C1), cell(C2),
+  cell_orthogonalneighbor(C1, C2).
+
+legal(R1, move(C1, C2)) :-
+  true(occupies_cell(R1, C1)),
+  true(occupies_cell(R2, C2)),
+  role(R1), role(R2),
+  cell(C1), cell(C2),
+  distinct(R1, R2),
+  cell_diagonalneighbor(C1, C2).
+
+goal(white, 1) :-
+  true(occupies_cell(white, (_, 3))).
+
+goal(black, -1) :-
+  true(occupies_cell(white, (_, 3))).
+
+goal(black, 1) :-
+  true(occupies_cell(black, (_, 1))).
+
+goal(white, -1) :-
+  true(occupies_cell(black, (_, 1))).
+
+goal(R1, 1) :-
+  true(control(R2)),
+  not legal(R2, _),
+  role(R1), role(R2),
+  distinct(R1, R2).
+
+goal(R2, -1) :-
+  true(control(R2)),
+  not legal(R2, _),
+  role(R1), role(R2),
+  distinct(R1, R2).
+
+terminal :-
+  true(occupies_cell(white, (_, 3))).
+
+terminal :-
+  true(occupies_cell(black, (_, 1))).
+
+terminal :-
+  true(control(R)),
+  not legal(R, _),
+  role(R).
