@@ -12,7 +12,7 @@ import pyggp.cli.commands
 if __name__ == "__main__":
     _major, _minor = sys.version_info[:2]
 
-    _SUPPORTED_VERSIONS = ((3, 8), (3, 9), (3, 10), (3, 11))
+    _SUPPORTED_VERSIONS = ((3, 8), (3, 9), (3, 10), (3, 11), (3, 12))
 
     log: logging.Logger = logging.getLogger("pyggp")
 
