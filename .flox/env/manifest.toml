@@ -17,7 +17,7 @@ version = 1
 [install]
 python3 = { pkg-path = "python3" }
 poetry = { pkg-path = "poetry" }
-gcc.pkg-path = "gcc"
+gcc-unwrapped = { pkg-path = "gcc-unwrapped" }
 
 
 ## Environment Variables ---------------------------------------------

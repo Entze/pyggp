@@ -3,8 +3,8 @@
   "manifest": {
     "version": 1,
     "install": {
-      "gcc": {
-        "pkg-path": "gcc"
+      "gcc-unwrapped": {
+        "pkg-path": "gcc-unwrapped"
       },
       "poetry": {
         "pkg-path": "poetry"
@@ -37,15 +37,15 @@
   },
   "packages": [
     {
-      "attr_path": "gcc",
+      "attr_path": "gcc-unwrapped",
       "broken": false,
-      "derivation": "/nix/store/dkq5ji1y441i919x5v79x66xh31cd11h-gcc-wrapper-14-20241116.drv",
-      "description": "GNU Compiler Collection, version 14-20241116 (wrapper script)",
-      "install_id": "gcc",
+      "derivation": "/nix/store/bla5iam0ajnsislkb37gvyp6kal1sz2n-gcc-14-20241116.drv",
+      "description": "GNU Compiler Collection, version 14-20241116",
+      "install_id": "gcc-unwrapped",
       "license": "GPL-3.0-or-later",
       "locked_url": "https://github.com/flox/nixpkgs?rev=ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
-      "name": "gcc-wrapper-14-20241116",
-      "pname": "gcc",
+      "name": "gcc-14-20241116",
+      "pname": "gcc-unwrapped",
       "rev": "ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
       "rev_count": 762036,
       "rev_date": "2025-03-03T13:57:36Z",
@@ -60,24 +60,25 @@
         "out"
       ],
       "outputs": {
-        "info": "/nix/store/10vrbhhqyjfa5rs0wycrwj3mvbgzq4mj-gcc-wrapper-14-20241116-info",
-        "man": "/nix/store/s7zfnbf8nhmnj6iwggiv7b6hrswblc0w-gcc-wrapper-14-20241116-man",
-        "out": "/nix/store/assxd1wk7lm2w68z4g56b4zfrm36af31-gcc-wrapper-14-20241116"
+        "info": "/nix/store/rmc0gr696rd090f7z8mfsnmj0wgwphcd-gcc-14-20241116-info",
+        "lib": "/nix/store/q03nbkilgvk9w7dkh8iz4b71hh24ngg7-gcc-14-20241116-lib",
+        "man": "/nix/store/0s9sianvkh4nc5hmq2pi84hfiwlbzg3d-gcc-14-20241116-man",
+        "out": "/nix/store/78gdab2hvrlv1hgijv63yrsmgg65rdib-gcc-14-20241116"
       },
       "system": "aarch64-darwin",
       "group": "toplevel",
       "priority": 5
     },
     {
-      "attr_path": "gcc",
+      "attr_path": "gcc-unwrapped",
       "broken": false,
-      "derivation": "/nix/store/5abzc72b0j29qwilhxdh5hlay3wx7ca7-gcc-wrapper-14-20241116.drv",
-      "description": "GNU Compiler Collection, version 14-20241116 (wrapper script)",
-      "install_id": "gcc",
+      "derivation": "/nix/store/c7jkkgyr899gkxlki078sdic0a1pldjb-gcc-14-20241116.drv",
+      "description": "GNU Compiler Collection, version 14-20241116",
+      "install_id": "gcc-unwrapped",
       "license": "GPL-3.0-or-later",
       "locked_url": "https://github.com/flox/nixpkgs?rev=ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
-      "name": "gcc-wrapper-14-20241116",
-      "pname": "gcc",
+      "name": "gcc-14-20241116",
+      "pname": "gcc-unwrapped",
       "rev": "ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
       "rev_count": 762036,
       "rev_date": "2025-03-03T13:57:36Z",
@@ -92,24 +93,27 @@
         "out"
       ],
       "outputs": {
-        "info": "/nix/store/gixjrrdvfhhf0z1z3zxbjc3zr3vvjyf5-gcc-wrapper-14-20241116-info",
-        "man": "/nix/store/yimc93hlkz72laxhmk09hkmx11ij1fvz-gcc-wrapper-14-20241116-man",
-        "out": "/nix/store/8p08lgzbiqvj5fni1d9hxc6ma1z0mh2z-gcc-wrapper-14-20241116"
+        "checksum": "/nix/store/birmzzpqqk0m8ishbn8w6dfjcxi1vj7w-gcc-14-20241116-checksum",
+        "info": "/nix/store/iyyx0g44mv74hw6ll9vklr1k8qlhdby6-gcc-14-20241116-info",
+        "lib": "/nix/store/1bw09fn8rdrp8i9zw5sdx0anw1rfh3b5-gcc-14-20241116-lib",
+        "libgcc": "/nix/store/lz9364hg01q2h25mi4kq9y2c7dyivk16-gcc-14-20241116-libgcc",
+        "man": "/nix/store/8xpp1kp3b5wy0adpl9sdpib55i0r3a51-gcc-14-20241116-man",
+        "out": "/nix/store/l71wz2r8ki25kzw33jwssg8rh77xfkpr-gcc-14-20241116"
       },
       "system": "aarch64-linux",
       "group": "toplevel",
       "priority": 5
     },
     {
-      "attr_path": "gcc",
+      "attr_path": "gcc-unwrapped",
       "broken": false,
-      "derivation": "/nix/store/91y6ir9sj8g5sf0nhmgzi0gdinh2mnh2-gcc-wrapper-14-20241116.drv",
-      "description": "GNU Compiler Collection, version 14-20241116 (wrapper script)",
-      "install_id": "gcc",
+      "derivation": "/nix/store/hhz90ry7ffb7sn9plq5qrxchivzl50d9-gcc-14-20241116.drv",
+      "description": "GNU Compiler Collection, version 14-20241116",
+      "install_id": "gcc-unwrapped",
       "license": "GPL-3.0-or-later",
       "locked_url": "https://github.com/flox/nixpkgs?rev=ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
-      "name": "gcc-wrapper-14-20241116",
-      "pname": "gcc",
+      "name": "gcc-14-20241116",
+      "pname": "gcc-unwrapped",
       "rev": "ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
       "rev_count": 762036,
       "rev_date": "2025-03-03T13:57:36Z",
@@ -124,24 +128,25 @@
         "out"
       ],
       "outputs": {
-        "info": "/nix/store/i5c2plqnvy1162ldl0vsvvbhqir36jcd-gcc-wrapper-14-20241116-info",
-        "man": "/nix/store/17lzpc2d07kqi07qd152p0r05h2yak3r-gcc-wrapper-14-20241116-man",
-        "out": "/nix/store/dmmn8lxy19yvqskcjy4w3z1yipzqfid3-gcc-wrapper-14-20241116"
+        "info": "/nix/store/29d5v5fbp2dvr2zg2bk4hd2nllp296v3-gcc-14-20241116-info",
+        "lib": "/nix/store/185w2l0hfc78964p95jlnj0dwqmxjd6c-gcc-14-20241116-lib",
+        "man": "/nix/store/mk1z9cfg7a7b7qjdf8i9di42pdk04dnp-gcc-14-20241116-man",
+        "out": "/nix/store/82si14nf3c21ldh76q8zz19s088j9daq-gcc-14-20241116"
       },
       "system": "x86_64-darwin",
       "group": "toplevel",
       "priority": 5
     },
     {
-      "attr_path": "gcc",
+      "attr_path": "gcc-unwrapped",
       "broken": false,
-      "derivation": "/nix/store/zxgr8l9v8381m2p99rj56gmgn591jbgz-gcc-wrapper-14-20241116.drv",
-      "description": "GNU Compiler Collection, version 14-20241116 (wrapper script)",
-      "install_id": "gcc",
+      "derivation": "/nix/store/8blxxw85i9girp8alj22hg2ymfgg62hp-gcc-14-20241116.drv",
+      "description": "GNU Compiler Collection, version 14-20241116",
+      "install_id": "gcc-unwrapped",
       "license": "GPL-3.0-or-later",
       "locked_url": "https://github.com/flox/nixpkgs?rev=ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
-      "name": "gcc-wrapper-14-20241116",
-      "pname": "gcc",
+      "name": "gcc-14-20241116",
+      "pname": "gcc-unwrapped",
       "rev": "ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
       "rev_count": 762036,
       "rev_date": "2025-03-03T13:57:36Z",
@@ -156,9 +161,12 @@
         "out"
       ],
       "outputs": {
-        "info": "/nix/store/j2iqinh2hk1npgfijm31kzm786cr335z-gcc-wrapper-14-20241116-info",
-        "man": "/nix/store/rkzk4376znb9s9b4lflc174vcv6v8bqq-gcc-wrapper-14-20241116-man",
-        "out": "/nix/store/ii75mhh7sxl11167m1b86p0qrjsjyjmd-gcc-wrapper-14-20241116"
+        "checksum": "/nix/store/avr63jc9b7i54mchhvicjk6jv7jqxm03-gcc-14-20241116-checksum",
+        "info": "/nix/store/4cb8yffwzzb7azd2bcimp9gprhy0x5ga-gcc-14-20241116-info",
+        "lib": "/nix/store/2lhklm5aizx30qbw49acnrrzkj9lbmij-gcc-14-20241116-lib",
+        "libgcc": "/nix/store/h03dvda05kajz6ja7zx9lxgwzn3l0wcb-gcc-14-20241116-libgcc",
+        "man": "/nix/store/g0byixvli8kif5gps8hz3znp0asrxc2i-gcc-14-20241116-man",
+        "out": "/nix/store/dih8vf5naf93c0wcfxqa9pll3k7iv9bm-gcc-14-20241116"
       },
       "system": "x86_64-linux",
       "group": "toplevel",
