@@ -16,20 +16,20 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - '3.11'
-        os: [ ubuntu-20.04, macos-latest, windows-latest ]
+          - '3.12'
+        os: [ ubuntu-24.04, macos-latest, windows-latest ]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: pipx install poetry
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: .nox
           key: ${{ github.ref_name }}-${{ github.workflow }}-${{ github.job }}-${{ runner.os }}-python${{ matrix.python-version }}-.nox-${{ hashFiles('**/noxfile.py', '**/pyproject.toml', '**/poetry.lock') }}
@@ -48,7 +48,7 @@ jobs:
       - name: "Rename artifact"
         run: mv dist/pyggp pyggp-${{ env.PLATFORM_NAME }}
       - run: ls -lah pyggp-*
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: "binaries"
           path: "pyggp-*"
@@ -58,7 +58,7 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
-        os: [ ubuntu-22.04, ubuntu-20.04, macos-12, macos-11, windows-2022, windows-2019 ]
+        os: [ ubuntu-24.04, ubuntu-22.04, ubuntu-20.04, macos-15, macos-14, macos-13, windows-2025, windows-2022, windows-2019]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     needs: build
@@ -82,7 +82,7 @@ jobs:
           echo "POSTFIX=$POSTFIX"
           echo "PLATFORM_NAME=$PLATFORM_NAME" >> $GITHUB_ENV
           echo "POSTFIX=$POSTFIX" >> $GITHUB_ENV
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: "binaries"
       - run: ls -lah pyggp-*
@@ -104,18 +104,18 @@ jobs:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: pipx install poetry
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'poetry'
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: .nox
           key: ${{ github.ref_name }}-${{ github.workflow }}-${{ github.job }}-${{ runner.os }}-python${{ matrix.python-version }}-.nox-${{ hashFiles('**/noxfile.py', '**/pyproject.toml', '**/poetry.lock') }}
       - run: poetry install --with dev,bin
-      - uses: JRubics/poetry-publish@v1.16
+      - uses: JRubics/poetry-publish@v2.1
         with:
           pypi_token: ${{ secrets.TEST_PYPI_TOKEN }}
           repository_name: "testpypi"
@@ -130,10 +130,10 @@ jobs:
       - build
       - sanity_check
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: "binaries"
-      - uses: softprops/action-gh-release@v1
+      - uses: softprops/action-gh-release@v2
         with:
           prerelease: true
           fail_on_unmatched_files: true

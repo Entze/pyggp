@@ -21,38 +21,38 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest ]
-        python-version: [ '3.11' ]
+        python-version: [ '3.12' ]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - run: pipx install poetry
-      - uses: pre-commit/action@v3.0.0
+      - uses: pre-commit/action@v3.0.1
   nox:
     name: "🧪 Nox CI (Python ${{ matrix.python-version }}, ${{ matrix.os }})"
     timeout-minutes: 10
     strategy:
       matrix:
-        python-version: [ '3.11' ]
+        python-version: [ '3.12' ]
         os: [ ubuntu-latest ]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: pipx install poetry
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'
       - run: poetry install --with ci
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: .nox
           key: ${{ github.ref_name }}-${{ github.workflow }}-${{ github.job }}-${{ runner.os }}-python${{ matrix.python-version }}-.nox-${{ hashFiles('**/noxfile.py', '**/pyproject.toml', '**/poetry.lock') }}

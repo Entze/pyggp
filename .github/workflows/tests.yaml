@@ -24,6 +24,7 @@ jobs:
           - 'pypy3.9'
           - '3.10'
           - '3.11'
+          - '3.12'
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         exclude:
           - os: windows-latest
@@ -35,14 +36,14 @@ jobs:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: pipx install poetry
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'
       - run: poetry install --with ci
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: .nox
           key: ${{ github.ref_name }}-${{ github.workflow }}-${{ github.job }}-${{ runner.os }}-python${{ matrix.python-version }}-.nox-${{ hashFiles('**/noxfile.py', '**/pyproject.toml', '**/poetry.lock') }}
@@ -54,25 +55,25 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
-        python-version: [ '3.11' ]
+        python-version: [ '3.12' ]
         os: [ ubuntu-latest ]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: pipx install poetry
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'
       - run: poetry install --with ci
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: .nox
           key: ${{ github.ref_name }}-${{ github.workflow }}-${{ github.job }}-${{ runner.os }}-python${{ matrix.python-version }}-.nox-${{ hashFiles('**/noxfile.py', '**/pyproject.toml', '**/poetry.lock') }}
       - run: poetry run nox -R --session coverage
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
