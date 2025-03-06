@@ -1,4 +1,5 @@
 """Visualizers for consecutive states."""
+
 import abc
 import collections
 import functools

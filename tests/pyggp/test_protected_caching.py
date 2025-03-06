@@ -1,4 +1,5 @@
 import pytest
+
 from pyggp._caching import size_str_to_int
 
 

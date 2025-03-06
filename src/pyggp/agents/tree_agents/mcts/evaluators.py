@@ -1,4 +1,5 @@
 """Evaluators for the MCTS agents."""
+
 import random
 from dataclasses import dataclass, field
 from typing import Any, Optional, TypeVar

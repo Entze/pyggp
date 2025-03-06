@@ -2,6 +2,7 @@ import datetime
 from typing import Union
 
 import pytest
+
 from pyggp._logging import format_amount, format_timedelta, inflect
 
 

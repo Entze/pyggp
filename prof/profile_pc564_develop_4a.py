@@ -1,16 +1,15 @@
 import time
 
 import pyggp.game_description_language as gdl
-from pyggp._logging import format_ns
-from pyggp.agents.tree_agents.nodes import HiddenInformationSetNode, VisibleInformationSetNode
-from pyggp.engine_primitives import Move, Turn
-
 from prof.prof_common_phantom_connect_5_6_4 import (
     phantom_connect_5_6_4_init_state,
     phantom_connect_5_6_4_interpreter,
     phantom_connect_5_6_4_role_o,
     phantom_connect_5_6_4_role_x,
 )
+from pyggp._logging import format_ns
+from pyggp.agents.tree_agents.nodes import HiddenInformationSetNode, VisibleInformationSetNode
+from pyggp.engine_primitives import Move, Turn
 
 cell_1_1 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(1)), gdl.Subrelation(gdl.Number(1))))))
 cell_1_2 = Move(gdl.Subrelation(gdl.Relation("cell", (gdl.Subrelation(gdl.Number(1)), gdl.Subrelation(gdl.Number(2))))))

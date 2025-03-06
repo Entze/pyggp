@@ -1,7 +1,8 @@
 from unittest import mock
 
-import pyggp.game_description_language as gdl
 import pytest
+
+import pyggp.game_description_language as gdl
 from pyggp.agents.tree_agents.nodes import (
     HiddenInformationSetNode,
     ImperfectInformationNode,
@@ -12,12 +13,12 @@ from pyggp.engine_primitives import Move, Role, State, Turn, View
 from pyggp.interpreters import ClingoInterpreter, Interpreter
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_role() -> Role:
     return mock.Mock(spec=Role, name="mock_role")
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_interpreter() -> Interpreter:
     return mock.Mock(spec=Interpreter, name="mock_interpreter")
 
@@ -273,7 +274,7 @@ def test_trim_noops_on_trimmed_node(mock_role) -> None:
     assert node.children == expected
 
 
-@pytest.fixture()
+@pytest.fixture
 def ruleset_two_moves_max() -> gdl.Ruleset:
     return gdl.transformer.transform(
         gdl.parser.parse(
@@ -303,7 +304,7 @@ def ruleset_two_moves_max() -> gdl.Ruleset:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def ruleset_three_moves_max() -> gdl.Ruleset:
     return gdl.transformer.transform(
         gdl.parser.parse(
@@ -428,7 +429,7 @@ def test_prune_removes_impossible_states_from_child_if_move_is_set() -> None:
     pass
 
 
-@pytest.fixture()
+@pytest.fixture
 def ruleset_phantom_connect_5_6_4() -> gdl.Ruleset:
     rules = """
 role(x). role(o).

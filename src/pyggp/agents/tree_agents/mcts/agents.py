@@ -62,8 +62,7 @@ class MonteCarloTreeSearchAgent(TreeAgent[_K, _MCTSEvaluation]):
     max_expansion_depth: Optional[int]
     max_fill_time_s: float
 
-    def step(self) -> None:
-        ...
+    def step(self) -> None: ...
 
 
 _P = ParamSpec("_P")
@@ -342,9 +341,11 @@ class MCTSAgent(AbstractSOMCTSAgent[Turn]):
         return {
             turn: (
                 float("-inf") if not self._can_lookup() else self._lookup(turn),
-                child.valuation.total_playouts
-                if child.valuation is not None and hasattr(child.valuation, "total_playouts")
-                else 0,
+                (
+                    child.valuation.total_playouts
+                    if child.valuation is not None and hasattr(child.valuation, "total_playouts")
+                    else 0
+                ),
                 child.valuation.utility if child.valuation is not None else 0.0,
             )
             for turn, child in self.tree.children.items()
@@ -497,9 +498,11 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
         return {
             key: (
                 float("-inf") if not self._can_lookup() else self._lookup(key),
-                child.valuation.total_playouts
-                if child.valuation is not None and hasattr(child.valuation, "total_playouts")
-                else 0,
+                (
+                    child.valuation.total_playouts
+                    if child.valuation is not None and hasattr(child.valuation, "total_playouts")
+                    else 0
+                ),
                 child.valuation.utility if child.valuation is not None else 0.0,
             )
             for key, child in self.tree.children.items()
@@ -935,9 +938,11 @@ class MultiObserverInformationSetMCTSAgent(
         return {
             key: (
                 float("-inf") if not self._can_lookup() else self._lookup(key),
-                child.valuation.total_playouts
-                if child.valuation is not None and hasattr(child.valuation, "total_playouts")
-                else 0,
+                (
+                    child.valuation.total_playouts
+                    if child.valuation is not None and hasattr(child.valuation, "total_playouts")
+                    else 0
+                ),
                 child.valuation.utility if child.valuation is not None else 0.0,
             )
             for key, child in self.trees[self.role].children.items()

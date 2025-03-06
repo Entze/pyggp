@@ -1,7 +1,8 @@
 import pathlib
 
-import pyggp.game_description_language as gdl
 import pytest
+
+import pyggp.game_description_language as gdl
 from pyggp.agents import MOISMCTSAgent
 from pyggp.agents.tree_agents.agents import ONE_S_IN_NS
 from pyggp.engine_primitives import Move, Role
@@ -9,179 +10,179 @@ from pyggp.gameclocks import DEFAULT_NO_TIMEOUT_CONFIGURATION, DEFAULT_START_CLO
 from pyggp.interpreters import ClingoInterpreter, Interpreter
 
 
-@pytest.fixture()
+@pytest.fixture
 def corridor_str() -> str:
     if pathlib.Path("../src/games/dark_split_corridor(3,4).gdl").exists():
         return pathlib.Path("../src/games/dark_split_corridor(3,4).gdl").read_text()
     return pathlib.Path("src/games/dark_split_corridor(3,4).gdl").read_text()
 
 
-@pytest.fixture()
+@pytest.fixture
 def corridor_ruleset(corridor_str) -> gdl.Ruleset:
     return gdl.parse(corridor_str)
 
 
-@pytest.fixture()
+@pytest.fixture
 def corridor_interpreter(corridor_ruleset) -> Interpreter:
     return ClingoInterpreter.from_ruleset(corridor_ruleset, disable_cache=True)
 
 
-@pytest.fixture()
+@pytest.fixture
 def corridor_left() -> Role:
     return Role(gdl.Subrelation(gdl.Relation("left")))
 
 
-@pytest.fixture()
+@pytest.fixture
 def corridor_right() -> Role:
     return Role(gdl.Subrelation(gdl.Relation("right")))
 
 
-@pytest.fixture()
+@pytest.fixture
 def a2() -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("a")), gdl.Subrelation(gdl.Number(2)))))
 
 
-@pytest.fixture()
+@pytest.fixture
 def a3() -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("a")), gdl.Subrelation(gdl.Number(3)))))
 
 
-@pytest.fixture()
+@pytest.fixture
 def a4() -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("a")), gdl.Subrelation(gdl.Number(4)))))
 
 
-@pytest.fixture()
+@pytest.fixture
 def b1() -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("b")), gdl.Subrelation(gdl.Number(1)))))
 
 
-@pytest.fixture()
+@pytest.fixture
 def b2() -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("b")), gdl.Subrelation(gdl.Number(2)))))
 
 
-@pytest.fixture()
+@pytest.fixture
 def b3() -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("b")), gdl.Subrelation(gdl.Number(3)))))
 
 
-@pytest.fixture()
+@pytest.fixture
 def b4() -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("b")), gdl.Subrelation(gdl.Number(4)))))
 
 
-@pytest.fixture()
+@pytest.fixture
 def c1() -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("c")), gdl.Subrelation(gdl.Number(1)))))
 
 
-@pytest.fixture()
+@pytest.fixture
 def c2() -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("c")), gdl.Subrelation(gdl.Number(2)))))
 
 
-@pytest.fixture()
+@pytest.fixture
 def c3() -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("c")), gdl.Subrelation(gdl.Number(3)))))
 
 
-@pytest.fixture()
+@pytest.fixture
 def a2_a3(a2, a3) -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("", (a2, a3)))
 
 
-@pytest.fixture()
+@pytest.fixture
 def a3_a4(a3, a4) -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("", (a3, a4)))
 
 
-@pytest.fixture()
+@pytest.fixture
 def b3_b4(b3, b4) -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("", (b3, b4)))
 
 
-@pytest.fixture()
+@pytest.fixture
 def c1_c2(c1, c2) -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("", (c1, c2)))
 
 
-@pytest.fixture()
+@pytest.fixture
 def c2_c3(c2, c3) -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("", (c2, c3)))
 
 
-@pytest.fixture()
+@pytest.fixture
 def block_a2_a3(a2_a3) -> Move:
     return Move(gdl.Subrelation(gdl.Relation("block", (a2_a3,))))
 
 
-@pytest.fixture()
+@pytest.fixture
 def block_a3_a4(a3_a4) -> Move:
     return Move(gdl.Subrelation(gdl.Relation("block", (a3_a4,))))
 
 
-@pytest.fixture()
+@pytest.fixture
 def block_b3_b4(b3_b4) -> Move:
     return Move(gdl.Subrelation(gdl.Relation("block", (b3_b4,))))
 
 
-@pytest.fixture()
+@pytest.fixture
 def block_c1_c2(c1_c2) -> Move:
     return Move(gdl.Subrelation(gdl.Relation("block", (c1_c2,))))
 
 
-@pytest.fixture()
+@pytest.fixture
 def block_c2_c3(c2_c3) -> Move:
     return Move(gdl.Subrelation(gdl.Relation("block", (c2_c3,))))
 
 
-@pytest.fixture()
+@pytest.fixture
 def east() -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("east"))
 
 
-@pytest.fixture()
+@pytest.fixture
 def move_east(east) -> Move:
     return Move(gdl.Subrelation(gdl.Relation("move", (east,))))
 
 
-@pytest.fixture()
+@pytest.fixture
 def left() -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("left"))
 
 
-@pytest.fixture()
+@pytest.fixture
 def right() -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("right"))
 
 
-@pytest.fixture()
+@pytest.fixture
 def border_right_a2_a3(right, a2_a3) -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("border", (right, a2_a3)))
 
 
-@pytest.fixture()
+@pytest.fixture
 def control_left(left) -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("control", (left,)))
 
 
-@pytest.fixture()
+@pytest.fixture
 def at_left_b1(left, b1) -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("at", (left, b1)))
 
 
-@pytest.fixture()
+@pytest.fixture
 def at_left_c1(left, c1) -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("at", (left, c1)))
 
 
-@pytest.fixture()
+@pytest.fixture
 def at_right_b1(right, b1) -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("at", (right, b1)))
 
 
-@pytest.fixture()
+@pytest.fixture
 def at_right_c1(right, c1) -> gdl.Subrelation:
     return gdl.Subrelation(gdl.Relation("at", (right, c1)))
 

@@ -1,6 +1,7 @@
 import clingo.ast as clingo_ast
-import pyggp._clingo as clingo_helper
 import pytest
+
+import pyggp._clingo as clingo_helper
 from pyggp.game_description_language.literals import Literal
 from pyggp.game_description_language.subrelations import Relation, Subrelation
 

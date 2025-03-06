@@ -2,6 +2,7 @@ from typing import Mapping, Optional
 from unittest import mock
 
 import pytest
+
 from pyggp.agents.tree_agents.evaluators import (
     default_evaluator,
     default_factory_evaluator,
@@ -11,12 +12,12 @@ from pyggp.engine_primitives import Role, State
 from pyggp.interpreters import Interpreter
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_interpreter() -> Interpreter:
     return mock.Mock(spec=Interpreter)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_state() -> State:
     return mock.Mock(spec=State)
 

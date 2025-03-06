@@ -1,4 +1,5 @@
 """Exceptions regarding actors."""
+
 from typing import Optional
 
 from pyggp._logging import format_timedelta

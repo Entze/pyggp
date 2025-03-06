@@ -1,4 +1,5 @@
 """Provides the `Literal` class and supporting classes and functions."""
+
 from dataclasses import dataclass
 from enum import IntEnum, auto
 from typing import Type

@@ -1,4 +1,5 @@
 """Provides the `Ruleset` class and supporting classes and functions."""
+
 import collections
 from dataclasses import dataclass, field
 from typing import Iterable, Optional, Sequence

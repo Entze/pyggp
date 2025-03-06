@@ -2,6 +2,7 @@ from typing import Any, Callable
 from unittest import mock
 
 import pytest
+
 from pyggp.agents.tree_agents.evaluators import Evaluator
 from pyggp.agents.tree_agents.nodes import (
     _AbstractInformationSetNode,
@@ -11,22 +12,22 @@ from pyggp.engine_primitives import Role
 from pyggp.interpreters import Interpreter
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_role() -> Role:
     return mock.Mock(spec=Role, name="mock_role")
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_interpreter() -> Interpreter:
     return mock.Mock(spec=Interpreter, name="mock_interpreter")
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_evaluator() -> Evaluator:
     return mock.Mock(spec=Evaluator, name="mock_evaluator")
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_valuation_factory() -> Callable[[Any], Valuation[Any]]:
     return mock.Mock(spec=Callable[[Any], Valuation[Any]], name="mock_valuation_factory")
 

@@ -126,8 +126,7 @@ _V_co = TypeVar("_V_co", covariant=True)
 
 
 class _ConstProtocol(Protocol[_V_co]):
-    def __call__(self, *args: Any, **kwargs: Any) -> _V_co:
-        ...
+    def __call__(self, *args: Any, **kwargs: Any) -> _V_co: ...
 
 
 next_sizeof: Callable[[Sized], int] = functools.partial(weighted_len, factor=SUBRELATION_SIZE)

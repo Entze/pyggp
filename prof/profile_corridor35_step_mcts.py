@@ -1,9 +1,9 @@
 import tqdm
+
+from prof.prof_common_split_corridor35 import corridor_init_state, corridor_interpreter, corridor_left
 from pyggp.agents import MCTSAgent
 from pyggp.engine_primitives import View
 from pyggp.gameclocks import GameClock
-
-from prof.prof_common_split_corridor35 import corridor_init_state, corridor_interpreter, corridor_left
 
 agent = MCTSAgent(interpreter=corridor_interpreter)
 

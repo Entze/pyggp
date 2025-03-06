@@ -1,7 +1,8 @@
 from typing import FrozenSet
 
-import pyggp.game_description_language as gdl
 import pytest
+
+import pyggp.game_description_language as gdl
 from pyggp.engine_primitives import Development, DevelopmentStep, Move, Role, State, Turn, View
 from pyggp.exceptions.interpreter_exceptions import (
     GoalNotIntegerInterpreterError,

@@ -1,9 +1,11 @@
 """All standard actors.
 
 Actors are the interface between the game engine and the agents. Their API is inspired by the ggp.stanford.edu courses'
-third chapter (see http://ggp.stanford.edu/chapters/chapter_03.html).
+third chapter (see
+http://ggp.stanford.edu/chapters/chapter_03.html).
 
 """
+
 import abc
 from dataclasses import dataclass
 from typing import Optional, Protocol

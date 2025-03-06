@@ -1,4 +1,5 @@
 """Provides all subrelations of GDL."""
+
 import operator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar, NamedTuple, Optional, Sequence, Union

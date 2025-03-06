@@ -1,4 +1,5 @@
 """Game clocks for GGP."""
+
 import contextlib
 import re
 import time

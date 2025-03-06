@@ -1,5 +1,3 @@
-from pyggp.agents import MCTSAgent
-from pyggp.gameclocks import DEFAULT_START_CLOCK_CONFIGURATION, GameClock
 from tqdm import trange
 
 from prof.prof_caches import clear_caches, print_cache_info
@@ -9,6 +7,8 @@ from prof.prof_common_gravity_connect_7_6_4 import (
     gravity_connect_7_6_4_ruleset,
     gravity_connect_7_6_4_yellow,
 )
+from pyggp.agents import MCTSAgent
+from pyggp.gameclocks import DEFAULT_START_CLOCK_CONFIGURATION, GameClock
 
 agent = MCTSAgent(interpreter=gravity_connect_7_6_4_interpreter)
 

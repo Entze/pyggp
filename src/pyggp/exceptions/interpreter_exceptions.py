@@ -1,4 +1,5 @@
 """Exceptions regarding interpreters."""
+
 from typing import Iterable, Mapping, Optional, Sequence
 
 import clingo

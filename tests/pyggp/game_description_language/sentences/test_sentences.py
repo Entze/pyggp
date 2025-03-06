@@ -1,4 +1,5 @@
 import pytest
+
 from pyggp.game_description_language.literals import Literal
 from pyggp.game_description_language.sentences import Sentence
 from pyggp.game_description_language.subrelations import Relation

@@ -1,6 +1,7 @@
 from typing import Sequence
 
 import pytest
+
 from pyggp.game_description_language.literals import Literal
 from pyggp.game_description_language.rulesets import get_related_rules
 from pyggp.game_description_language.sentences import Sentence

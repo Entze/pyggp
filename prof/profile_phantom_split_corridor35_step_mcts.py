@@ -1,11 +1,11 @@
 import tqdm
+from rich import print
+
+from prof.prof_common_phantom_split_corridor35 import corridor_init_state, corridor_interpreter, corridor_left
 from pyggp._logging import rich
 from pyggp.agents import MOISMCTSAgent
 from pyggp.engine_primitives import View
 from pyggp.gameclocks import GameClock
-from rich import print
-
-from prof.prof_common_phantom_split_corridor35 import corridor_init_state, corridor_interpreter, corridor_left
 
 agent = MOISMCTSAgent(interpreter=corridor_interpreter)
 

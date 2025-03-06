@@ -1,6 +1,7 @@
 from typing import Mapping, Sequence
 
 import pytest
+
 from pyggp.cli._common import parse_registry
 
 

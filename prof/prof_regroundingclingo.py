@@ -2,14 +2,14 @@ import collections
 from typing import Iterator, Optional
 
 import clingo.ast as clingo_ast
+import tqdm
+
 import pyggp._clingo as clingo_helper
 import pyggp.game_description_language as gdl
-import tqdm
+from prof.prof_common_kalaha43 import kalaha_ruleset
 from pyggp._clingo_interpreter.base import _get_ctl, _get_model, _transform_model
 from pyggp.engine_primitives import Move, Role, State
 from pyggp.interpreters import Interpreter
-
-from prof.prof_common_kalaha43 import kalaha_ruleset
 
 
 def solve(

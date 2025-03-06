@@ -1,17 +1,17 @@
-import pyggp.game_description_language as gdl
-from pyggp._logging import rich
-from pyggp.agents import MOISMCTSAgent
-from pyggp.agents.tree_agents.agents import ONE_S_IN_NS
-from pyggp.engine_primitives import Move
-from pyggp.gameclocks import DEFAULT_START_CLOCK_CONFIGURATION, GameClock
 from rich import print
 
+import pyggp.game_description_language as gdl
 from prof.prof_common_dark_split_corridor34 import (
     corridor_init_state,
     corridor_interpreter,
     corridor_left,
     corridor_right,
 )
+from pyggp._logging import rich
+from pyggp.agents import MOISMCTSAgent
+from pyggp.agents.tree_agents.agents import ONE_S_IN_NS
+from pyggp.engine_primitives import Move
+from pyggp.gameclocks import DEFAULT_START_CLOCK_CONFIGURATION, GameClock
 
 a3 = gdl.Subrelation(gdl.Relation(None, (gdl.Subrelation(gdl.Relation("a")), gdl.Subrelation(gdl.Number(3)))))
 a4 = gdl.Subrelation(gdl.Relation(None, (gdl.Subrelation(gdl.Relation("a")), gdl.Subrelation(gdl.Number(4)))))

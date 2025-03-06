@@ -2,6 +2,7 @@ from collections import namedtuple
 from typing import Any
 
 import cachetools
+
 from pyggp.game_description_language import Subrelation
 from pyggp.interpreters import CachingInterpreter, Interpreter
 

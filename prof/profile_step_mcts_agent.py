@@ -1,9 +1,9 @@
 import tqdm
-from pyggp.agents import MCTSAgent
-from pyggp.gameclocks import DEFAULT_START_CLOCK_CONFIGURATION, GameClock
 
 from prof.prof_caches import clear_caches, print_cache_info
 from prof.prof_common_tic_tac_toe import tic_tac_toe_init_view, tic_tac_toe_ruleset, tic_tac_toe_x
+from pyggp.agents import MCTSAgent
+from pyggp.gameclocks import DEFAULT_START_CLOCK_CONFIGURATION, GameClock
 
 agent = MCTSAgent()
 

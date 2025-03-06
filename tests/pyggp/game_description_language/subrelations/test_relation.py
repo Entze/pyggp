@@ -1,8 +1,9 @@
 from typing import Optional
 
 import clingo.ast as clingo_ast
-import pyggp._clingo as clingo_helper
 import pytest
+
+import pyggp._clingo as clingo_helper
 from pyggp.game_description_language.subrelations import Number, Relation, String, Subrelation, Variable
 
 

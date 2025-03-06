@@ -1,4 +1,5 @@
 import pytest
+
 from pyggp.game_description_language.subrelations import Number, Relation, String, Subrelation
 
 

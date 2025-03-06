@@ -1,6 +1,7 @@
 from typing import Mapping, Sequence
 
 import pytest
+
 from pyggp.cli.argument_specification import ArgumentSpecification
 
 

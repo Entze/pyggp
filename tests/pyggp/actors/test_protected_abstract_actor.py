@@ -1,7 +1,8 @@
 from unittest import mock
 
-import pyggp.game_description_language as gdl
 import pytest
+
+import pyggp.game_description_language as gdl
 from pyggp.actors import _AbstractActor
 from pyggp.engine_primitives import Role, State, View
 from pyggp.exceptions.actor_exceptions import TimeoutActorError

@@ -2,6 +2,7 @@ from typing import Any, Callable
 from unittest import mock
 
 import pytest
+
 from pyggp.agents.tree_agents.evaluators import Evaluator
 from pyggp.agents.tree_agents.nodes import PerfectInformationNode
 from pyggp.agents.tree_agents.valuations import Valuation
@@ -9,32 +10,32 @@ from pyggp.engine_primitives import DevelopmentStep, State, Turn, View
 from pyggp.interpreters import Interpreter
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_state() -> State:
     return mock.Mock(spec=State)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_interpreter() -> Interpreter:
     return mock.Mock(spec=Interpreter)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_evaluator() -> Evaluator:
     return mock.Mock(spec=Evaluator)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_valuation_factory() -> Callable[[Any], Valuation[Any]]:
     return mock.Mock(spec=Callable)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_utility() -> Any:
     return mock.Mock()
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_valuation() -> Valuation[Any]:
     return mock.Mock(spec=Valuation)
 

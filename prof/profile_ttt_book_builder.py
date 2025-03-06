@@ -1,12 +1,12 @@
 import sys
 
-from pyggp._caching import flatlen, weighted_len
-from pyggp.agents.tree_agents.evaluators import final_goal_normalized_utility_evaluator
-from pyggp.books import BookBuilder
 from tqdm import trange
 
 from prof.prof_caches import clear_caches, print_cache_info
 from prof.prof_common_tic_tac_toe import tic_tac_toe_init_state, tic_tac_toe_interpreter, tic_tac_toe_x
+from pyggp._caching import flatlen, weighted_len
+from pyggp.agents.tree_agents.evaluators import final_goal_normalized_utility_evaluator
+from pyggp.books import BookBuilder
 
 print()
 print_cache_info(tic_tac_toe_interpreter)

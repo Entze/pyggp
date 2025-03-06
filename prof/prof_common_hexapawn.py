@@ -2,7 +2,7 @@ import pathlib
 
 import pyggp.game_description_language as gdl
 from pyggp.engine_primitives import Role
-from pyggp.interpreters import ClingoInterpreter, ClingoRegroundingInterpreter
+from pyggp.interpreters import ClingoInterpreter
 
 hexapawn_str: str = pathlib.Path("../src/games/hexapawn.gdl").read_text()
 

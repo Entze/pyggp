@@ -1,4 +1,5 @@
 """Valuations for MCTS agents."""
+
 import contextlib
 from dataclasses import dataclass
 from typing import Any, Optional, Protocol, TypeVar

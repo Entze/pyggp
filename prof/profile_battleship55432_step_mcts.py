@@ -1,9 +1,9 @@
 import tqdm
+
+from prof.prof_common_battleship55432 import battleship_first, battleship_init_state, battleship_interpreter
 from pyggp.agents import MOISMCTSAgent
 from pyggp.engine_primitives import View
 from pyggp.gameclocks import GameClock
-
-from prof.prof_common_battleship55432 import battleship_first, battleship_init_state, battleship_interpreter
 
 agent = MOISMCTSAgent(interpreter=battleship_interpreter)
 

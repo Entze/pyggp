@@ -1,4 +1,5 @@
 """Interpreters for GDL rulesets."""
+
 import abc
 import collections
 import functools

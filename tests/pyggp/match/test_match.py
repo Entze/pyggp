@@ -3,8 +3,9 @@ from typing import TYPE_CHECKING, Any, Mapping, Union
 from unittest import mock
 
 import exceptiongroup
-import pyggp.game_description_language as gdl
 import pytest
+
+import pyggp.game_description_language as gdl
 from pyggp.engine_primitives import RANDOM, Role, State, View
 from pyggp.exceptions.actor_exceptions import ActorError, TimeoutActorError
 from pyggp.exceptions.match_exceptions import DidNotStartMatchError, IllegalMoveMatchError
@@ -16,17 +17,17 @@ if TYPE_CHECKING:
     from pyggp.actors import Actor
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_ruleset() -> gdl.Ruleset:
     return mock.MagicMock()
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_interpreter() -> Interpreter:
     return mock.MagicMock()
 
 
-@pytest.fixture()
+@pytest.fixture
 def one_player_mock_match(
     mock_ruleset: gdl.Ruleset,
     mock_interpreter: Interpreter,
@@ -53,7 +54,7 @@ def one_player_mock_match(
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def two_player_mock_match(
     mock_ruleset: gdl.Ruleset,
     mock_interpreter: Interpreter,

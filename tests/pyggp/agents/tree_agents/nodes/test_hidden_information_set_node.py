@@ -1,7 +1,8 @@
 from unittest import mock
 
-import pyggp.game_description_language as gdl
 import pytest
+
+import pyggp.game_description_language as gdl
 from pyggp.agents.tree_agents.nodes import (
     HiddenInformationSetNode,
     ImperfectInformationNode,
@@ -11,12 +12,12 @@ from pyggp.engine_primitives import Development, DevelopmentStep, Move, Role, St
 from pyggp.interpreters import ClingoInterpreter, Interpreter
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_interpreter() -> Interpreter:
     return mock.Mock(spec=Interpreter, name="mock_interpreter")
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_role() -> Role:
     return mock.Mock(spec=Role, name="mock_role")
 
@@ -275,7 +276,7 @@ def test_prune_removes_states_that_cannot_lead_to_view() -> None:
     pass
 
 
-@pytest.fixture()
+@pytest.fixture
 def tic_tac_toe_ruleset() -> gdl.Ruleset:
     tic_tac_toe = """
     role(x). role(o).
@@ -419,7 +420,7 @@ def test_tic_tac_toe(tic_tac_toe_ruleset) -> None:
     assert tree.possible_states == {state}
 
 
-@pytest.fixture()
+@pytest.fixture
 def minipoker_ruleset() -> gdl.Ruleset:
     minipoker = """
     role(bluffer). role(caller). role(random).

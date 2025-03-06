@@ -3,6 +3,7 @@
 Evaluators are used to evaluate a node in the game tree based on the perspective of the agent.
 
 """
+
 from typing import Any, Callable, Protocol, TypeVar
 
 from pyggp.engine_primitives import Role, State

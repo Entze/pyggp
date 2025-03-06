@@ -4,6 +4,7 @@ Selectors are used to select a key from a mapping of children nodes. Can be used
 a move.
 
 """
+
 import abc
 import math
 import random
@@ -145,10 +146,12 @@ class UCTSelector(Selector[_U_co, _K]):
             win_ratio_factor = 1.0
             win_ratio_offset = 0.0
         key_to_uct: Mapping[_K, float] = {
-            key: (win_ratio_factor * key_to_win_ratio.get(key, float("inf") * win_ratio_factor) + win_ratio_offset)
-            + self.exploration_constant * key_to_exploration_factor.get(key, float("inf"))
-            if state is None or state == key[0]
-            else float("-inf")
+            key: (
+                (win_ratio_factor * key_to_win_ratio.get(key, float("inf") * win_ratio_factor) + win_ratio_offset)
+                + self.exploration_constant * key_to_exploration_factor.get(key, float("inf"))
+                if state is None or state == key[0]
+                else float("-inf")
+            )
             for key in node.children
         }
         return max(key_to_uct, key=key_to_uct.get)

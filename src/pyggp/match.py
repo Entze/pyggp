@@ -1,4 +1,5 @@
 """Abstract representation of a match."""
+
 import abc
 import concurrent.futures as concurrent_futures
 import contextlib

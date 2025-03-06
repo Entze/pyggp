@@ -1,5 +1,6 @@
 import lark
 import pytest
+
 from pyggp.game_description_language import Literal, Number, Relation, Ruleset, Sentence, String, Subrelation, Variable
 from pyggp.game_description_language.grammar import TreeToGDLTransformer, infix_grammar
 

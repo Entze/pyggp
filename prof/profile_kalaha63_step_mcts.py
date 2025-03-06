@@ -1,9 +1,9 @@
 import tqdm
+
+from prof.prof_common_kalaha63 import kalaha_init_state, kalaha_interpreter, kalaha_north
 from pyggp.agents import MCTSAgent
 from pyggp.engine_primitives import View
 from pyggp.gameclocks import GameClock
-
-from prof.prof_common_kalaha63 import kalaha_init_state, kalaha_interpreter, kalaha_north
 
 agent = MCTSAgent(interpreter=kalaha_interpreter)
 

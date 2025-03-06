@@ -1,4 +1,5 @@
 """Exceptions regarding gameclocks."""
+
 from typing import Optional
 
 

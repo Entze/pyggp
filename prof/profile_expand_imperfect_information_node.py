@@ -1,4 +1,3 @@
-from pyggp.agents.tree_agents.nodes import VisibleInformationSetNode
 from tqdm import tqdm
 
 from prof.prof_caches import clear_caches, print_cache_info
@@ -8,6 +7,7 @@ from prof.prof_common_tic_tac_toe import (
     tic_tac_toe_interpreter,
     tic_tac_toe_x,
 )
+from pyggp.agents.tree_agents.nodes import VisibleInformationSetNode
 
 tree = VisibleInformationSetNode(
     role=tic_tac_toe_x,

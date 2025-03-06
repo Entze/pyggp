@@ -1,4 +1,5 @@
 """Valuations for tree agents."""
+
 from typing import Any, Protocol, TypeVar
 
 from typing_extensions import Self

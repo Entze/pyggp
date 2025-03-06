@@ -3,9 +3,10 @@ import contextlib
 import pathlib
 import tempfile
 
-import pyggp.game_description_language as gdl
 import pyswip
 import tqdm
+
+import pyggp.game_description_language as gdl
 from pyggp.engine_primitives import Move, Role, State
 
 rules = r"""role(x).

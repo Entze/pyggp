@@ -1,4 +1,5 @@
 """Exceptions regarding the command line interface."""
+
 import pathlib
 from typing import Iterable, Mapping, Optional, Sequence
 

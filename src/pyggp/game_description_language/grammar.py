@@ -8,6 +8,7 @@ Examples:
     >>> ruleset = gdl.transformer.transform(tree)
 
 """
+
 from typing import Any, Iterable, Sequence, Tuple, Union
 
 import lark

@@ -1,6 +1,7 @@
 from typing import Type
 
 import pytest
+
 from pyggp.exceptions.gameclock_exceptions import (
     DelayInvalidFloatGameClockConfigurationError,
     GameClockConfigurationError,

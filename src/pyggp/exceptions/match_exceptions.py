@@ -1,4 +1,5 @@
 """Exceptions regarding matches."""
+
 from typing import Iterable, Optional
 
 from pyggp._logging import rich

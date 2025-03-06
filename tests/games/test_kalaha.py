@@ -1,8 +1,9 @@
 import pathlib
 from typing import Mapping, Optional
 
-import pyggp.game_description_language as gdl
 import pytest
+
+import pyggp.game_description_language as gdl
 from pyggp.engine_primitives import Development, DevelopmentStep, Move, Role, State, Turn
 from pyggp.interpreters import ClingoRegroundingInterpreter, Interpreter
 from pyggp.records import PerfectInformationRecord
@@ -25,12 +26,12 @@ def kalaha_interpreter(kalaha_ruleset) -> Interpreter:
     return ClingoRegroundingInterpreter.from_ruleset(kalaha_ruleset)
 
 
-@pytest.fixture()
+@pytest.fixture
 def south() -> Role:
     return Role(gdl.Subrelation(gdl.Relation("south")))
 
 
-@pytest.fixture()
+@pytest.fixture
 def north() -> Role:
     return Role(gdl.Subrelation(gdl.Relation("north")))
 

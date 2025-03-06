@@ -3,6 +3,7 @@
 Nodes can be used to represent the game tree.
 
 """
+
 import abc
 import logging
 import random
@@ -80,25 +81,20 @@ class Node(Protocol[_U, _K]):
     def root(self) -> "Node[_U, Any]":
         """Root of the tree."""
 
-    def expand(self, interpreter: Interpreter) -> Mapping[_K, "Node[_U, Any]"]:
-        ...
+    def expand(self, interpreter: Interpreter) -> Mapping[_K, "Node[_U, Any]"]: ...
 
-    def trim(self) -> None:
-        ...
+    def trim(self) -> None: ...
 
     def evaluate(
         self,
         interpreter: Interpreter,
         evaluator: Evaluator[_U],
         valuation_factory: Callable[[_U], Valuation[_U]],
-    ) -> _U:
-        ...
+    ) -> _U: ...
 
-    def develop(self, interpreter: Interpreter, ply: int, view: View) -> "Node[_U, Any]":
-        ...
+    def develop(self, interpreter: Interpreter, ply: int, view: View) -> "Node[_U, Any]": ...
 
-    def is_in_control(self, role: Role) -> bool:
-        ...
+    def is_in_control(self, role: Role) -> bool: ...
 
 
 class _AbstractNode(Node[_U, _K], Generic[_U, _K], abc.ABC):
@@ -581,12 +577,12 @@ class HiddenInformationSetNode(_AbstractInformationSetNode[_U, Turn], Generic[_U
     depth: Final[int] = field(default=0)
     parent: Optional["ImperfectInformationNode[_U]"] = field(default=None, repr=False, hash=False)
     # Disables mypy. Because: ImperfectInformationNode is an InformationSetNode
-    children: Optional[
-        MutableMapping[Tuple[State, Turn], "ImperfectInformationNode[_U]"]
-    ] = field(  # type: ignore[assignment]
-        default=None,
-        repr=False,
-        hash=False,
+    children: Optional[MutableMapping[Tuple[State, Turn], "ImperfectInformationNode[_U]"]] = (
+        field(  # type: ignore[assignment]
+            default=None,
+            repr=False,
+            hash=False,
+        )
     )
     fully_expanded: bool = field(default=False, hash=False)
     visible_child: Optional["VisibleInformationSetNode[_U]"] = field(default=None, repr=False, hash=False)
@@ -767,12 +763,12 @@ class VisibleInformationSetNode(_AbstractInformationSetNode[_U, Move], Generic[_
     depth: Final[int] = field(default=0)
     parent: Optional["ImperfectInformationNode[_U]"] = field(default=None, repr=False, hash=False)
     # Disables mypy. Because: ImperfectInformationNode is an InformationSetNode.
-    children: Optional[
-        MutableMapping[Tuple[State, Move], "ImperfectInformationNode[_U]"]
-    ] = field(  # type: ignore[assignment]
-        default=None,
-        repr=False,
-        hash=False,
+    children: Optional[MutableMapping[Tuple[State, Move], "ImperfectInformationNode[_U]"]] = (
+        field(  # type: ignore[assignment]
+            default=None,
+            repr=False,
+            hash=False,
+        )
     )
     fully_expanded: bool = field(default=False, hash=False)
     view_to_visiblechild: Optional[MutableMapping[View, "VisibleInformationSetNode[_U]"]] = field(
