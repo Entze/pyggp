@@ -21,13 +21,12 @@ import nox as nox_session
 import tomli as tomllib
 from typing_extensions import NotRequired, TypeAlias
 
-PYTHON_VERSIONS: Final[List[str]] = ["3.8", "3.9", "3.10", "3.11", "pypy3.8", "pypy3.9"]
+PYTHON_VERSIONS: Final[List[str]] = ["3.9", "3.10", "3.11", "3.12", "pypy3.9"]
 PYTHON_VERSIONS_SHORT_NAMES: Final[Mapping[str, str]] = {
-    "3.8": "py38",
     "3.9": "py39",
     "3.10": "py310",
     "3.11": "py311",
-    "pypy-3.8": "pypy38",
+    "3.12": "py312",
     "pypy-3.9": "pypy39",
 }
 PYTHON_IMPLEMENTATIONS_SHORT_NAMES: Final[Mapping[str, str]] = {"cpython": "py", "pypy": "pypy"}
