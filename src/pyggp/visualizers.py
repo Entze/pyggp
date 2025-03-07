@@ -296,9 +296,9 @@ class ClingoStringVisualizer(SimpleVisualizer):
             ctl.load(str(p))
             log.debug(f"Loaded %s", p)
         ctl.ground()
-        debug = int(kwargs.pop("debug", 0))
+        debug_level = int(kwargs.pop("debug_level", 0))
         path = pathlib.Path(file) if file is not None else None
-        return cls(ctl=ctl, path=path, debug_level=debug)
+        return cls(ctl=ctl, path=path, debug_level=debug_level)
 
     def _draw_ply(self, ply: int) -> None:
         if ply >= len(self.states) or self.states[ply] is None:
