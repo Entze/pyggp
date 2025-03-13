@@ -466,7 +466,7 @@ class AbstractInterpreter(Interpreter):
             :meth:`is_legal`
 
         """
-        raise NotImplementedError
+        return {role: self.get_legal_moves_by_role(current, role) for role in self.get_roles()}
 
     def is_legal(self, current: Union[State, View], role: Role, move: Move) -> bool:
         """Check if the given move is legal for the given role.
@@ -633,6 +633,7 @@ _NextCache = MutableMapping[int, MutableMapping[Union[State, View], MutableMappi
 _AllNextCache = MutableMapping[int, MutableMapping[Union[State, View], Set[Tuple[Turn, State]]]]
 _SeesCache = MutableMapping[int, MutableMapping[Union[State, View], Mapping[Role, View]]]
 _LegalCache = MutableMapping[int, MutableMapping[Union[State, View], Mapping[Role, FrozenSet[Move]]]]
+_LegalByRoleCache = MutableMapping[Role, MutableMapping[int, MutableMapping[Union[State, View], FrozenSet[Move]]]]
 _GoalCache = MutableMapping[int, MutableMapping[Union[State, View], Mapping[Role, int]]]
 _TerminalCache = MutableMapping[int, MutableMapping[Union[State, View], bool]]
 
@@ -653,6 +654,7 @@ class CachingInterpreter(AbstractInterpreter, abc.ABC):
         all_next: _AllNextCache = field(default_factory=_get_single_nested_defaultdict_factory(set))
         sees: _SeesCache = field(default_factory=functools.partial(collections.defaultdict, dict))
         legal: _LegalCache = field(default_factory=functools.partial(collections.defaultdict, dict))
+        legal_by_role: _LegalByRoleCache = field(default_factory=_get_single_nested_defaultdict_factory(dict))
         goal: _GoalCache = field(default_factory=functools.partial(collections.defaultdict, dict))
         terminal: _TerminalCache = field(default_factory=functools.partial(collections.defaultdict, dict))
 
@@ -663,6 +665,7 @@ class CachingInterpreter(AbstractInterpreter, abc.ABC):
             self.all_next.clear()
             self.sees.clear()
             self.legal.clear()
+            self.legal_by_role.clear()
             self.goal.clear()
             self.terminal.clear()
 
@@ -764,9 +767,26 @@ class CachingInterpreter(AbstractInterpreter, abc.ABC):
             legal_moves = self.cache.legal[current_len][current]
         return legal_moves
 
-    @abc.abstractmethod
     def _get_legal_moves(self, current: Union[State, View]) -> Mapping[Role, FrozenSet[Move]]:
-        raise NotImplementedError
+        return {role: self._get_legal_moves_by_role(current, role) for role in self.get_roles()}
+
+    def get_legal_moves_by_role(self, current: Union[State, View], role: Role) -> FrozenSet[Move]:
+        current_len = len(current)
+        if (
+            self.disable_cache
+            or role not in self.cache.legal_by_role
+            or current_len not in self.cache.legal_by_role[role]
+            or current not in self.cache.legal_by_role[role][current_len]
+        ):
+            legal_moves = self._get_legal_moves_by_role(current, role)
+            if not self.disable_cache:
+                self.cache.legal_by_role[role][current_len][current] = legal_moves
+        else:
+            legal_moves = self.cache.legal_by_role[role][current_len][current]
+        return legal_moves
+
+    def _get_legal_moves_by_role(self, current: Union[State, View], role: Role) -> FrozenSet[Move]:
+        return self._get_legal_moves(current).get(role, frozenset())
 
     def get_goals(self, current: Union[State, View]) -> Mapping[Role, Optional[int]]:
         current_len = len(current)

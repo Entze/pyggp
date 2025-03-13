@@ -1,1 +1,1 @@
-from pyggp.interpreters.base_interpreters import ClingoInterpreter, Interpreter
+from pyggp.interpreters.base_interpreters import ClingoInterpreter, ClingoRegroundingInterpreter, Interpreter
