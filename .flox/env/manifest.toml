@@ -18,6 +18,9 @@ version = 1
 python3 = { pkg-path = "python3" }
 poetry = { pkg-path = "poetry" }
 gcc-unwrapped = { pkg-path = "gcc-unwrapped" }
+hyperfine.pkg-path = "hyperfine"
+glibc.pkg-path = "glibc"
+glibc.systems = ["aarch64-linux", "x86_64-linux"]
 
 
 ## Environment Variables ---------------------------------------------

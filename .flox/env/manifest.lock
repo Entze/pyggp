@@ -6,6 +6,16 @@
       "gcc-unwrapped": {
         "pkg-path": "gcc-unwrapped"
       },
+      "glibc": {
+        "pkg-path": "glibc",
+        "systems": [
+          "aarch64-linux",
+          "x86_64-linux"
+        ]
+      },
+      "hyperfine": {
+        "pkg-path": "hyperfine"
+      },
       "poetry": {
         "pkg-path": "poetry"
       },
@@ -43,13 +53,13 @@
       "description": "GNU Compiler Collection, version 14-20241116",
       "install_id": "gcc-unwrapped",
       "license": "GPL-3.0-or-later",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
       "name": "gcc-14-20241116",
       "pname": "gcc-unwrapped",
-      "rev": "ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
-      "rev_count": 762036,
-      "rev_date": "2025-03-03T13:57:36Z",
-      "scrape_date": "2025-03-04T00:30:58Z",
+      "rev": "d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "rev_count": 762848,
+      "rev_date": "2025-03-05T11:18:42Z",
+      "scrape_date": "2025-03-07T00:30:55Z",
       "stabilities": [
         "unstable"
       ],
@@ -76,13 +86,13 @@
       "description": "GNU Compiler Collection, version 14-20241116",
       "install_id": "gcc-unwrapped",
       "license": "GPL-3.0-or-later",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
       "name": "gcc-14-20241116",
       "pname": "gcc-unwrapped",
-      "rev": "ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
-      "rev_count": 762036,
-      "rev_date": "2025-03-03T13:57:36Z",
-      "scrape_date": "2025-03-04T00:30:58Z",
+      "rev": "d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "rev_count": 762848,
+      "rev_date": "2025-03-05T11:18:42Z",
+      "scrape_date": "2025-03-07T00:30:55Z",
       "stabilities": [
         "unstable"
       ],
@@ -111,13 +121,13 @@
       "description": "GNU Compiler Collection, version 14-20241116",
       "install_id": "gcc-unwrapped",
       "license": "GPL-3.0-or-later",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
       "name": "gcc-14-20241116",
       "pname": "gcc-unwrapped",
-      "rev": "ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
-      "rev_count": 762036,
-      "rev_date": "2025-03-03T13:57:36Z",
-      "scrape_date": "2025-03-04T00:30:58Z",
+      "rev": "d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "rev_count": 762848,
+      "rev_date": "2025-03-05T11:18:42Z",
+      "scrape_date": "2025-03-07T00:30:55Z",
       "stabilities": [
         "unstable"
       ],
@@ -144,13 +154,13 @@
       "description": "GNU Compiler Collection, version 14-20241116",
       "install_id": "gcc-unwrapped",
       "license": "GPL-3.0-or-later",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
       "name": "gcc-14-20241116",
       "pname": "gcc-unwrapped",
-      "rev": "ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
-      "rev_count": 762036,
-      "rev_date": "2025-03-03T13:57:36Z",
-      "scrape_date": "2025-03-04T00:30:58Z",
+      "rev": "d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "rev_count": 762848,
+      "rev_date": "2025-03-05T11:18:42Z",
+      "scrape_date": "2025-03-07T00:30:55Z",
       "stabilities": [
         "unstable"
       ],
@@ -173,19 +183,203 @@
       "priority": 5
     },
     {
+      "attr_path": "glibc",
+      "broken": false,
+      "derivation": "/nix/store/35i4k40ml63m0bp6fh8sgfm2yy7d1pwn-glibc-2.40-66.drv",
+      "description": "GNU C Library",
+      "install_id": "glibc",
+      "license": "LGPL-2.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "name": "glibc-2.40-66",
+      "pname": "glibc",
+      "rev": "d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "rev_count": 762848,
+      "rev_date": "2025-03-05T11:18:42Z",
+      "scrape_date": "2025-03-07T00:30:55Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.40-66",
+      "outputs_to_install": [
+        "bin"
+      ],
+      "outputs": {
+        "bin": "/nix/store/0s2z5wswc329f47az79bg5l0rrz8p1kb-glibc-2.40-66-bin",
+        "debug": "/nix/store/nzcxp7jxnybz92hzq2yq3qng5yb6sknl-glibc-2.40-66-debug",
+        "dev": "/nix/store/bl48bhyxwk014gaknn4cy4dng0zajz8r-glibc-2.40-66-dev",
+        "getent": "/nix/store/72fnpddn9sq50byxgxr917v4s8287w29-glibc-2.40-66-getent",
+        "out": "/nix/store/4gy33i75jagm0nwqh8pxlzg7wli2nf24-glibc-2.40-66",
+        "static": "/nix/store/n1mbjqw0vv4nm6zhgc87rm77bqps3g55-glibc-2.40-66-static"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "glibc",
+      "broken": false,
+      "derivation": "/nix/store/k1labi1rl032s7rrqklppjs7f9r5nr4l-glibc-2.40-66.drv",
+      "description": "GNU C Library",
+      "install_id": "glibc",
+      "license": "LGPL-2.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "name": "glibc-2.40-66",
+      "pname": "glibc",
+      "rev": "d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "rev_count": 762848,
+      "rev_date": "2025-03-05T11:18:42Z",
+      "scrape_date": "2025-03-07T00:30:55Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.40-66",
+      "outputs_to_install": [
+        "bin"
+      ],
+      "outputs": {
+        "bin": "/nix/store/4q7kqnnr018yr54dsqdc5gvfqkwm6xa5-glibc-2.40-66-bin",
+        "debug": "/nix/store/dxbv3bmy8if5k594fsfaqhrrdgqlf32n-glibc-2.40-66-debug",
+        "dev": "/nix/store/1ycjq6h047qqwp3fm9sbl805xnrxlh2h-glibc-2.40-66-dev",
+        "getent": "/nix/store/8v8zywxx7wrr5lzq48rmbai0gc7jnrxl-glibc-2.40-66-getent",
+        "out": "/nix/store/6q2mknq81cyscjmkv72fpcsvan56qhmg-glibc-2.40-66",
+        "static": "/nix/store/18i8scci64nm798fadp0jzim4hypgwxp-glibc-2.40-66-static"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "hyperfine",
+      "broken": false,
+      "derivation": "/nix/store/88k0nc7fh2i9dbb3h21ihali0yyyhsd2-hyperfine-1.19.0.drv",
+      "description": "Command-line benchmarking tool",
+      "install_id": "hyperfine",
+      "license": "[ Apache-2.0, MIT ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "name": "hyperfine-1.19.0",
+      "pname": "hyperfine",
+      "rev": "d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "rev_count": 762848,
+      "rev_date": "2025-03-05T11:18:42Z",
+      "scrape_date": "2025-03-07T00:30:55Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.19.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/9q14zmsjl3sgil27a0mgj3p8y5yvb0j1-hyperfine-1.19.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "hyperfine",
+      "broken": false,
+      "derivation": "/nix/store/jvwya9snvad27hfkz6dr2q4dni4ax09c-hyperfine-1.19.0.drv",
+      "description": "Command-line benchmarking tool",
+      "install_id": "hyperfine",
+      "license": "[ Apache-2.0, MIT ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "name": "hyperfine-1.19.0",
+      "pname": "hyperfine",
+      "rev": "d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "rev_count": 762848,
+      "rev_date": "2025-03-05T11:18:42Z",
+      "scrape_date": "2025-03-07T00:30:55Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.19.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/ryff1lj051mhkh64sfiwih7qrfqfmgrz-hyperfine-1.19.0"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "hyperfine",
+      "broken": false,
+      "derivation": "/nix/store/qvlyl4jgqcaz3yvzi9h55yfqrf9hg4a1-hyperfine-1.19.0.drv",
+      "description": "Command-line benchmarking tool",
+      "install_id": "hyperfine",
+      "license": "[ Apache-2.0, MIT ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "name": "hyperfine-1.19.0",
+      "pname": "hyperfine",
+      "rev": "d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "rev_count": 762848,
+      "rev_date": "2025-03-05T11:18:42Z",
+      "scrape_date": "2025-03-07T00:30:55Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.19.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/gx8s44fc3qvbnlj6hl8l46k89vwm59az-hyperfine-1.19.0"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "hyperfine",
+      "broken": false,
+      "derivation": "/nix/store/rxlbp4v6386lbsdxv3810iwqr3qc7rn1-hyperfine-1.19.0.drv",
+      "description": "Command-line benchmarking tool",
+      "install_id": "hyperfine",
+      "license": "[ Apache-2.0, MIT ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "name": "hyperfine-1.19.0",
+      "pname": "hyperfine",
+      "rev": "d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "rev_count": 762848,
+      "rev_date": "2025-03-05T11:18:42Z",
+      "scrape_date": "2025-03-07T00:30:55Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.19.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/a8sylgj73mbn19nd8b08wy9n5wv0xiag-hyperfine-1.19.0"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
       "attr_path": "poetry",
       "broken": false,
       "derivation": "/nix/store/5qkjbybshmyqf1x96l629r1wqrpazkw2-python3.12-poetry-2.0.1.drv",
       "description": "Python dependency management and packaging made easy",
       "install_id": "poetry",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
       "name": "poetry-2.0.1",
       "pname": "poetry",
-      "rev": "ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
-      "rev_count": 762036,
-      "rev_date": "2025-03-03T13:57:36Z",
-      "scrape_date": "2025-03-04T00:30:58Z",
+      "rev": "d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "rev_count": 762848,
+      "rev_date": "2025-03-05T11:18:42Z",
+      "scrape_date": "2025-03-07T00:30:55Z",
       "stabilities": [
         "unstable"
       ],
@@ -209,13 +403,13 @@
       "description": "Python dependency management and packaging made easy",
       "install_id": "poetry",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
       "name": "poetry-2.0.1",
       "pname": "poetry",
-      "rev": "ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
-      "rev_count": 762036,
-      "rev_date": "2025-03-03T13:57:36Z",
-      "scrape_date": "2025-03-04T00:30:58Z",
+      "rev": "d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "rev_count": 762848,
+      "rev_date": "2025-03-05T11:18:42Z",
+      "scrape_date": "2025-03-07T00:30:55Z",
       "stabilities": [
         "unstable"
       ],
@@ -239,13 +433,13 @@
       "description": "Python dependency management and packaging made easy",
       "install_id": "poetry",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
       "name": "poetry-2.0.1",
       "pname": "poetry",
-      "rev": "ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
-      "rev_count": 762036,
-      "rev_date": "2025-03-03T13:57:36Z",
-      "scrape_date": "2025-03-04T00:30:58Z",
+      "rev": "d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "rev_count": 762848,
+      "rev_date": "2025-03-05T11:18:42Z",
+      "scrape_date": "2025-03-07T00:30:55Z",
       "stabilities": [
         "unstable"
       ],
@@ -269,13 +463,13 @@
       "description": "Python dependency management and packaging made easy",
       "install_id": "poetry",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
       "name": "poetry-2.0.1",
       "pname": "poetry",
-      "rev": "ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
-      "rev_count": 762036,
-      "rev_date": "2025-03-03T13:57:36Z",
-      "scrape_date": "2025-03-04T00:30:58Z",
+      "rev": "d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "rev_count": 762848,
+      "rev_date": "2025-03-05T11:18:42Z",
+      "scrape_date": "2025-03-07T00:30:55Z",
       "stabilities": [
         "unstable"
       ],
@@ -299,13 +493,13 @@
       "description": "High-level dynamically-typed programming language",
       "install_id": "python3",
       "license": "Python-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
       "name": "python3-3.12.9",
       "pname": "python3",
-      "rev": "ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
-      "rev_count": 762036,
-      "rev_date": "2025-03-03T13:57:36Z",
-      "scrape_date": "2025-03-04T00:30:58Z",
+      "rev": "d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "rev_count": 762848,
+      "rev_date": "2025-03-05T11:18:42Z",
+      "scrape_date": "2025-03-07T00:30:55Z",
       "stabilities": [
         "unstable"
       ],
@@ -328,13 +522,13 @@
       "description": "High-level dynamically-typed programming language",
       "install_id": "python3",
       "license": "Python-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
       "name": "python3-3.12.9",
       "pname": "python3",
-      "rev": "ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
-      "rev_count": 762036,
-      "rev_date": "2025-03-03T13:57:36Z",
-      "scrape_date": "2025-03-04T00:30:58Z",
+      "rev": "d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "rev_count": 762848,
+      "rev_date": "2025-03-05T11:18:42Z",
+      "scrape_date": "2025-03-07T00:30:55Z",
       "stabilities": [
         "unstable"
       ],
@@ -358,13 +552,13 @@
       "description": "High-level dynamically-typed programming language",
       "install_id": "python3",
       "license": "Python-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
       "name": "python3-3.12.9",
       "pname": "python3",
-      "rev": "ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
-      "rev_count": 762036,
-      "rev_date": "2025-03-03T13:57:36Z",
-      "scrape_date": "2025-03-04T00:30:58Z",
+      "rev": "d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "rev_count": 762848,
+      "rev_date": "2025-03-05T11:18:42Z",
+      "scrape_date": "2025-03-07T00:30:55Z",
       "stabilities": [
         "unstable"
       ],
@@ -387,13 +581,13 @@
       "description": "High-level dynamically-typed programming language",
       "install_id": "python3",
       "license": "Python-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
       "name": "python3-3.12.9",
       "pname": "python3",
-      "rev": "ba487dbc9d04e0634c64e3b1f0d25839a0a68246",
-      "rev_count": 762036,
-      "rev_date": "2025-03-03T13:57:36Z",
-      "scrape_date": "2025-03-04T00:30:58Z",
+      "rev": "d69ab0d71b22fa1ce3dbeff666e6deb4917db049",
+      "rev_count": 762848,
+      "rev_date": "2025-03-05T11:18:42Z",
+      "scrape_date": "2025-03-07T00:30:55Z",
       "stabilities": [
         "unstable"
       ],
