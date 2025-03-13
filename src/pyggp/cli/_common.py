@@ -123,7 +123,9 @@ def load_agentfactory_by_specification(spec: ArgumentSpecification) -> Callable[
     name_casefold = spec.name.casefold()
     for builtin_agent_name, builtin_agent_type in _BUILTIN_AGENTS.items():
         if name_casefold == builtin_agent_name.casefold():
-            return functools.partial(builtin_agent_type, *spec.args, **spec.kwargs)
+            return functools.partial(
+                builtin_agent_type, *spec.args, **spec.kwargs
+            )  # FIXME: this doesn't load nested specs
     try:
         agent_type = spec.load()
     except (ValueError, ModuleNotFoundError, AttributeError):
