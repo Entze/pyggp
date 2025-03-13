@@ -39,77 +39,77 @@ def corridor_right() -> Role:
 
 @pytest.fixture
 def a2() -> gdl.Subrelation:
-    return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("a")), gdl.Subrelation(gdl.Number(2)))))
+    return gdl.Subrelation(gdl.Relation(None, (gdl.Subrelation(gdl.Relation("a")), gdl.Subrelation(gdl.Number(2)))))
 
 
 @pytest.fixture
 def a3() -> gdl.Subrelation:
-    return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("a")), gdl.Subrelation(gdl.Number(3)))))
+    return gdl.Subrelation(gdl.Relation(None, (gdl.Subrelation(gdl.Relation("a")), gdl.Subrelation(gdl.Number(3)))))
 
 
 @pytest.fixture
 def a4() -> gdl.Subrelation:
-    return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("a")), gdl.Subrelation(gdl.Number(4)))))
+    return gdl.Subrelation(gdl.Relation(None, (gdl.Subrelation(gdl.Relation("a")), gdl.Subrelation(gdl.Number(4)))))
 
 
 @pytest.fixture
 def b1() -> gdl.Subrelation:
-    return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("b")), gdl.Subrelation(gdl.Number(1)))))
+    return gdl.Subrelation(gdl.Relation(None, (gdl.Subrelation(gdl.Relation("b")), gdl.Subrelation(gdl.Number(1)))))
 
 
 @pytest.fixture
 def b2() -> gdl.Subrelation:
-    return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("b")), gdl.Subrelation(gdl.Number(2)))))
+    return gdl.Subrelation(gdl.Relation(None, (gdl.Subrelation(gdl.Relation("b")), gdl.Subrelation(gdl.Number(2)))))
 
 
 @pytest.fixture
 def b3() -> gdl.Subrelation:
-    return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("b")), gdl.Subrelation(gdl.Number(3)))))
+    return gdl.Subrelation(gdl.Relation(None, (gdl.Subrelation(gdl.Relation("b")), gdl.Subrelation(gdl.Number(3)))))
 
 
 @pytest.fixture
 def b4() -> gdl.Subrelation:
-    return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("b")), gdl.Subrelation(gdl.Number(4)))))
+    return gdl.Subrelation(gdl.Relation(None, (gdl.Subrelation(gdl.Relation("b")), gdl.Subrelation(gdl.Number(4)))))
 
 
 @pytest.fixture
 def c1() -> gdl.Subrelation:
-    return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("c")), gdl.Subrelation(gdl.Number(1)))))
+    return gdl.Subrelation(gdl.Relation(None, (gdl.Subrelation(gdl.Relation("c")), gdl.Subrelation(gdl.Number(1)))))
 
 
 @pytest.fixture
 def c2() -> gdl.Subrelation:
-    return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("c")), gdl.Subrelation(gdl.Number(2)))))
+    return gdl.Subrelation(gdl.Relation(None, (gdl.Subrelation(gdl.Relation("c")), gdl.Subrelation(gdl.Number(2)))))
 
 
 @pytest.fixture
 def c3() -> gdl.Subrelation:
-    return gdl.Subrelation(gdl.Relation("", (gdl.Subrelation(gdl.Relation("c")), gdl.Subrelation(gdl.Number(3)))))
+    return gdl.Subrelation(gdl.Relation(None, (gdl.Subrelation(gdl.Relation("c")), gdl.Subrelation(gdl.Number(3)))))
 
 
 @pytest.fixture
 def a2_a3(a2, a3) -> gdl.Subrelation:
-    return gdl.Subrelation(gdl.Relation("", (a2, a3)))
+    return gdl.Subrelation(gdl.Relation(None, (a2, a3)))
 
 
 @pytest.fixture
 def a3_a4(a3, a4) -> gdl.Subrelation:
-    return gdl.Subrelation(gdl.Relation("", (a3, a4)))
+    return gdl.Subrelation(gdl.Relation(None, (a3, a4)))
 
 
 @pytest.fixture
 def b3_b4(b3, b4) -> gdl.Subrelation:
-    return gdl.Subrelation(gdl.Relation("", (b3, b4)))
+    return gdl.Subrelation(gdl.Relation(None, (b3, b4)))
 
 
 @pytest.fixture
 def c1_c2(c1, c2) -> gdl.Subrelation:
-    return gdl.Subrelation(gdl.Relation("", (c1, c2)))
+    return gdl.Subrelation(gdl.Relation(None, (c1, c2)))
 
 
 @pytest.fixture
 def c2_c3(c2, c3) -> gdl.Subrelation:
-    return gdl.Subrelation(gdl.Relation("", (c2, c3)))
+    return gdl.Subrelation(gdl.Relation(None, (c2, c3)))
 
 
 @pytest.fixture

@@ -510,7 +510,10 @@ class Relation:
         if symbol.type != clingo.SymbolType.Function:
             message = "Symbol is not a function"
             raise TypeError(message)
-        return cls(name=symbol.name, arguments=tuple(Subrelation.from_clingo_symbol(arg) for arg in symbol.arguments))
+        name = symbol.name
+        if name == "":
+            name = None
+        return cls(name=name, arguments=tuple(Subrelation.from_clingo_symbol(arg) for arg in symbol.arguments))
 
     # endregion
 
