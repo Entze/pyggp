@@ -701,7 +701,17 @@ class DarkSplitCorridor34Interpreter(CachingInterpreter):
         return ref_interpreter.get_goals(current)
 
     def _is_terminal(self, current: Union[State, View]) -> bool:
-        return ref_interpreter.is_terminal(current)
+        found_ats = 0
+        for subrelation in current:
+            if subrelation.symbol.name == "at":
+                if subrelation.symbol.arguments[1] in finish_line:
+                    assert ref_interpreter.is_terminal(current)
+                    return True
+                found_ats += 1
+                if found_ats >= 2:
+                    break
+        assert not ref_interpreter.is_terminal(current)
+        return False
 
     def get_developments(
         self, record: Record, *, last_ply_is_final_state: Optional[bool] = None
