@@ -1,6 +1,20 @@
 import dataclasses
+from collections import deque
 from dataclasses import dataclass
-from typing import Dict, Final, FrozenSet, Iterator, Mapping, Optional, Set, Tuple, Union
+from typing import (
+    Deque,
+    Dict,
+    Final,
+    FrozenSet,
+    Iterator,
+    Mapping,
+    MutableSequence,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
 
 import pyggp.game_description_language as gdl
 from pyggp.engine_primitives import Development, Move, Role, State, View
@@ -88,6 +102,8 @@ c4: Final[gdl.Subrelation] = gdl.Subrelation(
     gdl.Relation(None, (gdl.Subrelation(gdl.Relation("c")), gdl.Subrelation(gdl.Number(4))))
 )
 
+finish_line: Final[FrozenSet[gdl.Subrelation]] = frozenset((a4, b4, c4))
+
 crossings: Final[FrozenSet[gdl.Subrelation]] = frozenset(
     (
         gdl.Subrelation(gdl.Relation(None, (a1, a2))),
@@ -109,6 +125,25 @@ crossings: Final[FrozenSet[gdl.Subrelation]] = frozenset(
         gdl.Subrelation(gdl.Relation(None, (b4, c4))),
     )
 )
+relevant_crossings: Final[FrozenSet[gdl.Subrelation]] = frozenset(
+    (
+        gdl.Subrelation(gdl.Relation(None, (a1, a2))),
+        gdl.Subrelation(gdl.Relation(None, (a2, a3))),
+        gdl.Subrelation(gdl.Relation(None, (a3, a4))),
+        gdl.Subrelation(gdl.Relation(None, (b1, b2))),
+        gdl.Subrelation(gdl.Relation(None, (b2, b3))),
+        gdl.Subrelation(gdl.Relation(None, (b3, b4))),
+        gdl.Subrelation(gdl.Relation(None, (c1, c2))),
+        gdl.Subrelation(gdl.Relation(None, (c2, c3))),
+        gdl.Subrelation(gdl.Relation(None, (c3, c4))),
+        gdl.Subrelation(gdl.Relation(None, (a1, b1))),
+        gdl.Subrelation(gdl.Relation(None, (b1, c1))),
+        gdl.Subrelation(gdl.Relation(None, (a2, b2))),
+        gdl.Subrelation(gdl.Relation(None, (b2, c2))),
+        gdl.Subrelation(gdl.Relation(None, (a3, b3))),
+        gdl.Subrelation(gdl.Relation(None, (b3, c3))),
+    )
+)
 
 
 def at(role: gdl.Subrelation, pos: gdl.Subrelation) -> gdl.Subrelation:
@@ -123,22 +158,12 @@ def border(role: gdl.Subrelation, crossing: Tuple[gdl.Subrelation, gdl.Subrelati
     return gdl.Subrelation(gdl.Relation("border", (role, gdl.Subrelation(gdl.Relation(None, crossing)))))
 
 
+def _block(crossing: gdl.Subrelation) -> Move:
+    return Move(gdl.Subrelation(gdl.Relation("block", (crossing,))))
+
+
 def block(crossing: Tuple[gdl.Subrelation, gdl.Subrelation]) -> Move:
-    return Move(
-        gdl.Subrelation(
-            gdl.Relation(
-                "block",
-                (
-                    gdl.Subrelation(
-                        gdl.Relation(
-                            None,
-                            crossing,
-                        )
-                    ),
-                ),
-            )
-        )
-    )
+    return _block(gdl.Subrelation(gdl.Relation(None, crossing)))
 
 
 def revealed(role: gdl.Subrelation, crossing: Tuple[gdl.Subrelation, gdl.Subrelation]) -> gdl.Subrelation:
@@ -409,17 +434,48 @@ OTHER: Final[Dict[Role, Role]] = {
 
 NEXT_CELL: Final[Dict[gdl.Subrelation, Dict[Move, gdl.Subrelation]]] = {
     # First row: a1, b1, c1
-    a1: {move_east: b1, move_south: a2},
-    b1: {move_west: a1, move_east: c1, move_south: b2},
-    c1: {move_west: b1, move_south: c2},
+    a1: {
+        move_south: a2,
+        move_east: b1,
+    },
+    b1: {
+        move_south: b2,
+        move_west: a1,
+        move_east: c1,
+    },
+    c1: {
+        move_south: c2,
+        move_west: b1,
+    },
     # Second row: a2, b2, c2
-    a2: {move_north: a1, move_east: b2, move_south: a3},
-    b2: {move_north: b1, move_west: a2, move_east: c2, move_south: b3},
-    c2: {move_north: c1, move_west: b2, move_south: c3},
+    a2: {
+        move_south: a3,
+        move_east: b2,
+        move_north: a1,
+    },
+    b2: {
+        move_south: b3,
+        move_west: a2,
+        move_east: c2,
+        move_north: b1,
+    },
+    c2: {
+        move_south: c3,
+        move_west: b2,
+        move_north: c1,
+    },
     # Third row: a3, b3, c3
-    a3: {move_north: a2, move_east: b3, move_south: a4},
-    b3: {move_north: b2, move_west: a3, move_east: c3, move_south: b4},
-    c3: {move_north: c2, move_west: b3, move_south: c4},
+    a3: {
+        move_south: a4,
+        move_east: b3,
+        move_north: a2,
+    },
+    b3: {move_south: b4, move_west: a3, move_east: c3, move_north: b2},
+    c3: {
+        move_south: c4,
+        move_west: b3,
+        move_north: c2,
+    },
     # Fourth row: a4, b4, c4
     a4: {move_north: a3, move_east: b4},
     b4: {move_north: b3, move_west: a4, move_east: c4},
@@ -444,6 +500,88 @@ MOVE_TO_REACH: Final[Dict[gdl.Subrelation, Dict[gdl.Subrelation, Move]]] = {
     b4: {b3: move_north, a4: move_west, c4: move_east},
     c4: {c3: move_north, b4: move_west},
 }
+
+
+def is_crossing(cell: gdl.Subrelation, neighbor: gdl.Subrelation, crossing: gdl.Subrelation) -> bool:
+    return cell in crossing.symbol.arguments and neighbor in crossing.symbol.arguments
+
+
+def _get_legal_moves_by_role_parse_current(current, role):
+    pos: Optional[gdl.Subrelation] = None
+    other_pos: Optional[gdl.Subrelation] = None
+    in_control: bool | None = None
+    blocked_crossings_role: Set[gdl.Subrelation] = set()
+    blocked_crossings_other: Set[gdl.Subrelation] = set()
+    for subrelation in current:
+        if subrelation.symbol.name == "border":
+            if subrelation.symbol.arguments[0] != role:
+                blocked_crossings_other.add(subrelation.symbol.arguments[1])
+            continue
+        if subrelation.symbol.name == "revealed":
+            if subrelation.symbol.arguments[0] == role:
+                blocked_crossings_role.add(subrelation.symbol.arguments[1])
+            continue
+        if subrelation.symbol.name == "control":
+            in_control = subrelation.symbol.arguments[0] == role
+            continue
+        if pos is not None and other_pos is not None and in_control is not None:
+            continue
+        if subrelation.symbol.name != "at":
+            continue
+        coords = subrelation.symbol.arguments[1]
+        if subrelation.symbol.arguments[0] == role:
+            pos = coords
+        else:
+            other_pos = coords
+    assert pos is not None
+    assert other_pos is not None
+    assert in_control is not None
+    return blocked_crossings_other, blocked_crossings_role, in_control, other_pos, pos
+
+
+def _get_legal_moves_by_role_find_moves(blocked_crossings_role, legal_moves, pos):
+    legal_moves.update(NEXT_CELL[pos])
+    for crossing in blocked_crossings_role:
+        if pos in crossing.symbol.arguments:
+            next_pos_rank: int = 1
+            if crossing.symbol.arguments[next_pos_rank] == pos:
+                next_pos_rank = 0
+            next_pos = crossing.symbol.arguments[next_pos_rank]
+            assert pos != next_pos
+            legal_moves.remove(MOVE_TO_REACH[pos][next_pos])
+    assert legal_moves
+
+
+def _get_legal_moves_by_role_find_blocks(blocked_crossings_other, in_control, legal_moves, other_pos):
+    blockable_crossings: Set[gdl.Subrelation] = set()
+    if in_control:
+        blockable_crossings = set(
+            crossing for crossing in relevant_crossings if crossing not in blocked_crossings_other
+        )
+
+        critical_crossings: Set[gdl.Subrelation] = set()
+        for crossing in blockable_crossings:
+            positions: Deque[gdl.Subrelation] = deque((other_pos,))
+            visited: Set[gdl.Subrelation] = set()
+            reached_finish_line: bool = False
+            while positions and not reached_finish_line:
+                position: gdl.Subrelation = positions.pop()
+                visited.add(position)
+                for next_position in MOVE_TO_REACH[position].keys():
+                    if next_position in visited:
+                        continue
+                    if is_crossing(position, next_position, crossing) or any(
+                        is_crossing(position, next_position, c) for c in blocked_crossings_other
+                    ):
+                        continue
+                    if next_position in finish_line:
+                        reached_finish_line = True
+                    positions.append(next_position)
+            if not reached_finish_line:
+                critical_crossings.add(crossing)
+
+        blockable_crossings.difference_update(critical_crossings)
+    legal_moves.update(_block(crossing) for crossing in blockable_crossings)
 
 
 @dataclass
@@ -549,43 +687,15 @@ class DarkSplitCorridor34Interpreter(CachingInterpreter):
     def _get_legal_moves_by_role(self, current: Union[State, View], role: Role) -> FrozenSet[Move]:
         legal_moves: Set[Move] = set()
 
-        pos: Optional[gdl.Subrelation] = None
-        other_pos: Optional[gdl.Subrelation] = None
-        blocked_crossings_role: Set[gdl.Subrelation] = set()
-        blocked_crossings_other: Set[gdl.Subrelation] = set()
+        blocked_crossings_other, blocked_crossings_role, in_control, other_pos, pos = (
+            _get_legal_moves_by_role_parse_current(current, role)
+        )
 
-        for subrelation in current:
-            if subrelation.symbol.name == "border":
-                if subrelation.symbol.arguments[0] != role:
-                    blocked_crossings_other.add(subrelation.symbol.arguments[1])
-                continue
-            if subrelation.symbol.name == "revealed":
-                if subrelation.symbol.arguments[0] == role:
-                    blocked_crossings_role.add(subrelation.symbol.arguments[1])
-                continue
-            if pos is not None and other_pos is not None:
-                continue
-            if subrelation.symbol.name != "at":
-                continue
-            coords = subrelation.symbol.arguments[1]
-            if subrelation.symbol.arguments[0] == role:
-                pos = coords
-            else:
-                other_pos = coords
+        _get_legal_moves_by_role_find_moves(blocked_crossings_role, legal_moves, pos)
 
-        assert pos is not None
-        assert other_pos is not None
-
-        legal_moves.update(NEXT_CELL[pos])
-        for crossing in blocked_crossings_role:
-            if pos in crossing.symbol.arguments:
-                other_pos_rank: int = 1
-                if crossing.symbol.arguments[other_pos_rank] != pos:
-                    other_pos_rank = 0
-                other_pos = crossing.symbol.arguments[other_pos_rank]
-                legal_moves.remove(MOVE_TO_REACH[pos][other_pos])
-
-        return ref_interpreter.get_legal_moves_by_role(current, role)
+        _get_legal_moves_by_role_find_blocks(blocked_crossings_other, in_control, legal_moves, other_pos)
+        assert all(ref_interpreter.is_legal(current, role, move) for move in legal_moves)
+        return frozenset(legal_moves)
 
     def _get_goals(self, current: Union[State, View]) -> Mapping[Role, Optional[int]]:
         return ref_interpreter.get_goals(current)

@@ -194,6 +194,84 @@ def test_get_sees(
                 )
             ),
         ),
+        (
+            State(
+                frozenset(
+                    (
+                        at(left, a3),
+                        border(left, (a2, a3)),
+                        border(left, (a3, b3)),
+                        at(right, b1),
+                        control(right),
+                    )
+                )
+            ),
+        ),
+        (
+            State(
+                frozenset(
+                    (
+                        at(left, b3),
+                        border(left, (a3, a4)),
+                        border(left, (b3, b4)),
+                        at(right, b1),
+                        control(right),
+                    )
+                )
+            ),
+        ),
+        (
+            State(
+                frozenset(
+                    {
+                        at(left, a1),
+                        at(right, b2),
+                        border(left, (a1, a2)),
+                        border(left, (a2, b2)),
+                        border(left, (b2, b3)),
+                        border(left, (b2, c2)),
+                        border(right, (a1, b1)),
+                        border(right, (a2, a3)),
+                        border(right, (a2, b2)),
+                        border(right, (b2, b3)),
+                        border(right, (b3, b4)),
+                        border(right, (b3, c3)),
+                        border(right, (c1, c2)),
+                        control(right),
+                        revealed(right, (a1, b1)),
+                        revealed(right, (b2, b3)),
+                    }
+                )
+            ),
+        ),
+        (
+            State(
+                frozenset(
+                    {
+                        at(left, c1),
+                        at(right, c1),
+                        border(left, (a1, a2)),
+                        border(left, (b1, b2)),
+                        border(left, (b2, b3)),
+                        border(left, (b3, b4)),
+                        border(left, (b3, c3)),
+                        border(left, (c2, c3)),
+                        border(left, (c3, c4)),
+                        border(right, (a1, a2)),
+                        border(right, (a1, b1)),
+                        border(right, (a2, a3)),
+                        border(right, (a2, b2)),
+                        border(right, (a3, b3)),
+                        border(right, (b2, c2)),
+                        border(right, (b3, b4)),
+                        border(right, (c1, c2)),
+                        border(right, (c2, c3)),
+                        control(right),
+                        revealed(right, (c1, c2)),
+                    }
+                )
+            ),
+        ),
     ),
 )
 def test_get_legal_moves(
