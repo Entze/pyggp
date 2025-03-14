@@ -11,6 +11,7 @@ license = "MIT"
 readme = "README.md"
 packages = [
     { include = "pyggp", from = "src" },
+    { include = "prof", from = "."}
 ]
 keywords = ["ggp", "general game playing", "game", "gdl"]
 classifiers = [
