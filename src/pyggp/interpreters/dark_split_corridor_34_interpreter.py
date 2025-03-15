@@ -2,6 +2,7 @@ import dataclasses
 from collections import deque
 from dataclasses import dataclass
 from typing import (
+    Any,
     Deque,
     Dict,
     Final,
@@ -10,6 +11,7 @@ from typing import (
     Mapping,
     MutableSequence,
     Optional,
+    Self,
     Sequence,
     Set,
     Tuple,
@@ -586,6 +588,31 @@ def _get_legal_moves_by_role_find_blocks(blocked_crossings_other, in_control, le
 
 @dataclass
 class DarkSplitCorridor34Interpreter(CachingInterpreter):
+
+    @classmethod
+    def from_ruleset(
+        cls,
+        ruleset: gdl.Ruleset,
+        *args: Any,
+        disable_cache: bool = False,
+        **kwargs: Any,
+    ) -> Self:
+        return cls(
+            ruleset=ruleset,
+            disable_cache=disable_cache,
+        )
+
+    @classmethod
+    def from_cli(
+        cls,
+        ruleset: gdl.Ruleset,
+        *args: str,
+        disable_cache: Union[str, bool] = False,
+        **kwargs: str,
+    ) -> Self:
+        if isinstance(disable_cache, str):
+            disable_cache = disable_cache.casefold() == "true" or disable_cache == "1"
+        return cls.from_ruleset(ruleset, *args, disable_cache=disable_cache, **kwargs)
 
     @property
     def has_incomplete_information(self) -> bool:

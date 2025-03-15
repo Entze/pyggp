@@ -1,1 +1,2 @@
 from pyggp.interpreters.base_interpreters import ClingoInterpreter, ClingoRegroundingInterpreter, Interpreter
+from pyggp.interpreters.dark_split_corridor_34_interpreter import DarkSplitCorridor34Interpreter
