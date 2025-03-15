@@ -420,7 +420,6 @@ terminal :- finished(_Role).
 """
 
 ruleset: Final[gdl.Ruleset] = gdl.parse(ruleset_str)
-ref_interpreter: Final[Interpreter] = ClingoInterpreter.from_ruleset(ruleset, disable_cache=True)
 
 TRANSLATION: Final[Dict[Move, Tuple[int, int]]] = {
     move_north: (0, -1),
@@ -588,6 +587,7 @@ def _get_legal_moves_by_role_find_blocks(blocked_crossings_other, in_control, le
 
 @dataclass
 class DarkSplitCorridor34Interpreter(CachingInterpreter):
+    ref_interpreter: Interpreter | None = None
 
     @classmethod
     def from_ruleset(
@@ -597,8 +597,10 @@ class DarkSplitCorridor34Interpreter(CachingInterpreter):
         disable_cache: bool = False,
         **kwargs: Any,
     ) -> Self:
+        ref_interpreter = ClingoInterpreter.from_ruleset(ruleset, *args, disable_cache=True, **kwargs)
         return cls(
             ruleset=ruleset,
+            ref_interpreter=ref_interpreter,
             disable_cache=disable_cache,
         )
 
@@ -709,7 +711,7 @@ class DarkSplitCorridor34Interpreter(CachingInterpreter):
         return State(frozenset(nstate))
 
     def _get_sees(self, current: Union[State, View]) -> Mapping[Role, View]:
-        return ref_interpreter.get_sees(current)
+        return self.ref_interpreter.get_sees(current)
 
     def _get_legal_moves_by_role(self, current: Union[State, View], role: Role) -> FrozenSet[Move]:
         legal_moves: Set[Move] = set()
@@ -721,26 +723,29 @@ class DarkSplitCorridor34Interpreter(CachingInterpreter):
         _get_legal_moves_by_role_find_moves(blocked_crossings_role, legal_moves, pos)
 
         _get_legal_moves_by_role_find_blocks(blocked_crossings_other, in_control, legal_moves, other_pos)
-        assert all(ref_interpreter.is_legal(current, role, move) for move in legal_moves)
+        assert all(self.ref_interpreter.is_legal(current, role, move) for move in legal_moves)
         return frozenset(legal_moves)
 
     def _get_goals(self, current: Union[State, View]) -> Mapping[Role, Optional[int]]:
-        return ref_interpreter.get_goals(current)
+        return self.ref_interpreter.get_goals(current)
 
     def _is_terminal(self, current: Union[State, View]) -> bool:
         found_ats = 0
         for subrelation in current:
             if subrelation.symbol.name == "at":
                 if subrelation.symbol.arguments[1] in finish_line:
-                    assert ref_interpreter.is_terminal(current)
+                    assert self.ref_interpreter.is_terminal(current)
                     return True
                 found_ats += 1
                 if found_ats >= 2:
                     break
-        assert not ref_interpreter.is_terminal(current)
+        assert not self.ref_interpreter.is_terminal(current)
         return False
 
     def get_developments(
         self, record: Record, *, last_ply_is_final_state: Optional[bool] = None
     ) -> Iterator[Development]:
-        return ref_interpreter.get_developments(record, last_ply_is_final_state=last_ply_is_final_state)
+        return self.ref_interpreter.get_developments(record, last_ply_is_final_state=last_ply_is_final_state)
+
+    def __rich__(self) -> str:
+        return self.__class__.__name__

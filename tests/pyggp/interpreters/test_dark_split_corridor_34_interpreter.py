@@ -29,8 +29,8 @@ def reference_interpreter(ruleset_gdl) -> ClingoInterpreter:
 
 
 @pytest.fixture
-def interpreter() -> DarkSplitCorridor34Interpreter:
-    return DarkSplitCorridor34Interpreter(disable_cache=True)
+def interpreter(ruleset_gdl) -> DarkSplitCorridor34Interpreter:
+    return DarkSplitCorridor34Interpreter.from_ruleset(ruleset=ruleset_gdl, disable_cache=True)
 
 
 def test_get_roles(reference_interpreter: ClingoInterpreter, interpreter: DarkSplitCorridor34Interpreter) -> None:
