@@ -326,6 +326,7 @@ def build(session: nox.Session) -> None:
         )
     args.extend(
         (
+            "--hidden-import=_cffi_backend",
             "--collect-all",
             "clingo",
             "--name",
