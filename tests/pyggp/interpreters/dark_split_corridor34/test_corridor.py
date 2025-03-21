@@ -210,9 +210,10 @@ corridor_role_observer_view = (
     ),
 )
 
-corridor_role_incontrol_moves = (
+corridor_role_incontrol_mover_actions = (
     (
         corridor.Corridor(pawn_position=Coordinates2D(0, 0)),
+        constants.left,
         constants.left,
         constants.left,
         {
@@ -224,16 +225,19 @@ corridor_role_incontrol_moves = (
         corridor.Corridor(pawn_position=Coordinates2D(1, 0)),
         constants.left,
         constants.left,
+        constants.left,
         {MoveAction.EAST, MoveAction.SOUTH, MoveAction.WEST},
     ),
     (
         corridor.Corridor(pawn_position=Coordinates2D(2, 0)),
         constants.left,
         constants.left,
+        constants.left,
         {MoveAction.SOUTH, MoveAction.WEST},
     ),
     (
         corridor.Corridor(pawn_position=Coordinates2D(1, 1)),
+        constants.left,
         constants.left,
         constants.left,
         {MoveAction.NORTH, MoveAction.EAST, MoveAction.SOUTH, MoveAction.WEST},
@@ -242,6 +246,7 @@ corridor_role_incontrol_moves = (
         corridor.Corridor(pawn_position=Coordinates2D(0, 0)),
         constants.right,
         constants.right,
+        constants.right,
         {
             MoveAction.EAST,
             MoveAction.SOUTH,
@@ -251,16 +256,19 @@ corridor_role_incontrol_moves = (
         corridor.Corridor(pawn_position=Coordinates2D(1, 0)),
         constants.right,
         constants.right,
+        constants.right,
         {MoveAction.EAST, MoveAction.SOUTH, MoveAction.WEST},
     ),
     (
         corridor.Corridor(pawn_position=Coordinates2D(2, 0)),
         constants.right,
         constants.right,
+        constants.right,
         {MoveAction.SOUTH, MoveAction.WEST},
     ),
     (
         corridor.Corridor(pawn_position=Coordinates2D(1, 1)),
+        constants.right,
         constants.right,
         constants.right,
         {MoveAction.NORTH, MoveAction.EAST, MoveAction.SOUTH, MoveAction.WEST},
@@ -272,6 +280,7 @@ corridor_role_incontrol_moves = (
         ),
         constants.left,
         constants.left,
+        constants.left,
         {MoveAction.EAST, MoveAction.SOUTH, MoveAction.WEST},
     ),
     (
@@ -279,6 +288,7 @@ corridor_role_incontrol_moves = (
             pawn_position=Coordinates2D(1, 1),
             borders=corridor._default_borders() | {Coordinates2D(1, 1.5): corridor.Border.REVEALED},
         ),
+        constants.left,
         constants.left,
         constants.left,
         {MoveAction.EAST, MoveAction.NORTH, MoveAction.WEST},
@@ -290,6 +300,7 @@ corridor_role_incontrol_moves = (
         ),
         constants.left,
         constants.left,
+        constants.left,
         {MoveAction.EAST, MoveAction.NORTH, MoveAction.SOUTH},
     ),
     (
@@ -297,6 +308,7 @@ corridor_role_incontrol_moves = (
             pawn_position=Coordinates2D(1, 1),
             borders=corridor._default_borders() | {Coordinates2D(1.5, 1): corridor.Border.REVEALED},
         ),
+        constants.left,
         constants.left,
         constants.left,
         {MoveAction.WEST, MoveAction.NORTH, MoveAction.SOUTH},
@@ -309,13 +321,81 @@ corridor_role_incontrol_moves = (
         ),
         constants.left,
         constants.left,
+        constants.left,
         {MoveAction.WEST, MoveAction.SOUTH},
     ),
     (
         corridor.Corridor(pawn_position=Coordinates2D(1, 1), borders=corridor._default_borders()),
         constants.left,
         constants.right,
-        {BlockAction(crossing) for crossing in corridor._default_borders().keys() if crossing.y <= 3},
+        constants.right,
+        {BlockAction(crossing) for crossing in corridor._default_borders().keys() if crossing.y < 3},
+    ),
+    (
+        corridor.Corridor(
+            pawn_position=Coordinates2D(1, 2),
+            borders=corridor._default_borders()
+            | {
+                Coordinates2D(1, 1.5): corridor.Border.REVEALED,
+                Coordinates2D(0.5, 2): corridor.Border.REVEALED,
+                Coordinates2D(1.5, 2): corridor.Border.REVEALED,
+            },
+        ),
+        constants.left,
+        constants.right,
+        constants.right,
+        {
+            BlockAction(Coordinates2D(0.5, 0)),
+            BlockAction(Coordinates2D(1.5, 0)),
+            BlockAction(Coordinates2D(0, 0.5)),
+            BlockAction(Coordinates2D(1, 0.5)),
+            BlockAction(Coordinates2D(2, 0.5)),
+            BlockAction(Coordinates2D(0.5, 1)),
+            BlockAction(Coordinates2D(1.5, 1)),
+            BlockAction(Coordinates2D(0, 1.5)),
+            BlockAction(Coordinates2D(2, 1.5)),
+            BlockAction(Coordinates2D(0, 2.5)),
+            BlockAction(Coordinates2D(2, 2.5)),
+        },
+    ),
+    (
+        corridor.Corridor(
+            pawn_position=Coordinates2D(2, 2),
+            borders=corridor._default_borders()
+            | {
+                Coordinates2D(2, 2.5): corridor.Border.BLOCKED,
+                Coordinates2D(1.5, 2): corridor.Border.BLOCKED,
+                Coordinates2D(1, 1.5): corridor.Border.REVEALED,
+                Coordinates2D(0.5, 1): corridor.Border.BLOCKED,
+                Coordinates2D(1, 0.5): corridor.Border.REVEALED,
+            },
+        ),
+        constants.right,
+        constants.left,
+        constants.left,
+        {
+            BlockAction(Coordinates2D(0.5, 2)),
+            BlockAction(Coordinates2D(1, 2.5)),
+            BlockAction(Coordinates2D(0, 2.5)),
+            BlockAction(Coordinates2D(1.5, 1)),
+        },
+    ),
+    (
+        corridor.Corridor(
+            pawn_position=Coordinates2D(2, 2),
+            borders=corridor._default_borders()
+            | {
+                Coordinates2D(2, 2.5): corridor.Border.BLOCKED,
+                Coordinates2D(1.5, 2): corridor.Border.BLOCKED,
+                Coordinates2D(1, 1.5): corridor.Border.REVEALED,
+                Coordinates2D(0.5, 1): corridor.Border.BLOCKED,
+                Coordinates2D(1, 0.5): corridor.Border.REVEALED,
+            },
+        ),
+        constants.right,
+        constants.right,
+        constants.left,
+        set(),
     ),
 )
 
@@ -416,7 +496,11 @@ def test_into_view_subrelations(
     assert actual == expected
 
 
-@pytest.mark.parametrize(("corridor_", "role", "in_control", "expected"), corridor_role_incontrol_moves)
-def test_moves(corridor_: corridor.Corridor, role: Role, in_control: Role, expected: Set[MoveAction | BlockAction]):
-    actual = set(corridor_.actions(role, in_control))
+@pytest.mark.parametrize(
+    ("corridor_", "role", "in_control", "mover", "expected"), corridor_role_incontrol_mover_actions
+)
+def test_actions(
+    corridor_: corridor.Corridor, role: Role, in_control: Role, mover: Role, expected: Set[MoveAction | BlockAction]
+):
+    actual = set(corridor_.actions(role, in_control, mover))
     assert actual == expected
