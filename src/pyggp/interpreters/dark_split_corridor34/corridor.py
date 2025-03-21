@@ -1,99 +1,12 @@
 import dataclasses
-import math
-from collections import namedtuple
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Final, Iterable, Mapping, MutableMapping, NamedTuple, Self
+from typing import Iterable, Mapping, MutableMapping, NamedTuple, Self
 
 import pyggp.game_description_language as gdl
 from pyggp.engine_primitives import Role, State
-
-left: Final[Role] = Role(gdl.Subrelation(gdl.Relation("left")))
-right: Final[Role] = Role(gdl.Subrelation(gdl.Relation("right")))
-
-a1: Final[gdl.Subrelation] = gdl.Subrelation(
-    gdl.Relation(None, (gdl.Subrelation(gdl.Relation("a")), gdl.Subrelation(gdl.Number(1))))
-)
-a2: Final[gdl.Subrelation] = gdl.Subrelation(
-    gdl.Relation(None, (gdl.Subrelation(gdl.Relation("a")), gdl.Subrelation(gdl.Number(2))))
-)
-a3: Final[gdl.Subrelation] = gdl.Subrelation(
-    gdl.Relation(None, (gdl.Subrelation(gdl.Relation("a")), gdl.Subrelation(gdl.Number(3))))
-)
-a4: Final[gdl.Subrelation] = gdl.Subrelation(
-    gdl.Relation(None, (gdl.Subrelation(gdl.Relation("a")), gdl.Subrelation(gdl.Number(4))))
-)
-
-b1: Final[gdl.Subrelation] = gdl.Subrelation(
-    gdl.Relation(None, (gdl.Subrelation(gdl.Relation("b")), gdl.Subrelation(gdl.Number(1))))
-)
-b2: Final[gdl.Subrelation] = gdl.Subrelation(
-    gdl.Relation(None, (gdl.Subrelation(gdl.Relation("b")), gdl.Subrelation(gdl.Number(2))))
-)
-b3: Final[gdl.Subrelation] = gdl.Subrelation(
-    gdl.Relation(None, (gdl.Subrelation(gdl.Relation("b")), gdl.Subrelation(gdl.Number(3))))
-)
-b4: Final[gdl.Subrelation] = gdl.Subrelation(
-    gdl.Relation(None, (gdl.Subrelation(gdl.Relation("b")), gdl.Subrelation(gdl.Number(4))))
-)
-
-c1: Final[gdl.Subrelation] = gdl.Subrelation(
-    gdl.Relation(None, (gdl.Subrelation(gdl.Relation("c")), gdl.Subrelation(gdl.Number(1))))
-)
-c2: Final[gdl.Subrelation] = gdl.Subrelation(
-    gdl.Relation(None, (gdl.Subrelation(gdl.Relation("c")), gdl.Subrelation(gdl.Number(2))))
-)
-c3: Final[gdl.Subrelation] = gdl.Subrelation(
-    gdl.Relation(None, (gdl.Subrelation(gdl.Relation("c")), gdl.Subrelation(gdl.Number(3))))
-)
-c4: Final[gdl.Subrelation] = gdl.Subrelation(
-    gdl.Relation(None, (gdl.Subrelation(gdl.Relation("c")), gdl.Subrelation(gdl.Number(4))))
-)
-
-
-class Coordinates2D(NamedTuple):
-    x: float = 0
-    y: float = 0
-
-    @classmethod
-    def from_subrelation(cls, subrelation: gdl.Subrelation) -> Self:
-        assert subrelation.matches_signature(None, arity=2)
-        tuple_ = subrelation.symbol.arguments
-        xo = 0
-        yo = 0
-        if tuple_[0].is_relation and tuple_[1].is_relation:
-            if tuple_[0].symbol.arguments[0] == tuple_[1].symbol.arguments[0]:
-                yo = 0.5
-            else:
-                xo = 0.5
-            tuple_ = tuple_[0].symbol.arguments
-
-        assert tuple_[0].is_relation
-        assert tuple_[1].is_number
-        assert isinstance(tuple_[1].symbol, gdl.Number)
-        xc: str = tuple_[0].symbol.name
-        yc: int = tuple_[1].symbol.number
-        return cls(x=ord(xc) - ord("a") + xo, y=yc - 1 + yo)
-
-    def __add__(self, other: Self) -> Self:
-        return Coordinates2D(self.x + other.x, self.y + other.y)
-
-    def into_subrelation(self) -> gdl.Subrelation:
-        x: int = math.floor(self.x)
-        y: int = math.floor(self.y)
-        if self.x.is_integer() and self.y.is_integer():
-            return Coordinates2D.subrelation_from_x_y(x, y)
-        xn: int = math.ceil(self.x)
-        yn: int = math.ceil(self.y)
-        return gdl.Subrelation(
-            gdl.Relation(None, (Coordinates2D.subrelation_from_x_y(x, y), Coordinates2D.subrelation_from_x_y(xn, yn)))
-        )
-
-    @staticmethod
-    def subrelation_from_x_y(x: int, y: int) -> gdl.Subrelation:
-        return gdl.Subrelation(
-            gdl.Relation(None, (gdl.Subrelation(gdl.Relation(chr(ord("a") + x))), gdl.Subrelation(gdl.Number(y + 1))))
-        )
+from pyggp.interpreters.dark_split_corridor34.actions import Action, BlockAction, MoveAction
+from pyggp.interpreters.dark_split_corridor34.coordinates2d import Coordinates2D
 
 
 class Border(IntEnum):
@@ -133,9 +46,10 @@ def _default_borders() -> MutableMapping[Coordinates2D, Border]:
     }
 
 
-class Corridor(NamedTuple):
+@dataclass(frozen=False)
+class Corridor:
     pawn_position: Coordinates2D = Coordinates2D(1, 0)
-    borders: Mapping[Coordinates2D, Border] = _default_borders()
+    borders: MutableMapping[Coordinates2D, Border] = dataclasses.field(default_factory=_default_borders)
 
     @classmethod
     def from_state(cls, state: State, role: Role) -> Self:
@@ -167,7 +81,58 @@ class Corridor(NamedTuple):
         assert pawn_position is not None
         return Corridor(pawn_position, borders)
 
+    def apply_action(self, action: Action) -> None:
+        if isinstance(action, MoveAction):
+            return self._apply_move_action(action)
+        assert isinstance(action, BlockAction)
+        return self._apply_block_action(action)
+
+    def _apply_move_action(self, action: MoveAction) -> None:
+        translation = action.into_coordinates()
+        crossing = self.pawn_position + (translation / 2)
+        if self.borders[crossing] is Border.OPEN:
+            self.pawn_position = self.pawn_position + translation
+        else:
+            self.borders[crossing] = Border.REVEALED
+
+    def _apply_block_action(self, action: BlockAction) -> None:
+        self.borders[action.crossing] = Border.BLOCKED
+
     def into_subrelations(self, role: Role) -> Iterable[gdl.Subrelation]:
         yield gdl.Subrelation(gdl.Relation("at", (role, self.pawn_position.into_subrelation())))
         for position, border in self.borders.items():
             yield from border.into_subrelations(role, position)
+
+    def into_view_subrelations(self, role: Role, observer: Role) -> Iterable[gdl.Subrelation]:
+        yield gdl.Subrelation(gdl.Relation("at", (role, self.pawn_position.into_subrelation())))
+        for position, border in self.borders.items():
+            if border is Border.REVEALED and role == observer:
+                yield from border.into_subrelations(role, position)
+            elif border is not Border.OPEN and role != observer:
+                yield from Border.BLOCKED.into_subrelations(role, position)
+
+    def actions(self, role: Role, in_control: Role, mover: Role) -> Iterable[MoveAction | BlockAction]:
+        if role == mover:
+            northern_border = self.pawn_position + (MoveAction.NORTH.into_coordinates() / 2)
+            eastern_border = self.pawn_position + (MoveAction.EAST.into_coordinates() / 2)
+            southern_border = self.pawn_position + (MoveAction.SOUTH.into_coordinates() / 2)
+            western_border = self.pawn_position + (MoveAction.WEST.into_coordinates() / 2)
+
+            if southern_border not in self.borders or self.borders[southern_border] is not Border.REVEALED:
+                yield MoveAction.SOUTH
+            if self.pawn_position.x > 0 and (
+                western_border not in self.borders or self.borders[western_border] is not Border.REVEALED
+            ):
+                yield MoveAction.WEST
+            if self.pawn_position.x < 2 and (
+                eastern_border not in self.borders or self.borders[eastern_border] is not Border.REVEALED
+            ):
+                yield MoveAction.EAST
+            if self.pawn_position.y > 0 and (
+                northern_border not in self.borders or self.borders[northern_border] is not Border.REVEALED
+            ):
+                yield MoveAction.NORTH
+        elif role != mover and mover == in_control:
+            for position, border in self.borders.items():
+                if border is Border.OPEN:
+                    yield BlockAction(position)

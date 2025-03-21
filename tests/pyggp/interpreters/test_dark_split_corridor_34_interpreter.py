@@ -108,6 +108,22 @@ def test_get_all_next_states(
                 )
             ),
         ),
+        (
+            State(
+                frozenset(
+                    (
+                        at(left, b1),
+                        at(right, b1),
+                        control(left),
+                        border(left, (b1, b2)),
+                        border(left, (a2, b2)),
+                        revealed(left, (b1, b2)),
+                        border(right, (b1, b2)),
+                        border(right, (b2, c2)),
+                    )
+                )
+            ),
+        ),
     ),
 )
 def test_get_sees(
