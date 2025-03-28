@@ -1,12 +1,12 @@
 import tqdm
 
-from prof.prof_common_dark_split_corridor34 import corridor_left, corridor_right, corridor_second_state
+from prof.prof_common_dark_split_corridor34 import corridor_right, corridor_ruleset, corridor_second_state
 from pyggp.agents import MOISMCTSAgent
 from pyggp.engine_primitives import View
 from pyggp.gameclocks import GameClock
 from pyggp.interpreters.dark_split_corridor_34_interpreter import DarkSplitCorridor34Interpreter
 
-corridor_interpreter = DarkSplitCorridor34Interpreter()
+corridor_interpreter = DarkSplitCorridor34Interpreter.from_ruleset(ruleset=corridor_ruleset, disable_cache=True)
 
 agent = MOISMCTSAgent(interpreter=corridor_interpreter)
 

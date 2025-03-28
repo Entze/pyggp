@@ -8,7 +8,7 @@ corridor_str: str = pathlib.Path("../src/games/dark_split_corridor(3,4).gdl").re
 
 corridor_ruleset: gdl.Ruleset = gdl.parse(corridor_str)
 
-corridor_interpreter = ClingoInterpreter.from_ruleset(corridor_ruleset)
+corridor_interpreter = ClingoInterpreter.from_ruleset(corridor_ruleset, disable_cache=True)
 
 corridor_init_state = corridor_interpreter.get_init_state()
 

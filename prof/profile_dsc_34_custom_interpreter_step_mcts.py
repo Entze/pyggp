@@ -1,12 +1,12 @@
 import tqdm
 
-from prof.prof_common_dark_split_corridor34 import corridor_init_state, corridor_left
+from prof.prof_common_dark_split_corridor34 import corridor_init_state, corridor_left, corridor_ruleset
 from pyggp.agents import MOISMCTSAgent
 from pyggp.engine_primitives import View
 from pyggp.gameclocks import GameClock
 from pyggp.interpreters.dark_split_corridor_34_interpreter import DarkSplitCorridor34Interpreter
 
-corridor_interpreter = DarkSplitCorridor34Interpreter()
+corridor_interpreter = DarkSplitCorridor34Interpreter.from_ruleset(ruleset=corridor_ruleset, disable_cache=True)
 
 agent = MOISMCTSAgent(interpreter=corridor_interpreter)
 
@@ -23,6 +23,6 @@ with agent:
     for _ in tqdm.trange(500):
         agent.step()
 
-    tree = agent.trees[agent.role]
-    print(tree.valuation)
-    print("\n".join(f"{turn} -> {child.valuation}" for turn, child in tree.children.items()))
+    # tree = agent.trees[agent.role]
+    # print(tree.valuation)
+    # print("\n".join(f"{turn} -> {child.valuation}" for turn, child in tree.children.items()))

@@ -20,6 +20,6 @@ with agent:
     for _ in tqdm.trange(500):
         agent.step()
 
-    tree = agent.trees[agent.role]
-    print(tree.valuation)
-    print("\n".join(f"{turn} -> {child.valuation}" for turn, child in tree.children.items()))
+    # tree = agent.trees[agent.role]
+    # print(tree.valuation)
+    # print("\n".join(f"{turn} -> {child.valuation}" for turn, child in tree.children.items()))
