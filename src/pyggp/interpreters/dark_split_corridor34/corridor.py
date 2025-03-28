@@ -1,3 +1,4 @@
+import copy
 import dataclasses
 import math
 from collections import deque
@@ -85,11 +86,11 @@ class Corridor:
 
     def apply_action(self, action: Action) -> None:
         if isinstance(action, MoveAction):
-            return self._apply_move_action(action)
+            return self.apply_move_action(action)
         assert isinstance(action, BlockAction)
-        return self._apply_block_action(action)
+        return self.apply_block_action(action)
 
-    def _apply_move_action(self, action: MoveAction) -> None:
+    def apply_move_action(self, action: MoveAction) -> None:
         translation = action.into_coordinates()
         crossing = self.pawn_position + (translation / 2)
         if self.borders[crossing] is Border.OPEN:
@@ -97,8 +98,24 @@ class Corridor:
         else:
             self.borders[crossing] = Border.REVEALED
 
-    def _apply_block_action(self, action: BlockAction) -> None:
+    def apply_block_action(self, action: BlockAction) -> None:
         self.borders[action.crossing] = Border.BLOCKED
+
+    def transform_with_action(self, action: Action) -> Self:
+        if isinstance(action, MoveAction):
+            return self.transform_with_move_action(action)
+        assert isinstance(action, BlockAction)
+        return self.transform_with_block_action(action)
+
+    def transform_with_move_action(self, action: MoveAction) -> Self:
+        next_corridor = copy.deepcopy(self)
+        next_corridor.apply_move_action(action)
+        return next_corridor
+
+    def transform_with_block_action(self, action: BlockAction) -> Self:
+        next_corridor = copy.deepcopy(self)
+        next_corridor.apply_block_action(action)
+        return next_corridor
 
     def into_subrelations(self, role: Role) -> Iterable[gdl.Subrelation]:
         yield gdl.Subrelation(gdl.Relation("at", (role, self.pawn_position.into_subrelation())))
@@ -115,11 +132,11 @@ class Corridor:
 
     def actions(self, role: Role, in_control: Role, mover: Role) -> Iterable[MoveAction | BlockAction]:
         if role == mover:
-            yield from self._move_actions()
+            yield from self.move_actions()
         elif role != mover and mover == in_control:
-            yield from self._block_actions()
+            yield from self.block_actions()
 
-    def _move_actions(self) -> Iterable[MoveAction]:
+    def move_actions(self) -> Iterable[MoveAction]:
         southern_border = self.pawn_position + (MoveAction.SOUTH.into_coordinates() / 2)
         if southern_border not in self.borders or self.borders[southern_border] is not Border.REVEALED:
             yield MoveAction.SOUTH
@@ -136,46 +153,12 @@ class Corridor:
             if northern_border not in self.borders or self.borders[northern_border] is not Border.REVEALED:
                 yield MoveAction.NORTH
 
-    def _block_actions(self) -> Iterable[BlockAction]:
-        graph: MutableMapping[Coordinates2D, Set[Coordinates2D]] = {
-            Coordinates2D(0, 3): {Coordinates2D(1, 3)},
-            Coordinates2D(1, 3): {Coordinates2D(0, 3), Coordinates2D(2, 3)},
-            Coordinates2D(2, 3): {Coordinates2D(1, 3)},
-        }
-        node_to_parent: MutableMapping[Coordinates2D, Coordinates2D] = {}
-        queue: Deque[Coordinates2D] = deque(maxlen=10)
-        queue.append(self.pawn_position)
+    def block_actions(self) -> Iterable[BlockAction]:
+        graph, node_to_parent, queue = self._block_actions__initialize()
 
-        # BFS to build DAG
-        while queue:
-            position: Coordinates2D = queue.popleft()
-            if position in graph:
-                continue
-            graph[position] = set()
-            for translate in (Coordinates2D(0, 1), Coordinates2D(1, 0), Coordinates2D(-1, 0), Coordinates2D(0, -1)):
-                crossing = position + (translate / 2)
-                if crossing not in self.borders:
-                    continue
-                if self.borders[crossing] is not Border.OPEN:
-                    continue
-                next_position: Coordinates2D = position + translate
-                graph[position].add(next_position)
-                if next_position not in node_to_parent:
-                    node_to_parent[next_position] = position
-                if next_position in graph:
-                    continue
-                queue.append(next_position)
+        self._block_actions__bfs(graph, node_to_parent, queue)
 
-        path: Deque[Coordinates2D] = deque(maxlen=10)
-        for target in (Coordinates2D(0, 3), Coordinates2D(1, 3), Coordinates2D(2, 3)):  # FIXME: Infinite loop
-            if target not in node_to_parent:
-                continue
-            node = target
-            while node != self.pawn_position:
-                path.appendleft(node)
-                node = node_to_parent[node]
-            break
-        path.appendleft(self.pawn_position)
+        path = self._block_actions__build_path(node_to_parent)
         path_len: int = len(path)
         assert path_len > 1
         assert all(position in graph for position in path)
@@ -184,17 +167,7 @@ class Corridor:
             crossing for crossing in self.borders if self.borders[crossing] is Border.OPEN
         }
 
-        # invert path, and note potential bridges
-        potential_bridges: Set[Coordinates2D] = set()
-        for i in range(path_len - 1, 0, -1):
-            u: Coordinates2D = path[i]
-            v: Coordinates2D = path[i - 1]
-            assert v in graph
-            assert u in graph
-            assert u in graph[v]
-            graph[u].add(v)
-            graph[v].remove(u)
-            potential_bridges.add(Coordinates2D(0.5 * abs(u.x + v.x), 0.5 * abs(u.y + v.y)))
+        potential_bridges = self._block_actions__invert_path(graph, path, path_len)
 
         blockable_crossings: Set[Coordinates2D] = {
             crossing for crossing in potentially_blockable_crossings if crossing not in potential_bridges
@@ -202,12 +175,16 @@ class Corridor:
         yield from (BlockAction(crossing) for crossing in blockable_crossings)
         potentially_blockable_crossings.difference_update(blockable_crossings)
 
+        self._block_actions__dfs(graph, path, potentially_blockable_crossings)
+
+        yield from (BlockAction(crossing) for crossing in potentially_blockable_crossings)
+
+    def _block_actions__dfs(self, graph, path, potentially_blockable_crossings):
         # DFS to find s,t bridges
         stack: Deque[Coordinates2D] = deque(maxlen=10)
         stack.append(self.pawn_position)
         bridge_start: Coordinates2D = path.popleft()
         component: Set[Coordinates2D] = set()
-
         while path and potentially_blockable_crossings:
             while stack:
                 position: Coordinates2D = stack.pop()
@@ -242,4 +219,62 @@ class Corridor:
             bridge_start = bridge_end
             component.clear()
 
-        yield from (BlockAction(crossing) for crossing in potentially_blockable_crossings)
+    @staticmethod
+    def _block_actions__invert_path(graph, path, path_len):
+        # invert path, and note potential bridges
+        potential_bridges: Set[Coordinates2D] = set()
+        for i in range(path_len - 1, 0, -1):
+            u: Coordinates2D = path[i]
+            v: Coordinates2D = path[i - 1]
+            assert v in graph
+            assert u in graph
+            assert u in graph[v]
+            graph[u].add(v)
+            graph[v].remove(u)
+            potential_bridges.add(Coordinates2D(0.5 * abs(u.x + v.x), 0.5 * abs(u.y + v.y)))
+        return potential_bridges
+
+    def _block_actions__build_path(self, node_to_parent):
+        path: Deque[Coordinates2D] = deque(maxlen=10)
+        for target in (Coordinates2D(0, 3), Coordinates2D(1, 3), Coordinates2D(2, 3)):
+            if target not in node_to_parent:
+                continue
+            node = target
+            while node != self.pawn_position:
+                path.appendleft(node)
+                node = node_to_parent[node]
+            break
+        path.appendleft(self.pawn_position)
+        return path
+
+    def _block_actions__bfs(self, graph, node_to_parent, queue):
+        # BFS to build graph
+        while queue:
+            position: Coordinates2D = queue.popleft()
+            if position in graph:
+                continue
+            graph[position] = set()
+            for translate in (Coordinates2D(0, 1), Coordinates2D(1, 0), Coordinates2D(-1, 0), Coordinates2D(0, -1)):
+                crossing = position + (translate / 2)
+                if crossing not in self.borders:
+                    continue
+                if self.borders[crossing] is not Border.OPEN:
+                    continue
+                next_position: Coordinates2D = position + translate
+                graph[position].add(next_position)
+                if next_position not in node_to_parent:
+                    node_to_parent[next_position] = position
+                if next_position in graph:
+                    continue
+                queue.append(next_position)
+
+    def _block_actions__initialize(self):
+        graph: MutableMapping[Coordinates2D, Set[Coordinates2D]] = {
+            Coordinates2D(0, 3): {Coordinates2D(1, 3)},
+            Coordinates2D(1, 3): {Coordinates2D(0, 3), Coordinates2D(2, 3)},
+            Coordinates2D(2, 3): {Coordinates2D(1, 3)},
+        }
+        node_to_parent: MutableMapping[Coordinates2D, Coordinates2D] = {}
+        queue: Deque[Coordinates2D] = deque(maxlen=10)
+        queue.append(self.pawn_position)
+        return graph, node_to_parent, queue

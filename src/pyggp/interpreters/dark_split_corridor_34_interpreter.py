@@ -19,7 +19,8 @@ from typing import (
 )
 
 import pyggp.game_description_language as gdl
-from pyggp.engine_primitives import Development, Move, Role, State, View
+import pyggp.interpreters.dark_split_corridor34 as dsc34
+from pyggp.engine_primitives import Development, Move, Role, State, Turn, View
 from pyggp.interpreters import ClingoInterpreter
 from pyggp.interpreters.base_interpreters import CachingInterpreter, Interpreter
 from pyggp.records import Record
@@ -157,7 +158,11 @@ def control(role: gdl.Subrelation) -> gdl.Subrelation:
 
 
 def border(role: gdl.Subrelation, crossing: Tuple[gdl.Subrelation, gdl.Subrelation]) -> gdl.Subrelation:
-    return gdl.Subrelation(gdl.Relation("border", (role, gdl.Subrelation(gdl.Relation(None, crossing)))))
+    return _border(role, gdl.Subrelation(gdl.Relation(None, crossing)))
+
+
+def _border(role: gdl.Subrelation, crossing: gdl.Subrelation):
+    return gdl.Subrelation(gdl.Relation("border", (role, crossing)))
 
 
 def _block(crossing: gdl.Subrelation) -> Move:
@@ -627,107 +632,40 @@ class DarkSplitCorridor34Interpreter(CachingInterpreter):
         return State(frozenset((at(left, b1), at(right, b1), control(left))))
 
     def _get_next_state(self, current: Union[State, View], turn: Mapping[Role, Move]) -> State:
-        role: Role = left
-        if role not in turn:
-            role = right
-        move: Move = turn[role]
-        if move in (move_north, move_east, move_south, move_west):
-            return self._get_next_state_move(current, role, move)
+        state = dsc34.State.from_pyggp_state(current)
+        state.apply(turn)
+        ret = state.into_pyggp_state()
+        assert self.ref_interpreter.get_next_state(current, turn) == ret
+        return ret
 
-        return self._get_next_state_block(current, role, move)
-
-    @staticmethod
-    def _get_next_state_move(current: Union[State, View], role: Role, move: Move) -> State:
-        assert move in (move_north, move_east, move_south, move_west)
-        nstate: Set[gdl.Subrelation] = set(current)
-
-        nstate.remove(control(role))
-        nstate.add(control(OTHER[role]))
-
-        pos, x, y = DarkSplitCorridor34Interpreter.__get_next_state_move_find_pos(current, nstate, role)
-        npos = DarkSplitCorridor34Interpreter.__get_next_state_move_calculate_npos(
-            current, move, nstate, pos, role, x, y
-        )
-        nstate.add(at(role, npos))
-        return State(frozenset(nstate))
-
-    @staticmethod
-    def __get_next_state_move_calculate_npos(current, move, nstate, pos, role, x, y):
-        xd, yd = TRANSLATION[move]
-        pos_rank: int = 0
-        npos_rank: int = 1
-        if xd + yd < 0:
-            pos_rank = 1
-            npos_rank = 0
-        nx: int = x + xd
-        ny: int = y + yd
-        npos: gdl.Subrelation = gdl.Subrelation(
-            gdl.Relation(None, (gdl.Subrelation(gdl.Relation(chr(ord("a") - 1 + nx))), gdl.Subrelation(gdl.Number(ny))))
-        )
-        crossing: Optional[gdl.Subrelation] = None
-        has_border: bool = False
-        for subrelation in current:
-            if subrelation.symbol.name != "border":
-                continue
-            if subrelation.symbol.arguments[0] != role:
-                continue
-            if subrelation.symbol.arguments[1].symbol.arguments[pos_rank] != pos:
-                continue
-            if subrelation.symbol.arguments[1].symbol.arguments[npos_rank] != npos:
-                continue
-            has_border = True
-            crossing = subrelation.symbol.arguments[1]
-        if has_border:
-            assert crossing is not None
-            npos = pos
-            nstate.add(revealed(role, crossing.symbol.arguments))
-        return npos
-
-    @staticmethod
-    def __get_next_state_move_find_pos(current, nstate, role):
-        x: int = 0
-        y: int = 0
-        pos: Optional[gdl.Subrelation] = None
-        for subrelation in current:
-
-            if subrelation.symbol.name != "at":
-                continue
-            if subrelation.symbol.arguments[0] != role:
-                continue
-            nstate.remove(subrelation)
-            pos = subrelation.symbol.arguments[1]
-            x = ord(pos.symbol.arguments[0].symbol.name) - (ord("a") - 1)
-            y = pos.symbol.arguments[1].symbol.number
-        return pos, x, y
-
-    @staticmethod
-    def _get_next_state_block(current: Union[State, View], role: Role, move: Move) -> State:
-        nstate: Set[gdl.Subrelation] = set(current)
-        nstate.remove(control(role))
-        nstate.add(control(OTHER[role]))
-
-        crossing: gdl.Subrelation = move.symbol.arguments[0]
-        nstate.add(border(OTHER[role], crossing.symbol.arguments))
-        return State(frozenset(nstate))
+    def _get_all_next_states(self, current: Union[State, View]) -> Iterator[Tuple[Turn, State]]:
+        state = dsc34.State.from_pyggp_state(current)
+        yield from state.get_all_next_states()
 
     def _get_sees(self, current: Union[State, View]) -> Mapping[Role, View]:
-        return self.ref_interpreter.get_sees(current)
+        state = dsc34.State.from_pyggp_state(current)
+        ret = state.into_pyggp_view()
+        assert self.ref_interpreter.get_sees(current) == ret
+        return ret
 
     def _get_legal_moves_by_role(self, current: Union[State, View], role: Role) -> FrozenSet[Move]:
-        legal_moves: Set[Move] = set()
-
-        blocked_crossings_other, blocked_crossings_role, in_control, other_pos, pos = (
-            _get_legal_moves_by_role_parse_current(current, role)
-        )
-
-        _get_legal_moves_by_role_find_moves(blocked_crossings_role, legal_moves, pos)
-
-        _get_legal_moves_by_role_find_blocks(blocked_crossings_other, in_control, legal_moves, other_pos)
-        assert all(self.ref_interpreter.is_legal(current, role, move) for move in legal_moves)
-        return frozenset(legal_moves)
+        state = dsc34.State.from_pyggp_state(current)
+        ret = state.moves(role)
+        # assert self.ref_interpreter.get_legal_moves_by_role(current, role) == ret
+        return ret
 
     def _get_goals(self, current: Union[State, View]) -> Mapping[Role, Optional[int]]:
-        return self.ref_interpreter.get_goals(current)
+        found_ats = 0
+        for subrelation in current:
+            if subrelation.symbol.name == "at":
+                if subrelation.symbol.arguments[1] in finish_line:
+                    role = Role(subrelation.symbol.arguments[0])
+                    other = dsc34.constants.left if role != dsc34.constants.left else dsc34.constants.right
+                    return {role: 100, other: 0}
+                found_ats += 1
+                if found_ats >= 2:
+                    break
+        return {dsc34.constants.left: None, dsc34.constants.right: None}
 
     def _is_terminal(self, current: Union[State, View]) -> bool:
         found_ats = 0
