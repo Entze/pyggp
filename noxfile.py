@@ -81,6 +81,7 @@ ArgConfig: TypeAlias = Mapping[str, Mapping[str, Args]]
 ARGS: Final[ArgConfig] = dict(
     unittests=dict(
         pytest=Args(
+            static_opts=("-n", "auto"),
             allow_targets=("tests",),
             default_targets=("tests",),
         ),
@@ -222,7 +223,7 @@ def _run(session: nox.Session, context: str, program: str, posargs: Sequence[str
 @nox_session.session(tags=["checks", "tests"], python=PYTHON_VERSIONS)
 def unittests(session: nox.Session) -> None:
     session.install(".")
-    dependencies = ("pytest", "pytest-unordered")
+    dependencies = ("pytest", "pytest-unordered", "pytest-xdist")
     programs = ("pytest",)
     _install(session, *dependencies)
     run = functools.partial(_run, session=session, context="unittests", posargs=session.posargs)
