@@ -78,16 +78,16 @@ class AbstractTreeAgent(InterpreterAgent, TreeAgent[_K, _E], Generic[_K, _E], ab
 
         assert key_to_evaluation, "Assumption: Non-final node implies at least one option."
 
-        move_to_aggregation = self._get_move_to_aggregation(key_to_evaluation)
-        best_move = max(move_to_aggregation, key=move_to_aggregation.get)
-        self._log_options(move_to_aggregation)
+        move_to_evaluation = self.get_move_to_evaluation(key_to_evaluation)
+        best_move = max(move_to_evaluation, key=move_to_evaluation.get)
+        self._log_options(move_to_evaluation)
 
         filtered_keys = {
             key: evaluation for key, evaluation in key_to_evaluation.items() if self._key_to_move(key) == best_move
         }
         key = max(filtered_keys, key=filtered_keys.get)
 
-        self._log_choice(best_move, move_to_aggregation, filtered_keys)
+        self._log_choice(best_move, move_to_evaluation, filtered_keys)
 
         self.descend(key)
         return best_move
@@ -151,15 +151,15 @@ class AbstractTreeAgent(InterpreterAgent, TreeAgent[_K, _E], Generic[_K, _E], ab
         sorted_moves = sorted(move_to_aggregation, key=move_to_aggregation.get, reverse=True)
         for move in sorted_moves[: self.max_logged_options]:
             evaluation = move_to_aggregation[move]
-            msg_parts.append(self._move_evaluation_as_str(move, evaluation))
+            msg_parts.append(self._fmt_move_evaluation_as_str(move, evaluation))
 
         log.debug("\n".join(msg_parts))
 
     @abc.abstractmethod
-    def _get_move_to_aggregation(self, key_to_evaluation: Mapping[_K, _E]) -> Mapping[Move, _E]:
+    def get_move_to_evaluation(self, key_to_evaluation: Mapping[_K, _E]) -> Mapping[Move, _E]:
         raise NotImplementedError
 
-    def _move_evaluation_as_str(
+    def _fmt_move_evaluation_as_str(
         self,
         move: Move,
         evaluation: _E,
@@ -170,9 +170,15 @@ class AbstractTreeAgent(InterpreterAgent, TreeAgent[_K, _E], Generic[_K, _E], ab
         pre_evaluation: str = " ",
         post_evaluation: str = "",
     ) -> str:
-        return f"{pre_move}{move}{post_move}{sep}{pre_evaluation}{self._evaluation_as_str(evaluation)}{post_evaluation}"
+        return (
+            f"{pre_move}{move}{post_move}{sep}{pre_evaluation}{self._move_evaluation_as_str(evaluation)}"
+            f"{post_evaluation}"
+        )
 
-    def _evaluation_as_str(self, evaluation: _E) -> str:
+    def _move_evaluation_as_str(self, evaluation: _E) -> str:
+        return str(evaluation)
+
+    def _key_evaluation_as_str(self, evaluation: _E) -> str:
         return str(evaluation)
 
     @abc.abstractmethod
@@ -182,14 +188,14 @@ class AbstractTreeAgent(InterpreterAgent, TreeAgent[_K, _E], Generic[_K, _E], ab
     def _log_choice(
         self,
         move: Move,
-        move_to_aggregation: Mapping[Move, _E],
+        move_to_evaluation: Mapping[Move, _E],
         filtered_keys: Mapping[_K, _E],
         log_level: int = logging.INFO,
     ) -> None:
         if log.level > log_level:
             return
 
-        evaluation = move_to_aggregation[move]
+        evaluation = move_to_evaluation[move]
 
         best_key = max(filtered_keys, key=filtered_keys.get)
         best_key_evaluation = filtered_keys[best_key]
@@ -197,9 +203,10 @@ class AbstractTreeAgent(InterpreterAgent, TreeAgent[_K, _E], Generic[_K, _E], ab
         worst_key_evaluation = filtered_keys[worst_key]
 
         log.info(
-            "Chose %s (%s, \\[%s, %s])",
+            "Chose %s (val=%s, \\[len=%s, min=%s, max=%s])",
             move,
-            self._evaluation_as_str(evaluation),
-            self._evaluation_as_str(worst_key_evaluation),
-            self._evaluation_as_str(best_key_evaluation),
+            self._move_evaluation_as_str(evaluation),
+            len(filtered_keys),
+            self._key_evaluation_as_str(worst_key_evaluation),
+            self._key_evaluation_as_str(best_key_evaluation),
         )

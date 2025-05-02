@@ -23,7 +23,7 @@ from typing_extensions import ParamSpec, Self
 import pyggp.game_description_language as gdl
 from pyggp._logging import format_amount, format_id, format_ns, format_rate_ns, format_timedelta, log_time, rich
 from pyggp.agents import InterpreterAgent
-from pyggp.agents.tree_agents.agents import ONE_S_IN_NS, AbstractTreeAgent, TreeAgent
+from pyggp.agents.tree_agents.agents import _E, ONE_S_IN_NS, AbstractTreeAgent, TreeAgent
 from pyggp.agents.tree_agents.evaluators import Evaluator, final_goal_normalized_utility_evaluator
 from pyggp.agents.tree_agents.mcts.evaluators import LightPlayoutEvaluator
 from pyggp.agents.tree_agents.mcts.selectors import (
@@ -52,8 +52,13 @@ _K = TypeVar("_K")
 
 _BookValue = float
 _Total_Playouts = int
+_Maximum_Playouts = int
+_Minimum_Playouts = int
 _Utility = float
+_NegativeLinks = int
 _MCTSEvaluation = Tuple[_BookValue, _Total_Playouts, _Utility]
+_ISMCTSEvaluation = Tuple[_BookValue, _Maximum_Playouts, _Minimum_Playouts, _Utility, _NegativeLinks]
+# TODO: Integrate this ^
 
 
 class MonteCarloTreeSearchAgent(TreeAgent[_K, _MCTSEvaluation]):
@@ -156,12 +161,21 @@ class AbstractMCTSAgent(AbstractTreeAgent[_K, _MCTSEvaluation], MonteCarloTreeSe
         )
         log.info("Choosing move at %s", rich(self.get_main_tree(logging.INFO)))
 
-    def _evaluation_as_str(self, evaluation: _MCTSEvaluation) -> str:
-        book_value, total_playouts, utility = evaluation
+    def _move_evaluation_as_str(self, evaluation: _MCTSEvaluation) -> str:
+        book_value, maximum_playouts, avg_utility = evaluation
         strs = []
         if self._can_lookup():
             strs.append(f"{book_value:.2f} | ")
-        avg_utility = utility / total_playouts if total_playouts > 0 else 0.0
+        strs.append(f"{avg_utility:.2f} @ ")
+        strs.append(f"{format_amount(maximum_playouts)}")
+        return "".join(strs)
+
+    def _key_evaluation_as_str(self, evaluation: _MCTSEvaluation) -> str:
+        book_value, total_playouts, total_utility = evaluation
+        strs = []
+        if self._can_lookup():
+            strs.append(f"{book_value:.2f} | ")
+        avg_utility = total_utility / total_playouts if total_playouts > 0 else 0.0
         strs.append(f"{avg_utility:.2f} @ ")
         strs.append(f"{format_amount(total_playouts)}")
         return "".join(strs)
@@ -351,7 +365,7 @@ class MCTSAgent(AbstractSOMCTSAgent[Turn]):
             for turn, child in self.tree.children.items()
         }
 
-    def _get_move_to_aggregation(
+    def get_move_to_evaluation(
         self,
         key_to_evaluation: Mapping[Turn, _MCTSEvaluation],
     ) -> Mapping[Move, _MCTSEvaluation]:
@@ -367,6 +381,26 @@ class MCTSAgent(AbstractSOMCTSAgent[Turn]):
 
 
 _Action = TypeVar("_Action", Turn, Move)
+
+
+def _aggregate_by_total_book_value_total_links_and_maximum_playouts_and_average_utility(key_to_evaluation) -> Tuple[
+    Mapping[Move, float],
+    Mapping[Move, int],
+    Mapping[Move, int],
+    Mapping[Move, float],
+]:
+    move_to_total_book_value: MutableMapping[Move, float] = collections.defaultdict(float)
+    move_to_total_links: MutableMapping[Move, int] = collections.defaultdict(int)
+    move_to_maximum_playouts: MutableMapping[Move, int] = collections.defaultdict(int)
+    move_to_average_utility: MutableMapping[Move, float] = collections.defaultdict(float)
+    for (state, action), (book_value, total_playouts, utility) in key_to_evaluation.items():
+        move_to_total_links[action] += 1
+        move_to_total_book_value[action] += book_value
+        move_to_maximum_playouts[action] = max(move_to_maximum_playouts[action], total_playouts)
+        move_to_average_utility[action] += utility / total_playouts
+    for action in move_to_average_utility:
+        move_to_average_utility[action] /= move_to_total_links[action]
+    return move_to_total_book_value, move_to_total_links, move_to_maximum_playouts, move_to_average_utility
 
 
 @dataclass
@@ -512,24 +546,18 @@ class SingleObserverInformationSetMCTSAgent(AbstractSOMCTSAgent[Tuple[State, _Ac
         node = self.tree.children[key] if key is not None else self.tree
         return sum(self.book.get(state, float("-inf")) for state in node.possible_states) / len(node.possible_states)
 
-    def _get_move_to_aggregation(
+    def get_move_to_evaluation(
         self,
         key_to_evaluation: Mapping[Tuple[State, _Action], _MCTSEvaluation],
     ) -> Mapping[Move, _MCTSEvaluation]:
-        move_to_aggregated_book_value: MutableMapping[Move, float] = collections.defaultdict(float)
-        move_to_total_playouts: MutableMapping[Move, int] = collections.defaultdict(int)
-        move_to_utility: MutableMapping[Move, float] = collections.defaultdict(float)
-        move_to_links: MutableMapping[Move, int] = collections.defaultdict(int)
-        for (state, action), (book_value, total_playouts, utility) in key_to_evaluation.items():
-            move_to_links[action] += 1
-            move_to_aggregated_book_value[action] += book_value
-            move_to_total_playouts[action] += total_playouts
-            move_to_utility[action] += utility
+        move_to_total_book_value, move_to_links, move_to_maximum_playouts, move_to_average_utility = (
+            _aggregate_by_total_book_value_total_links_and_maximum_playouts_and_average_utility(key_to_evaluation)
+        )
         return {
             self._key_to_move(key): (
-                move_to_aggregated_book_value[self._key_to_move(key)] / move_to_links[self._key_to_move(key)],
-                move_to_total_playouts[self._key_to_move(key)],
-                move_to_utility[self._key_to_move(key)],
+                move_to_total_book_value[self._key_to_move(key)] / move_to_links[self._key_to_move(key)],
+                move_to_maximum_playouts[self._key_to_move(key)],
+                move_to_average_utility[self._key_to_move(key)],
             )
             for key in key_to_evaluation
         }
@@ -961,24 +989,18 @@ class MultiObserverInformationSetMCTSAgent(
         total = sum(utilities)
         return total / len(utilities)
 
-    def _get_move_to_aggregation(
+    def get_move_to_evaluation(
         self,
         key_to_evaluation: Mapping[_K, _MCTSEvaluation],
     ) -> Mapping[Move, _MCTSEvaluation]:
-        move_to_aggregated_book_value: MutableMapping[Move, float] = collections.defaultdict(float)
-        move_to_total_playouts: MutableMapping[Move, int] = collections.defaultdict(int)
-        move_to_utility: MutableMapping[Move, float] = collections.defaultdict(float)
-        move_to_links: MutableMapping[Move, int] = collections.defaultdict(int)
-        for (state, action), (book_value, total_playouts, utility) in key_to_evaluation.items():
-            move_to_links[action] += 1
-            move_to_aggregated_book_value[action] += book_value
-            move_to_total_playouts[action] += total_playouts
-            move_to_utility[action] += utility
+        move_to_total_book_value, move_to_links, move_to_maximum_playouts, move_to_average_utility = (
+            _aggregate_by_total_book_value_total_links_and_maximum_playouts_and_average_utility(key_to_evaluation)
+        )
         return {
             self._key_to_move(key): (
-                move_to_aggregated_book_value[self._key_to_move(key)] / move_to_links[self._key_to_move(key)],
-                move_to_total_playouts[self._key_to_move(key)],
-                move_to_utility[self._key_to_move(key)],
+                move_to_total_book_value[self._key_to_move(key)] / move_to_links[self._key_to_move(key)],
+                move_to_maximum_playouts[self._key_to_move(key)],
+                move_to_average_utility[self._key_to_move(key)],
             )
             for key in key_to_evaluation
         }
